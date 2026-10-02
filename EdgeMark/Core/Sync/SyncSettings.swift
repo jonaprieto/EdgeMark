@@ -19,7 +19,10 @@ final class SyncSettings {
     static let defaultTemplate = "notes: {date}"
 
     static var hostName: String {
-        Host.current().localizedName ?? "mac"
+        var buffer = [CChar](repeating: 0, count: 256)
+        guard gethostname(&buffer, buffer.count) == 0 else { return "mac" }
+        let name = String(cString: buffer)
+        return name.isEmpty ? "mac" : name
     }
 
     @ObservationIgnored private let defaults: UserDefaults

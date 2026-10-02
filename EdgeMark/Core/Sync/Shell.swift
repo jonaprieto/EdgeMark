@@ -89,6 +89,7 @@ enum Shell {
         environment["GIT_TERMINAL_PROMPT"] = "0"
         environment["GH_PROMPT_DISABLED"] = "1"
         environment["GH_NO_UPDATE_NOTIFIER"] = "1"
+        environment["LC_ALL"] = "C"
         for (key, value) in env {
             environment[key] = value
         }

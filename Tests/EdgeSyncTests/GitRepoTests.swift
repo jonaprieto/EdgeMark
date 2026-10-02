@@ -73,4 +73,12 @@ final class GitRepoTests: XCTestCase {
         let files = await TestGit.remoteFiles(remote)
         XCTAssertTrue(files.contains("x.md"))
     }
+
+    func testNoUnpushedCommitsWithoutHead() async throws {
+        TestGit.setUpEnvironment()
+        let dir = TestGit.tempDir()
+        _ = await TestGit.run(["init", "-q", "-b", "main"], in: dir)
+        let unpushed = await GitRepo(url: dir).hasUnpushedCommits()
+        XCTAssertFalse(unpushed)
+    }
 }

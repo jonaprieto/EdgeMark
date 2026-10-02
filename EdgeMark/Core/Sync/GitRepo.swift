@@ -4,6 +4,11 @@ import Foundation
 struct GitRepo: Equatable, Hashable {
     let url: URL
 
+    /// The URL is normalized (standardized, no trailing slash) so it works as a dictionary key.
+    init(url: URL) {
+        self.url = URL(fileURLWithPath: url.standardizedFileURL.path, isDirectory: true)
+    }
+
     private var gitDir: URL { url.appendingPathComponent(".git", isDirectory: true) }
 
     var isRepo: Bool {
@@ -52,7 +57,9 @@ struct GitRepo: Equatable, Hashable {
     }
 
     /// True when local commits are not on the upstream yet, or no upstream is set.
+    /// False when the repo has no commits at all.
     func hasUnpushedCommits() async -> Bool {
+        guard await git("rev-parse", "--verify", "HEAD").ok else { return false }
         let r = await git("rev-list", "--count", "@{u}..HEAD")
         guard r.ok else { return true }
         return (Int(r.stdout.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0) > 0

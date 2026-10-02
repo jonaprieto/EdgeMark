@@ -1,0 +1,111 @@
+import XCTest
+@testable import EdgeSync
+
+@MainActor
+final class GitSyncTests: XCTestCase {
+    private func makeSync(root: URL) -> GitSync {
+        let name = "edgesync-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        let settings = SyncSettings(defaults: defaults)
+        settings.syncGists = false
+        settings.debounceSeconds = 0.2
+        let sync = GitSync(settings: settings)
+        sync.configure(root: root)
+        return sync
+    }
+
+    func testOffWhenRootIsNotARepo() {
+        let sync = makeSync(root: TestGit.tempDir())
+        XCTAssertFalse(sync.isActive)
+        XCTAssertEqual(sync.state, .off)
+    }
+
+    func testCommitAndPushLandsOnRemote() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        XCTAssertTrue(sync.isActive)
+        TestGit.write("# Two\n", to: work.appendingPathComponent("two.md"))
+        await sync.commitAndPush(GitRepo(url: work))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("two.md"))
+        guard case .idle(let last) = sync.state, last != nil else {
+            return XCTFail("expected idle with a sync date, got \(sync.state)")
+        }
+    }
+
+    func testPullAllBringsRemoteChangeAndCallsBack() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("from other\n", to: other.appendingPathComponent("other.md"))
+        _ = await TestGit.run(["add", "-A"], in: other)
+        _ = await TestGit.run(["commit", "-q", "-m", "other"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+
+        let sync = makeSync(root: work)
+        var callbacks = 0
+        sync.onPullFinished = { callbacks += 1 }
+        await sync.pullAll()
+        XCTAssertTrue(FileManager.default.fileExists(atPath: work.appendingPathComponent("other.md").path))
+        XCTAssertEqual(callbacks, 1)
+    }
+
+    func testConflictPausesRepo() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("# Note\n\ntheirs\n", to: other.appendingPathComponent("note.md"))
+        _ = await TestGit.run(["commit", "-q", "-am", "theirs"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+
+        let sync = makeSync(root: work)
+        TestGit.write("# Note\n\nmine\n", to: work.appendingPathComponent("note.md"))
+        await sync.commitAndPush(GitRepo(url: work)) // push rejected, pull conflicts
+        XCTAssertEqual(sync.state, .conflict(["note.md"]))
+        XCTAssertTrue(GitRepo(url: work).rebaseInProgress)
+
+        // While paused, further activity must not touch the repo.
+        TestGit.write("# Other\n", to: work.appendingPathComponent("later.md"))
+        await sync.commitAndPush(GitRepo(url: work))
+        XCTAssertEqual(sync.state, .conflict(["note.md"]))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertFalse(files.contains("later.md"))
+    }
+
+    func testDebouncedActivityPushes() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        let note = work.appendingPathComponent("debounced.md")
+        TestGit.write("# D\n", to: note)
+        sync.noteActivity(at: note)
+        sync.noteActivity(at: note) // restarts the timer, still one push
+        try await Task.sleep(for: .seconds(3))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("debounced.md"))
+        let count = await Shell.run("git", ["--git-dir", remote.path, "rev-list", "--count", "HEAD"])
+        XCTAssertEqual(count.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "2")
+    }
+
+    func testRepoContainingPrefersDeepestRepo() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let gist = work.appendingPathComponent("Gists/my-gist", isDirectory: true)
+        try FileManager.default.createDirectory(at: gist, withIntermediateDirectories: true)
+        _ = await TestGit.run(["init", "-q", "-b", "main"], in: gist)
+        _ = await TestGit.run(["remote", "add", "origin", remote.path], in: gist)
+        let bare = work.appendingPathComponent("Gists/no-origin", isDirectory: true)
+        try FileManager.default.createDirectory(at: bare, withIntermediateDirectories: true)
+        _ = await TestGit.run(["init", "-q", "-b", "main"], in: bare)
+        let sync = makeSync(root: work)
+        XCTAssertEqual(sync.gistRepos(), [GitRepo(url: bare), GitRepo(url: gist)].sorted { $0.url.path < $1.url.path })
+        XCTAssertTrue(sync.gistRepos().contains(GitRepo(url: bare)))
+        XCTAssertFalse(sync.repos().contains(GitRepo(url: bare)))
+        XCTAssertEqual(sync.repoContaining(gist.appendingPathComponent("a.md"))?.url, GitRepo(url: gist).url)
+        XCTAssertEqual(sync.repoContaining(work.appendingPathComponent("a.md"))?.url, GitRepo(url: work).url)
+    }
+
+    func testDisabledIsOff() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        sync.settings.enabled = false
+        XCTAssertFalse(sync.isActive)
+        XCTAssertEqual(sync.state, .off)
+    }
+}
