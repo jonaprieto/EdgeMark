@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 
 /// Gist discovery, publishing, and first-time repository setup through `gh`.
 extension GitSync {

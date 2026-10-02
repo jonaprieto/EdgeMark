@@ -191,7 +191,6 @@
   "settings.general.hideDelay": "Ausblendeverzögerung",
   "settings.general.hideOnClickOutside": "Ausblenden beim Klick außerhalb",
   "settings.general.system": "System",
-  "settings.general.autoCheckUpdates": "Automatisch nach Updates suchen",
   "settings.general.launchAtLogin": "Beim Login starten",
   "settings.general.language": "Sprache",
   "settings.general.storage": "Notizen-Speicher",

@@ -240,6 +240,7 @@ enum FileStorage {
             let currentRelative = note.folder.isEmpty ? savedFilename : "\(note.folder)/\(savedFilename)"
             let currentURL = rootURL.appendingPathComponent(currentRelative)
             try Data(note.content.utf8).write(to: currentURL, options: .atomic)
+            Task { @MainActor in GitSync.shared.noteActivity(at: currentURL) }
             upsertSidecarEntry(for: note, filename: savedFilename)
             return (filename: savedFilename, updatedContent: nil, savedAt: modificationDate(for: note) ?? Date())
         }
@@ -296,6 +297,7 @@ enum FileStorage {
         // Write body only — no YAML header
         let bodyToWrite = updatedContent ?? note.content
         try Data(bodyToWrite.utf8).write(to: newURL, options: .atomic)
+        Task { @MainActor in GitSync.shared.noteActivity(at: newURL) }
 
         // Sync sidecar — use actual disk mtime as savedAt so the external-change
         // detector sees no diff on the next poll cycle.
@@ -1023,5 +1025,13 @@ enum FileStorage {
         // Strip leading # for markdown headings
         let stripped = firstLine.drop { $0 == "#" || $0 == " " }
         return stripped.isEmpty ? "Untitled" : String(stripped)
+    }
+
+    // MARK: - Sync helpers
+
+    /// True when the note has a co-located image directory. Gists cannot hold directories.
+    static func hasAssetDirectory(for note: Note) -> Bool {
+        let stem = (note.savedFilename.map { ($0 as NSString).deletingPathExtension }) ?? sanitizeForFilename(note.title)
+        return FileManager.default.fileExists(atPath: assetDirURL(stem: stem, folder: note.folder).path)
     }
 }

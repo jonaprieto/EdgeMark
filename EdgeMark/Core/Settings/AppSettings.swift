@@ -137,11 +137,6 @@ final class AppSettings {
         }
     }
 
-    /// Whether to automatically check for updates on launch (24h throttle).
-    var autoCheckUpdates: Bool = true {
-        didSet { UserDefaults.standard.set(autoCheckUpdates, forKey: "autoCheckUpdates") }
-    }
-
     /// Whether the app launches at login.
     var launchAtLogin: Bool = false {
         didSet {
@@ -325,7 +320,6 @@ final class AppSettings {
         {
             appearanceMode = mode
         }
-        autoCheckUpdates = UserDefaults.standard.object(forKey: "autoCheckUpdates") as? Bool ?? true
         launchAtLogin = UserDefaults.standard.object(forKey: "launchAtLogin") as? Bool ?? false
         if let raw = UserDefaults.standard.object(forKey: "spellCheckingEnabled") as? Bool {
             spellCheckingEnabled = raw

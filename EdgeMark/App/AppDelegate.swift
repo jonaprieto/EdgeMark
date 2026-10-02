@@ -1,7 +1,6 @@
 import Cocoa
 import OSLog
 import SwiftUI
-import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Strong single instance set on launch, so SwiftUI views (e.g. GeneralSettingsTab)
@@ -13,7 +12,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem?
     private var updateWindowController: UpdateWindowController?
     private var localeObserver: Any?
-    private var updateTimer: Timer?
     private var storageSubmenu: NSMenu?
     private var storageMenuItem: NSMenuItem?
 
@@ -32,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SidecarMigration.runIfNeeded()
         try? SidecarStore.shared.load()
         panelController?.noteStore.loadFromDisk()
+        GitSync.shared.configure(root: StorageSettings.shared.resolvedStorageDirectory)
         ShortcutManager.shared.setup(panelController: panelController!)
 
         // "Choose on launch": if the toggle is on and ≥2 roots are configured, show the
@@ -51,17 +50,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.setupMenuBar()
         }
 
-        // Auto-check for updates on launch (24h throttle, respects user setting)
-        if AppSettings.shared.autoCheckUpdates {
-            Task {
-                await checkForUpdatesOnLaunch()
-            }
-            scheduleBackgroundUpdateCheck()
-        }
+        // Fork: no automatic update checks, upstream builds would replace this one.
+        // "Check for Updates" in the menu still works on demand.
+    }
 
-        // Request notification permission for background update alerts
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        UNUserNotificationCenter.current().delegate = self
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        panelController?.noteStore.saveDirtyNotes()
+        guard GitSync.shared.isActive, GitSync.shared.settings.pushOnQuit else { return .terminateNow }
+        Task { @MainActor in
+            await GitSync.shared.flushOnQuit()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     func applicationWillTerminate(_: Notification) {
@@ -216,6 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // path reloaded notes but not the sidecar — a latent bug fixed here).
             try? SidecarStore.shared.load()
             self?.panelController?.noteStore.loadFromDisk()
+            GitSync.shared.configure(root: StorageSettings.shared.resolvedStorageDirectory)
             withAnimation(.easeInOut(duration: 0.2)) {
                 self?.panelController?.noteStore.rootSwitchToken &+= 1
             }
@@ -272,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NotificationCenter.default.post(name: .storageRootChanged, object: nil)
+        GitSync.shared.configure(root: StorageSettings.shared.resolvedStorageDirectory)
         let name = root.displayName
         let suffix = temporary ? " (temporary)" : ""
         Log.app.info("[AppDelegate] switched storage root to \(name, privacy: .public)\(suffix, privacy: .public)")
@@ -293,49 +295,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Auto-Update
-
-    private func checkForUpdatesOnLaunch() async {
-        let lastCheck = UserDefaults.standard.object(forKey: "lastUpdateCheckDate") as? Date
-        if let lastCheck, Date().timeIntervalSince(lastCheck) < 86400 {
-            Log.updates.debug("[AppDelegate] update check skipped (throttled)")
-            return
-        }
-        await performUpdateCheck(source: .launch)
-    }
-
-    /// Schedule a repeating background update check. Uses a random initial delay (1–6 hours)
-    /// so the check time naturally varies day-to-day for users with fixed routines.
-    private func scheduleBackgroundUpdateCheck() {
-        let initialDelay = Double.random(in: 3600 ... 21600) // 1–6 hours
-        Log.updates.debug("[AppDelegate] background update check scheduled in \(Int(initialDelay / 60))m")
-        updateTimer = Timer.scheduledTimer(withTimeInterval: initialDelay, repeats: false) { [weak self] _ in
-            self?.fireBackgroundCheck()
-            // After first fire, repeat every 24 hours
-            self?.updateTimer = Timer.scheduledTimer(withTimeInterval: 86400, repeats: true) { [weak self] _ in
-                self?.fireBackgroundCheck()
-            }
-        }
-    }
-
-    private func fireBackgroundCheck() {
-        guard AppSettings.shared.autoCheckUpdates else { return }
-        Task {
-            await updateState.check(source: .launch)
-            if case let .available(release) = updateState.status {
-                sendUpdateNotification(version: release.version)
-            }
-        }
-    }
-
-    private func sendUpdateNotification(version: String) {
-        let content = UNMutableNotificationContent()
-        content.title = L10n.shared["updates.available.title"]
-        content.body = L10n.shared.t("updates.available.notification", version)
-        content.sound = .default
-
-        let request = UNNotificationRequest(identifier: "edgemark-update", content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
-    }
 
     func performUpdateCheck(source: UpdateState.Source) async {
         await updateState.check(source: source)
@@ -456,28 +415,5 @@ extension AppDelegate: NSMenuDelegate {
     func menuDidClose(_: NSMenu) {
         Log.app.debug("[MenuBar] menu closed — resuming edge detector")
         panelController?.edgeDetector.menuDidClose()
-    }
-}
-
-// MARK: - Notification Delegate
-
-extension AppDelegate: UNUserNotificationCenterDelegate {
-    /// Show notification even when app is in foreground (menu bar app is always "foreground").
-    func userNotificationCenter(
-        _: UNUserNotificationCenter,
-        willPresent _: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void,
-    ) {
-        completionHandler([.banner, .sound])
-    }
-
-    /// User tapped the notification — open the update window.
-    func userNotificationCenter(
-        _: UNUserNotificationCenter,
-        didReceive _: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void,
-    ) {
-        showUpdateWindow()
-        completionHandler()
     }
 }

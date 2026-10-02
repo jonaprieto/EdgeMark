@@ -191,7 +191,6 @@
   "settings.general.hideDelay": "Hide delay",
   "settings.general.hideOnClickOutside": "Hide when clicking outside",
   "settings.general.system": "System",
-  "settings.general.autoCheckUpdates": "Check for updates automatically",
   "settings.general.launchAtLogin": "Launch at login",
   "settings.general.language": "Language",
   "settings.general.storage": "Notes Storage",

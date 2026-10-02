@@ -448,8 +448,13 @@ final class SidePanelController: NSWindowController {
         let side = PanelSettings.shared.edgeSide
         Log.window.info("[SidePanelController] showPanel (\(side.rawValue, privacy: .public) edge)")
 
-        // Check for external file changes every time the panel becomes visible
-        noteStore.checkForExternalChanges()
+        // Pull from GitHub, then check for external file changes (the pull is one of them).
+        if GitSync.shared.isActive {
+            GitSync.shared.onPullFinished = { [weak self] in self?.noteStore.checkForExternalChanges() }
+            Task { await GitSync.shared.pullAll() }
+        } else {
+            noteStore.checkForExternalChanges()
+        }
 
         isShown = true
         let gen = animationGeneration &+ 1
@@ -519,6 +524,9 @@ final class SidePanelController: NSWindowController {
     }
 
     func hidePanel(restoreFocus: Bool = true) {
+        // Moves, trashes and renames do not go through writeNote; closing the panel
+        // ends an editing session, so start the debounce for every repo.
+        GitSync.shared.noteActivity(at: nil)
         guard let window, isShown else { return }
         Log.window.info("[SidePanelController] hidePanel")
         noteStore.saveDirtyNotes()

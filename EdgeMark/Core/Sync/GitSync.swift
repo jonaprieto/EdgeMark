@@ -109,8 +109,10 @@ final class GitSync {
     }
 
     /// Pull every repo in turn, then let the app re-read files from disk.
+    /// A pull already in flight runs the callback immediately and again when it completes.
     func pullAll() async {
-        guard isActive, !pulling else { return }
+        guard isActive else { return }
+        if pulling { onPullFinished?(); return }
         pulling = true
         defer { pulling = false }
         await refreshGistsIfNeeded()

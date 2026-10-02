@@ -6,7 +6,6 @@ struct GeneralSettingsTab: View {
     @Environment(AppSettings.self) var appSettings
 
     @State private var appearanceMode: AppSettings.AppearanceMode
-    @State private var autoCheckUpdates: Bool
     @State private var launchAtLogin: Bool
     @State private var selectedLocale: String
     // Multiple storage locations (#55). Mirrored from StorageSettings (a plain class,
@@ -19,7 +18,6 @@ struct GeneralSettingsTab: View {
 
     init() {
         _appearanceMode = State(initialValue: AppSettings.shared.appearanceMode)
-        _autoCheckUpdates = State(initialValue: AppSettings.shared.autoCheckUpdates)
         _launchAtLogin = State(initialValue: AppSettings.shared.launchAtLogin)
         _roots = State(initialValue: StorageSettings.shared.storageRoots)
         _activeRootID = State(initialValue: StorageSettings.shared.activeStorageRoot?.id)
@@ -169,11 +167,6 @@ struct GeneralSettingsTab: View {
             }
 
             Section {
-                Toggle(l10n["settings.general.autoCheckUpdates"], isOn: $autoCheckUpdates)
-                    .onChange(of: autoCheckUpdates) { _, v in
-                        AppSettings.shared.autoCheckUpdates = v
-                    }
-
                 Toggle(l10n["settings.general.launchAtLogin"], isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, v in
                         AppSettings.shared.launchAtLogin = v
