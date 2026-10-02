@@ -15,6 +15,15 @@ struct ContentFooterBar: View {
                 showSortMenu()
             }
             Spacer()
+            if GitSync.shared.isActive || GitSync.shared.rootRepo != nil {
+                SyncStatusDot(state: GitSync.shared.state)
+                    .help(l10n.t("sync.footer.help", GitSync.shared.state.summary))
+                    .padding(.trailing, 6)
+                    .onTapGesture {
+                        SettingsRouter.shared.tab = .sync
+                        openSettings()
+                    }
+            }
             HeaderIconButton(systemName: "gearshape", help: l10n["menu.settings"]) {
                 showSettingsMenu()
             }

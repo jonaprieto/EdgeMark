@@ -24,8 +24,11 @@ struct SyncSettingsTab: View {
             optionsSection
         }
         .formStyle(.grouped)
-        .task { await refresh() }
-        .onChange(of: sync.state) { _, _ in Task { await refresh() } }
+        .task {
+            await refreshAccounts()
+            await refreshRemote()
+        }
+        .onChange(of: sync.state) { _, _ in Task { await refreshRemote() } }
     }
 
     // MARK: - Sections
@@ -120,11 +123,14 @@ struct SyncSettingsTab: View {
 
     // MARK: - Actions
 
-    private func refresh() async {
+    private func refreshAccounts() async {
         accounts = await GistCatalog.accounts()
-        if settings.account.isEmpty, let first = accounts.first {
+        if let first = accounts.first, !accounts.contains(settings.account) {
             settings.account = first
         }
+    }
+
+    private func refreshRemote() async {
         remote = await sync.rootRepo?.originURL()
         if repoName.isEmpty {
             repoName = sync.root?.lastPathComponent ?? "notes"
@@ -135,7 +141,8 @@ struct SyncSettingsTab: View {
         busy = true
         await work()
         busy = false
-        await refresh()
+        await refreshAccounts()
+        await refreshRemote()
     }
 
     private func openOnGitHub() async {

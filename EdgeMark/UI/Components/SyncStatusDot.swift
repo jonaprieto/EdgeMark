@@ -19,8 +19,11 @@ struct SyncStatusDot: View {
             .fill(color)
             .frame(width: 7, height: 7)
             .opacity(state == .syncing && pulse ? 0.3 : 1)
-            .animation(state == .syncing ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: pulse)
-            .onAppear { pulse = true }
+            .onChange(of: state == .syncing, initial: true) { _, syncing in
+                withAnimation(syncing ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default) {
+                    pulse = syncing
+                }
+            }
             .accessibilityLabel(state.summary)
     }
 }
