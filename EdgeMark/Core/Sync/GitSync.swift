@@ -20,9 +20,12 @@ final class GitSync {
 
     private(set) var root: URL?
     /// Per-repo status, keyed by working-copy URL.
-    private(set) var repoStates: [URL: SyncState] = [:]
+    /// Writable from `GitSync+GitHub.swift`, which records gist clone failures.
+    var repoStates: [URL: SyncState] = [:]
     /// Runs after every `pullAll`, so the app can re-read notes from disk.
     @ObservationIgnored var onPullFinished: (() -> Void)?
+    /// Message from the last Create/Connect attempt in Settings, cleared on success.
+    var lastSetupError: String?
 
     @ObservationIgnored private var debounceTasks: [URL: Task<Void, Never>] = [:]
     @ObservationIgnored private var pulling = false
@@ -178,11 +181,6 @@ final class GitSync {
             await commitAndPush(repo)
         }
     }
-
-    // MARK: - Hooks filled in by GitSync+Gists
-
-    /// Clones gists that are not on disk yet. No-op until Task 5 implements it.
-    func refreshGistsIfNeeded() async {}
 
     // MARK: - Private
 
