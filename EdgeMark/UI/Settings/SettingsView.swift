@@ -1,37 +1,60 @@
 import SwiftUI
 
+enum SettingsTab: Hashable {
+    case general, behavior, tags, keyboard, sync, about
+}
+
+/// Lets other UI (the footer dot) ask the Settings window to open on a given tab.
+@Observable
+final class SettingsRouter {
+    static let shared = SettingsRouter()
+    var tab: SettingsTab = .general
+}
+
 struct SettingsView: View {
     @Environment(L10n.self) var l10n
+    @Bindable private var router = SettingsRouter.shared
 
     var body: some View {
-        TabView {
+        TabView(selection: $router.tab) {
             GeneralSettingsTab()
                 .tabItem {
                     Label(l10n["settings.tab.general"], systemImage: "gearshape")
                 }
+                .tag(SettingsTab.general)
 
             BehaviorSettingsTab()
                 .tabItem {
                     Label(l10n["settings.tab.behavior"], systemImage: "macwindow.on.rectangle")
                 }
+                .tag(SettingsTab.behavior)
 
             TagsSettingsTab()
                 .tabItem {
                     Label(l10n["settings.tab.tags"], systemImage: "tag")
                 }
+                .tag(SettingsTab.tags)
 
             KeyboardSettingsTab()
                 .tabItem {
                     Label(l10n["settings.tab.keyboard"], systemImage: "keyboard")
                 }
+                .tag(SettingsTab.keyboard)
+
+            SyncSettingsTab()
+                .tabItem {
+                    Label(l10n["settings.tab.sync"], systemImage: "arrow.triangle.2.circlepath.icloud")
+                }
+                .tag(SettingsTab.sync)
 
             AboutSettingsTab()
                 .tabItem {
                     Label(l10n["settings.tab.about"], systemImage: "info.circle")
                 }
+                .tag(SettingsTab.about)
         }
         .background(FixedWindowTitle(title: l10n["settings.windowTitle"]))
-        .frame(width: 520, height: 420)
+        .frame(width: 520, height: 460)
     }
 }
 
