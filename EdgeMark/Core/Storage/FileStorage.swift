@@ -137,11 +137,52 @@ enum FileStorage {
         return base.appendingPathComponent(dirName, isDirectory: true)
     }
 
-    /// Stem of the note's asset dir: the file name on disk without ".md". It differs from the
-    /// sanitized title for duplicate titles ("Title 2"), externally renamed files and gist
-    /// notes, so the title is only used before the note's first save.
+    /// Stem of the note's asset dir: the file name on disk without ".md", made safe for the
+    /// editor's link patterns (`NoteText.safeAssetStem`). It differs from the sanitized title
+    /// for duplicate titles ("Title 2"), externally renamed files and gist notes, so the
+    /// title is only used before the note's first save.
     static func assetStem(for note: Note) -> String {
+        NoteText.safeAssetStem(fileStem(for: note))
+    }
+
+    /// Every asset dir stem the note may have on disk: `assetStem`, then the plain file
+    /// stem that images were stored under before stems were made safe (when different).
+    static func assetStems(for note: Note) -> [String] {
+        let stems = [assetStem(for: note), fileStem(for: note)]
+        return stems[0] == stems[1] ? [stems[0]] : stems
+    }
+
+    private static func fileStem(for note: Note) -> String {
         ((note.savedFilename ?? note.filename) as NSString).deletingPathExtension
+    }
+
+    /// Asset dirs to rename when a note's file stem changes from `oldStem` to `newStem`:
+    /// the safe-stem dir, plus a dir from before stems were safe, which is folded into the
+    /// new safe-stem dir (its references are rewritten with it).
+    private static func assetStemRenames(from oldStem: String, to newStem: String) -> [(old: String, new: String)] {
+        let newSafe = NoteText.safeAssetStem(newStem)
+        var pairs = [(old: NoteText.safeAssetStem(oldStem), new: newSafe)]
+        if oldStem != pairs[0].old {
+            pairs.append((old: oldStem, new: newSafe))
+        }
+        return pairs.filter { $0.old != $0.new }
+    }
+
+    /// Move `source` to `destination`, or move its files into `destination` when that
+    /// already exists. Image names are UUIDs, so merged files never collide.
+    private static func moveOrMergeDirectory(_ source: URL, into destination: URL) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: destination.path) else {
+            try? fm.moveItem(at: source, to: destination)
+            return
+        }
+        let files = (try? fm.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)) ?? []
+        for f in files {
+            try? fm.moveItem(at: f, to: destination.appendingPathComponent(f.lastPathComponent))
+        }
+        if (try? fm.contentsOfDirectory(atPath: source.path))?.isEmpty == true {
+            try? fm.removeItem(at: source)
+        }
     }
 
     /// Save image data to the note's asset directory.
@@ -167,7 +208,12 @@ enum FileStorage {
     /// the note body nor any of `otherBodies` references. Other files are never touched.
     /// Removes the asset dir itself only when it is empty afterwards.
     static func cleanOrphanedImages(forNote note: Note, body: String, otherBodies: [String]) {
-        let assetDir = assetDirURL(stem: assetStem(for: note), folder: note.folder)
+        for stem in assetStems(for: note) {
+            cleanOrphanedImages(in: assetDirURL(stem: stem, folder: note.folder), note: note, body: body, otherBodies: otherBodies)
+        }
+    }
+
+    private static func cleanOrphanedImages(in assetDir: URL, note: Note, body: String, otherBodies: [String]) {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: assetDir.path) else { return }
         let orphans = ImageCleanup.orphanedImageNames(in: names, body: body, otherBodies: otherBodies)
         var removed = 0
@@ -285,39 +331,25 @@ enum FileStorage {
             // Rename asset dir and rewrite image paths in body
             let oldStem = (oldFilename as NSString).deletingPathExtension
             let newStem = (newFilename as NSString).deletingPathExtension
-            if oldStem != newStem {
-                let oldAsset = assetDirURL(stem: oldStem, folder: note.folder)
-                let newAsset = assetDirURL(stem: newStem, folder: note.folder)
-                if FileManager.default.fileExists(atPath: oldAsset.path) {
-                    if FileManager.default.fileExists(atPath: newAsset.path) {
-                        // Merge — UUID filenames guarantee no collision
-                        let existing = (try? FileManager.default.contentsOfDirectory(
-                            at: oldAsset, includingPropertiesForKeys: nil,
-                        )) ?? []
-                        for f in existing {
-                            try? FileManager.default.moveItem(
-                                at: f, to: newAsset.appendingPathComponent(f.lastPathComponent),
-                            )
-                        }
-                        try? FileManager.default.removeItem(at: oldAsset)
-                    } else {
-                        try? FileManager.default.moveItem(at: oldAsset, to: newAsset)
-                    }
-                    Log.storage.info("[Image] renamed asset dir .\(oldStem, privacy: .public) → .\(newStem, privacy: .public)")
-                    // Rewrite image refs in body — scoped to actual filenames, no false positives
-                    var body = note.content
-                    let imgs = (try? FileManager.default.contentsOfDirectory(
-                        at: newAsset, includingPropertiesForKeys: nil,
-                    )) ?? []
-                    for f in imgs {
-                        let name = f.lastPathComponent
-                        body = body.replacingOccurrences(
-                            of: "(." + oldStem + "/" + name + ")",
-                            with: "(." + newStem + "/" + name + ")",
-                        )
-                    }
-                    updatedContent = body
+            for pair in assetStemRenames(from: oldStem, to: newStem) {
+                let oldAsset = assetDirURL(stem: pair.old, folder: note.folder)
+                let newAsset = assetDirURL(stem: pair.new, folder: note.folder)
+                guard FileManager.default.fileExists(atPath: oldAsset.path) else { continue }
+                moveOrMergeDirectory(oldAsset, into: newAsset)
+                Log.storage.info("[Image] renamed asset dir .\(pair.old, privacy: .public) → .\(pair.new, privacy: .public)")
+                // Rewrite image refs in body — scoped to actual filenames, no false positives
+                var body = updatedContent ?? note.content
+                let imgs = (try? FileManager.default.contentsOfDirectory(
+                    at: newAsset, includingPropertiesForKeys: nil,
+                )) ?? []
+                for f in imgs {
+                    let name = f.lastPathComponent
+                    body = body.replacingOccurrences(
+                        of: "(." + pair.old + "/" + name + ")",
+                        with: "(." + pair.new + "/" + name + ")",
+                    )
                 }
+                updatedContent = body
             }
         }
 
@@ -414,11 +446,17 @@ enum FileStorage {
         // Move asset dir alongside note — rename stem too if filename changed.
         let oldStem = (actualFilename as NSString).deletingPathExtension
         let newStem = (destFilename as NSString).deletingPathExtension
-        let srcAsset = assetDirURL(stem: oldStem, folder: note.folder)
-        let dstAsset = assetDirURL(stem: newStem, folder: toFolder)
-        if FileManager.default.fileExists(atPath: srcAsset.path) {
-            try? FileManager.default.moveItem(at: srcAsset, to: dstAsset)
-            Log.storage.debug("[Image] moved asset dir for '\(note.title, privacy: .public)' to folder '\(toFolder, privacy: .public)'")
+        var stemPairs = [(old: NoteText.safeAssetStem(oldStem), new: NoteText.safeAssetStem(newStem))]
+        if oldStem != stemPairs[0].old {
+            stemPairs.append((old: oldStem, new: newStem))
+        }
+        for pair in stemPairs {
+            let srcAsset = assetDirURL(stem: pair.old, folder: note.folder)
+            let dstAsset = assetDirURL(stem: pair.new, folder: toFolder)
+            if FileManager.default.fileExists(atPath: srcAsset.path) {
+                try? FileManager.default.moveItem(at: srcAsset, to: dstAsset)
+                Log.storage.debug("[Image] moved asset dir for '\(note.title, privacy: .public)' to folder '\(toFolder, privacy: .public)'")
+            }
         }
 
         // Update path and savedAt in sidecar — moveItem advances mtime
@@ -466,14 +504,21 @@ enum FileStorage {
         )
         try? SidecarStore.shared.save()
 
-        // Move asset dir to trash: .My-Note/ → .trash/.<UUID>_My-Note/
-        let stem = sanitizeForFilename(note.title)
+        // Move asset dir to trash: .My-Note/ → .trash/.<UUID>_My-Note/. A note may have
+        // both a safe-stem dir and one from before stems were safe; both go to the same place.
         let trashStem = (trashFilename as NSString).deletingPathExtension
-        let srcAsset = assetDirURL(stem: stem, folder: note.folder)
         let dstAsset = assetDirURL(stem: trashStem, folder: "", inTrash: true)
-        if FileManager.default.fileExists(atPath: srcAsset.path) {
-            try? FileManager.default.moveItem(at: srcAsset, to: dstAsset)
-            Log.storage.debug("[Image] moved asset dir to trash for '\(note.title, privacy: .public)'")
+        var stems = assetStems(for: note)
+        let titleStem = sanitizeForFilename(note.title)
+        if !stems.contains(titleStem) {
+            stems.append(titleStem)
+        }
+        for stem in stems {
+            let srcAsset = assetDirURL(stem: stem, folder: note.folder)
+            if FileManager.default.fileExists(atPath: srcAsset.path) {
+                moveOrMergeDirectory(srcAsset, into: dstAsset)
+                Log.storage.debug("[Image] moved asset dir to trash for '\(note.title, privacy: .public)'")
+            }
         }
     }
 
@@ -519,7 +564,7 @@ enum FileStorage {
 
             // Restore asset dir: .trash/.<UUID>_Title/ → <folder>/.Title/
             let trashStem = (savedFilename as NSString).deletingPathExtension
-            let restoredStem = sanitizeForFilename(note.title)
+            let restoredStem = NoteText.safeAssetStem(sanitizeForFilename(note.title))
             let srcAsset = assetDirURL(stem: trashStem, folder: "", inTrash: true)
             let dstAsset = assetDirURL(stem: restoredStem, folder: note.folder)
             if FileManager.default.fileExists(atPath: srcAsset.path) {
@@ -1027,6 +1072,8 @@ enum FileStorage {
 
     /// True when the note has a co-located image directory. Gists cannot hold directories.
     static func hasAssetDirectory(for note: Note) -> Bool {
-        FileManager.default.fileExists(atPath: assetDirURL(stem: assetStem(for: note), folder: note.folder).path)
+        assetStems(for: note).contains {
+            FileManager.default.fileExists(atPath: assetDirURL(stem: $0, folder: note.folder).path)
+        }
     }
 }

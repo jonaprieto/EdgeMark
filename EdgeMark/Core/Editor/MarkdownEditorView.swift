@@ -18,7 +18,13 @@ struct EdgeMarkImageProvider: EmbeddedImageProvider {
         if !noteFolder.isEmpty {
             base = base.appendingPathComponent(noteFolder, isDirectory: true)
         }
-        return NSImage(contentsOf: base.appendingPathComponent(request.name))
+        if let image = NSImage(contentsOf: base.appendingPathComponent(request.name)) {
+            return image
+        }
+        // A reference written before asset stems were made safe ("Q3)-results") may point
+        // at an image that now lives in the safe-stem folder ("Q3--results").
+        guard let safePath = NoteText.safeAssetPath(request.name) else { return nil }
+        return NSImage(contentsOf: base.appendingPathComponent(safePath))
     }
 
     func fingerprint() -> AnyHashable {
@@ -281,6 +287,9 @@ struct MarkdownEditorView: View {
 
     /// Convert on-disk `![](. STEM/IMG-uuid.ext)` references to editor embed `![[.STEM/IMG-uuid.ext]]`.
     /// Only converts EdgeMark-format images (path starts with `.`, filename starts with `IMG-`).
+    /// The STEM may hold `)` (folders named before stems were made safe): the embed carries
+    /// it, while a `![](...)` destination would end there. A path with `]` stays `![](...)`,
+    /// since an embed ends at the first `]`.
     static func imagesToEmbeds(_ text: String) -> String {
         imagesToEmbedsKeepingAlts(text).text
     }
@@ -289,7 +298,7 @@ struct MarkdownEditorView: View {
     /// for `embedsToImages(_:alts:)` to put back.
     static func imagesToEmbedsKeepingAlts(_ text: String) -> (text: String, alts: [String: String]) {
         guard text.contains("![") else { return (text, [:]) }
-        let pattern = #"!\[([^\]]*)\]\((\.[^/)][^)]+/IMG-[A-Za-z0-9\-]+\.[A-Za-z0-9]+)\)"#
+        let pattern = #"!\[([^\]]*)\]\((\.[^/\n]+/IMG-[A-Za-z0-9\-]+\.[A-Za-z0-9]+)\)"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return (text, [:]) }
         let ns = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed()
@@ -298,6 +307,9 @@ struct MarkdownEditorView: View {
         for match in matches {
             let alt = ns.substring(with: match.range(at: 1))
             let path = ns.substring(with: match.range(at: 2))
+            if path.contains("]") {
+                continue
+            }
             if !alt.isEmpty {
                 alts[path] = alt
             }
@@ -310,7 +322,7 @@ struct MarkdownEditorView: View {
     /// alt from `alts` (captured by `imagesToEmbedsKeepingAlts`) or empty for new images.
     static func embedsToImages(_ text: String, alts: [String: String] = [:]) -> String {
         guard text.contains("![[") else { return text }
-        let pattern = #"!\[\[(\.[^/)][^\]]+/IMG-[A-Za-z0-9\-]+\.[A-Za-z0-9]+)\]\]"#
+        let pattern = #"!\[\[(\.[^/\]\n]+/IMG-[A-Za-z0-9\-]+\.[A-Za-z0-9]+)\]\]"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
         let ns = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed()

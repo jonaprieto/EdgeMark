@@ -90,4 +90,20 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(NoteText.title(from: "---\ntitle: \"From YAML\"\n---\n# Heading\n"), "From YAML")
         XCTAssertEqual(NoteText.title(from: "---\nauthor: Ana\ntags:\n  - a\n---\n# Heading\n"), "Heading")
     }
+
+    // MARK: - Asset folder stems
+
+    func testSafeAssetStemReplacesBrackets() {
+        XCTAssertEqual(NoteText.safeAssetStem("10-Q3)-results"), "10-Q3--results")
+        XCTAssertEqual(NoteText.safeAssetStem("11-A]B-notes"), "11-A-B-notes")
+        XCTAssertEqual(NoteText.safeAssetStem("a(b)[c]{d}`e"), "a-b--c--d--e")
+        XCTAssertEqual(NoteText.safeAssetStem("Plain-Title"), "Plain-Title")
+    }
+
+    func testSafeAssetPath() {
+        XCTAssertEqual(NoteText.safeAssetPath(".10-Q3)-results/IMG-chart.png"), ".10-Q3--results/IMG-chart.png")
+        XCTAssertNil(NoteText.safeAssetPath(".Plain/IMG-1.png"))
+        XCTAssertNil(NoteText.safeAssetPath("img/plain.png"))
+        XCTAssertNil(NoteText.safeAssetPath(".no-slash"))
+    }
 }

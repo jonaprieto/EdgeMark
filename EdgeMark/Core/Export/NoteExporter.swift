@@ -39,19 +39,27 @@ enum NoteExporter {
 
     private static func writeMarkdown(_ note: Note, to url: URL) throws {
         let fm = FileManager.default
-        let stem = (savedFilename(of: note) as NSString).deletingPathExtension
         let exportedStem = url.deletingPathExtension().lastPathComponent
-        let rewritten = ExportLinks.rewriteImageLinks(in: note.content, stem: stem, exportedStem: exportedStem)
+        // Images live under the safe asset stem, or the plain file stem for folders created
+        // before stems were made safe; rewrite links to either.
+        let stems = FileStorage.assetStems(for: note)
+        var text = note.content
+        var imageNames: [String] = []
+        for stem in stems {
+            let rewritten = ExportLinks.rewriteImageLinks(in: text, stem: stem, exportedStem: exportedStem)
+            text = rewritten.text
+            imageNames += rewritten.imageNames.filter { !imageNames.contains($0) }
+        }
 
         // Copy the images first so a failure leaves no .md pointing at missing files.
-        if !rewritten.imageNames.isEmpty {
-            let source = FileStorage.assetDirURL(stem: stem, folder: note.folder)
+        if !imageNames.isEmpty {
+            let sources = stems.map { FileStorage.assetDirURL(stem: $0, folder: note.folder) }
             let target = url.deletingLastPathComponent()
                 .appendingPathComponent("\(exportedStem)-images", isDirectory: true)
             try fm.createDirectory(at: target, withIntermediateDirectories: true)
-            for name in rewritten.imageNames {
-                let from = source.appendingPathComponent(name)
-                guard fm.fileExists(atPath: from.path) else {
+            for name in imageNames {
+                let candidates = sources.map { $0.appendingPathComponent(name) }
+                guard let from = candidates.first(where: { fm.fileExists(atPath: $0.path) }) else {
                     Log.storage.error("[Export] referenced image missing: \(name, privacy: .public)")
                     continue
                 }
@@ -62,7 +70,7 @@ enum NoteExporter {
                 try fm.copyItem(at: from, to: to)
             }
         }
-        try rewritten.text.write(to: url, atomically: true, encoding: .utf8)
+        try text.write(to: url, atomically: true, encoding: .utf8)
     }
 
     // MARK: - PDF

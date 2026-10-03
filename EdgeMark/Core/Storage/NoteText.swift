@@ -94,4 +94,27 @@ nonisolated enum NoteText {
         let stripped = line.drop { $0 == "#" || $0 == " " }
         return stripped.isEmpty ? "Untitled" : String(stripped)
     }
+
+    // MARK: - Asset Folders
+
+    /// Characters the editor's image link patterns cannot carry in a path: the engine ends
+    /// a `![](...)` destination at an unbalanced `)` and an `![[...]]` embed at the first `]`.
+    private static let unsafeAssetStemCharacters: Set<Character> = ["(", ")", "[", "]", "{", "}", "<", ">", "`"]
+
+    /// Stem of a note's hidden image folder: the file name without ".md", with every
+    /// character the link patterns cannot handle replaced by "-".
+    static func safeAssetStem(_ stem: String) -> String {
+        String(stem.map { unsafeAssetStemCharacters.contains($0) ? "-" : $0 })
+    }
+
+    /// For an image path `.STEM/name`, the same path under `safeAssetStem(STEM)`, or nil
+    /// when the path has another shape or the stem is already safe. Lets a reference
+    /// written before stems were made safe find an image that now lives in the safe folder.
+    static func safeAssetPath(_ path: String) -> String? {
+        guard path.hasPrefix("."), let slash = path.firstIndex(of: "/") else { return nil }
+        let stem = String(path[path.index(after: path.startIndex) ..< slash])
+        let safe = safeAssetStem(stem)
+        guard safe != stem else { return nil }
+        return "." + safe + path[slash...]
+    }
 }
