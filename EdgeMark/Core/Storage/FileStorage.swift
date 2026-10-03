@@ -136,11 +136,18 @@ enum FileStorage {
         return base.appendingPathComponent(dirName, isDirectory: true)
     }
 
+    /// Stem of the note's asset dir: the file name on disk without ".md". It differs from the
+    /// sanitized title for duplicate titles ("Title 2"), externally renamed files and gist
+    /// notes, so the title is only used before the note's first save.
+    static func assetStem(for note: Note) -> String {
+        ((note.savedFilename ?? note.filename) as NSString).deletingPathExtension
+    }
+
     /// Save image data to the note's asset directory.
     /// Returns both the on-disk storage markdown `![](path)` and the embed syntax `![[path]]`
     /// used by the editor's display layer.
     static func saveImage(data: Data, ext: String, forNote note: Note) throws -> (markdown: String, embedMarkdown: String, src: String) {
-        let stem = sanitizeForFilename(note.title)
+        let stem = assetStem(for: note)
         let assetDir = assetDirURL(stem: stem, folder: note.folder)
         try FileManager.default.createDirectory(at: assetDir, withIntermediateDirectories: true)
         let imageFilename = "IMG-\(UUID().uuidString).\(ext)"
@@ -155,23 +162,26 @@ enum FileStorage {
         )
     }
 
-    /// Remove image files in the asset dir that are no longer referenced in the note body.
-    /// Also removes the asset dir itself if it becomes empty.
-    static func cleanOrphanedImages(forNote note: Note, body: String) {
-        let stem = sanitizeForFilename(note.title)
-        let assetDir = assetDirURL(stem: stem, folder: note.folder)
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: assetDir, includingPropertiesForKeys: nil,
-        ) else { return }
+    /// Remove EdgeMark image files ("IMG-<uuid>.<ext>") in the note's asset dir that neither
+    /// the note body nor any of `otherBodies` references. Other files are never touched.
+    /// Removes the asset dir itself only when it is empty afterwards.
+    static func cleanOrphanedImages(forNote note: Note, body: String, otherBodies: [String]) {
+        let assetDir = assetDirURL(stem: assetStem(for: note), folder: note.folder)
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: assetDir.path) else { return }
+        let orphans = ImageCleanup.orphanedImageNames(in: names, body: body, otherBodies: otherBodies)
         var removed = 0
-        for file in files where !body.contains(file.lastPathComponent) {
-            try? FileManager.default.removeItem(at: file)
-            removed += 1
+        for name in orphans {
+            do {
+                try FileManager.default.removeItem(at: assetDir.appendingPathComponent(name))
+                removed += 1
+            } catch {
+                Log.storage.error("[Image] failed to remove orphaned \(name, privacy: .public): \(error)")
+            }
         }
         if removed > 0 {
-            Log.storage.debug("[Image] cleaned \(removed) orphaned image(s) from '\(note.title, privacy: .public)'")
+            Log.storage.info("[Image] cleaned \(removed) orphaned image(s) from '\(note.title, privacy: .public)'")
         }
-        if removed == files.count {
+        if (try? FileManager.default.contentsOfDirectory(atPath: assetDir.path))?.isEmpty == true {
             try? FileManager.default.removeItem(at: assetDir)
             Log.storage.debug("[Image] removed empty asset dir for '\(note.title, privacy: .public)'")
         }
@@ -1048,7 +1058,6 @@ enum FileStorage {
 
     /// True when the note has a co-located image directory. Gists cannot hold directories.
     static func hasAssetDirectory(for note: Note) -> Bool {
-        let stem = (note.savedFilename.map { ($0 as NSString).deletingPathExtension }) ?? sanitizeForFilename(note.title)
-        return FileManager.default.fileExists(atPath: assetDirURL(stem: stem, folder: note.folder).path)
+        FileManager.default.fileExists(atPath: assetDirURL(stem: assetStem(for: note), folder: note.folder).path)
     }
 }

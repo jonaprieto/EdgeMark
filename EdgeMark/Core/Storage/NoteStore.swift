@@ -1659,13 +1659,24 @@ final class NoteStore {
                     selectedNote?.savedFilename = result.filename
                     selectedNote?.savedAt = result.savedAt
                 }
-                // Clean up orphaned images (deleted from body but file still on disk)
-                FileStorage.cleanOrphanedImages(forNote: notes[index], body: notes[index].content)
+                cleanOrphanedImages(afterSavingNoteAt: index)
             } catch {
                 Log.storage.error("[NoteStore] saveDirtyNotes failed for \(noteID) — \(error)")
             }
         }
         dirtyNoteIDs.removeAll()
+    }
+
+    /// Delete image files the note no longer references, once its body is on disk.
+    /// Every note body save goes through `saveDirtyNotes` (close, navigate, panel hide,
+    /// quit, root switch), so calling this there covers them all. Skipped for trashed notes
+    /// and while an external-change prompt is pending for the note, since its body may
+    /// still be replaced by the disk version.
+    private func cleanOrphanedImages(afterSavingNoteAt index: Int) {
+        let note = notes[index]
+        guard note.trashedAt == nil, pendingExternalChange?.noteID != note.id else { return }
+        let otherBodies = notes.filter { $0.id != note.id }.map(\.content)
+        FileStorage.cleanOrphanedImages(forNote: note, body: note.content, otherBodies: otherBodies)
     }
 
     // MARK: - Private
