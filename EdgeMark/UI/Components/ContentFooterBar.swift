@@ -3,14 +3,23 @@ import SwiftUI
 
 /// Shared footer bar with sort (left), sync and settings (right) menus.
 /// Pinned at the bottom of the content card on home and folder list screens.
+/// While rows are selected it shows the selection actions instead.
 struct ContentFooterBar: View {
     @Environment(AppSettings.self) var settings
     @Environment(NoteStore.self) var noteStore
     @Environment(\.openSettings) private var openSettings
 
     var body: some View {
+        if noteStore.selection.isEmpty {
+            footer
+        } else {
+            SelectionBar()
+        }
+    }
+
+    private var footer: some View {
         let l10n = L10n.shared
-        HStack {
+        return HStack {
             HeaderIconButton(systemName: "arrow.up.arrow.down", help: l10n["tooltip.sort"]) {
                 showSortMenu()
             }
@@ -173,6 +182,130 @@ struct ContentFooterBar: View {
               let view = event.window?.contentView
         else { return }
         NSMenu.popUpContextMenu(menu, with: event, for: view)
+    }
+}
+
+// MARK: - Selection Bar
+
+/// Footer content while rows are selected: the count, then Move, Tag, Move to Trash and
+/// Clear. The menus are the ones the right-click selection menu uses, so both act the
+/// same way. Falls back to icons only when the panel is too narrow for the labels.
+private struct SelectionBar: View {
+    @Environment(NoteStore.self) var noteStore
+    @Environment(L10n.self) var l10n
+
+    var body: some View {
+        let count = noteStore.selection.count
+        let canMove = NoteListMenus.canMoveSelection(noteStore: noteStore)
+        let canTag = !noteStore.selectedNotes.isEmpty
+        HStack(spacing: 4) {
+            Text(l10n.t(count == 1 ? "selection.count.one" : "selection.count.other", "\(count)"))
+                .font(.callout.weight(.medium))
+                .lineLimit(1)
+                .layoutPriority(1)
+            Spacer(minLength: 8)
+            ViewThatFits(in: .horizontal) {
+                buttons(showTitles: true, canMove: canMove, canTag: canTag)
+                buttons(showTitles: false, canMove: canMove, canTag: canTag)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+    }
+
+    private func buttons(showTitles: Bool, canMove: Bool, canTag: Bool) -> some View {
+        HStack(spacing: 2) {
+            if canMove {
+                SelectionBarButton(
+                    title: l10n["selection.bar.move"],
+                    systemName: "tray.and.arrow.down",
+                    help: l10n["tooltip.selection.move"],
+                    showTitle: showTitles,
+                ) {
+                    guard let menu = NoteListMenus.selectionMoveSubmenu(noteStore: noteStore, l10n: l10n) else { return }
+                    popUp(menu)
+                }
+            }
+            if canTag {
+                SelectionBarButton(
+                    title: l10n["selection.bar.tag"],
+                    systemName: "tag",
+                    help: l10n["tooltip.selection.tag"],
+                    showTitle: showTitles,
+                ) {
+                    popUp(NoteListMenus.selectionTagsSubmenu(noteStore: noteStore, appSettings: AppSettings.shared))
+                }
+            }
+            SelectionBarButton(
+                title: l10n["selection.bar.trash"],
+                systemName: "trash",
+                help: l10n["tooltip.selection.trash"],
+                showTitle: showTitles,
+                role: .destructive,
+            ) {
+                noteStore.trashSelection()
+            }
+            SelectionBarButton(
+                title: nil,
+                systemName: "xmark",
+                help: l10n["tooltip.selection.clear"],
+                showTitle: false,
+            ) {
+                noteStore.clearSelection()
+            }
+            .accessibilityLabel(l10n["selection.bar.clear"])
+        }
+        .fixedSize()
+    }
+
+    /// Show a menu at the click that pressed the button.
+    private func popUp(_ menu: NSMenu) {
+        guard let event = NSApp.currentEvent,
+              let view = event.window?.contentView
+        else { return }
+        menu.popUpContextMenu(with: event, for: view)
+    }
+}
+
+/// Compact footer button: an icon, with its title when there is room.
+private struct SelectionBarButton: View {
+    let title: String?
+    let systemName: String
+    let help: String
+    let showTitle: Bool
+    var role: ButtonRole?
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(role: role, action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: systemName)
+                    .font(.system(size: 14, weight: .medium))
+                if showTitle, let title {
+                    Text(title)
+                        .font(.callout)
+                        .lineLimit(1)
+                }
+            }
+            .foregroundStyle(role == .destructive ? AnyShapeStyle(Color.red) : AnyShapeStyle(isHovered ? .primary : .secondary))
+            .padding(.horizontal, 6)
+            .frame(minWidth: 28, minHeight: 28)
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.primary.opacity(isHovered ? 0.1 : 0))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(title ?? help)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 

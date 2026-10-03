@@ -173,20 +173,13 @@ enum NoteListMenus {
 
     // MARK: - Selection Move Submenu
 
-    private static func selectionMoveSubmenu(noteStore: NoteStore, l10n: L10n) -> NSMenu? {
+    /// Folders the selection can move to; nil when there is nowhere to go. Shared by the
+    /// selection context menu and the selection bar's Move button.
+    static func selectionMoveSubmenu(noteStore: NoteStore, l10n: L10n) -> NSMenu? {
+        guard canMoveSelection(noteStore: noteStore) else { return nil }
         let selectedFolders = Set(noteStore.selectedFolderPaths)
-        let selectedNoteFolders = Set(noteStore.selectedNotes.map(\.folder))
-
-        // Offer "Root" only when something in the selection isn't already at root —
-        // i.e. some selected note has a folder, or some selected folder is nested.
-        let everyoneAtRoot = selectedNoteFolders.allSatisfy(\.isEmpty)
-            && selectedFolders.allSatisfy { path in
-                noteStore.folders.first(where: { $0.name == path })?.isTopLevel ?? true
-            }
-        let offerRoot = !everyoneAtRoot
-
+        let offerRoot = selectionOffersRoot(noteStore: noteStore)
         let topLevel = noteStore.folders.filter(\.isTopLevel)
-        guard offerRoot || !topLevel.isEmpty else { return nil }
 
         let submenu = NSMenu()
         if offerRoot {
@@ -204,6 +197,21 @@ enum NoteListMenus {
             )
         }
         return submenu
+    }
+
+    /// Whether the selection has anywhere to move, without building the menu.
+    static func canMoveSelection(noteStore: NoteStore) -> Bool {
+        selectionOffersRoot(noteStore: noteStore) || noteStore.folders.contains(where: \.isTopLevel)
+    }
+
+    /// Offer "Root" only when something in the selection isn't already at root: some
+    /// selected note has a folder, or some selected folder is nested.
+    private static func selectionOffersRoot(noteStore: NoteStore) -> Bool {
+        let everyoneAtRoot = noteStore.selectedNotes.allSatisfy(\.folder.isEmpty)
+            && noteStore.selectedFolderPaths.allSatisfy { path in
+                noteStore.folders.first(where: { $0.name == path })?.isTopLevel ?? true
+            }
+        return !everyoneAtRoot
     }
 
     private static func selectionMoveTreeItem(
@@ -254,7 +262,9 @@ enum NoteListMenus {
 
     // MARK: - Selection Tags Submenu
 
-    private static func selectionTagsSubmenu(noteStore: NoteStore, appSettings: AppSettings) -> NSMenu {
+    /// Tag toggles for the selected notes. Shared by the selection context menu and the
+    /// selection bar's Tag button.
+    static func selectionTagsSubmenu(noteStore: NoteStore, appSettings: AppSettings) -> NSMenu {
         let menu = NSMenu()
         for tag in TagColor.allCases {
             let item = menu.addActionItem(title: appSettings.label(for: tag), icon: "circle.fill") {

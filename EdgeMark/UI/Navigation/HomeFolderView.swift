@@ -177,7 +177,8 @@ struct HomeFolderView: View {
             header
         } content: {
             VStack(spacing: 0) {
-                if !noteStore.awaitingRootChoice, !hintDismissed {
+                // Hidden while rows are selected; the selection bar is the guide then.
+                if !noteStore.awaitingRootChoice, !hintDismissed, noteStore.selection.isEmpty {
                     hintBar
                 }
                 ZStack {
