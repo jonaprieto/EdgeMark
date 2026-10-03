@@ -151,9 +151,16 @@ final class ShortcutSettings {
 
     // MARK: - Init
 
+    /// True while `init` loads the saved shortcuts. The `didSet` observers run for those assignments
+    /// too; posting `.shortcutSettingsChanged` then re-entered `ShortcutSettings.shared` (through a
+    /// view that reads it while the panel re-renders) before its lazy initializer had finished, which
+    /// libdispatch reports as a recursive lock and kills the app at launch.
+    private var isLoading = true
+
     private init() {
         loadShortcuts()
         loadLocalShortcuts()
+        isLoading = false
     }
 
     // MARK: - Persistence
@@ -198,6 +205,7 @@ final class ShortcutSettings {
         if let data = try? JSONEncoder().encode(ShortcutValue(shortcut: shortcut)) {
             UserDefaults.standard.set(data, forKey: key)
         }
+        guard !isLoading else { return }
         NotificationCenter.default.post(name: .shortcutSettingsChanged, object: nil)
     }
 }
