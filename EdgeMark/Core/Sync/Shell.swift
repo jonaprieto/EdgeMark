@@ -2,7 +2,10 @@ import Foundation
 
 /// Runs command-line tools (git, gh) with a timeout and captured output.
 /// Never prompts: terminal prompts are disabled and stdin is /dev/null.
-enum Shell {
+///
+/// Nonisolated on purpose: the app target defaults to MainActor isolation, and a MainActor
+/// `Shell` would run the blocking wait for every git/gh child process on the main thread.
+nonisolated enum Shell {
     struct Result {
         let status: Int32
         let stdout: String
