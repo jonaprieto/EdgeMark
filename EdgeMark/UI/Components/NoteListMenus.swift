@@ -211,6 +211,10 @@ enum NoteListMenus {
             NoteExporter.exportMarkdown(note: note, noteStore: noteStore)
         }
 
+        menu.addActionItem(title: l10n["export.pdf"], icon: "doc.richtext") {
+            NoteExporter.exportPDF(note: note, noteStore: noteStore)
+        }
+
         addGistItems(to: menu, note: note, noteStore: noteStore, l10n: l10n)
 
         menu.addItem(.separator())

@@ -236,6 +236,9 @@ private struct ExportMenuButton: View {
             Button(l10n["export.markdown"]) {
                 NoteExporter.exportMarkdown(note: note, noteStore: noteStore)
             }
+            Button(l10n["export.pdf"]) {
+                NoteExporter.exportPDF(note: note, noteStore: noteStore)
+            }
         } label: {
             Image(systemName: "square.and.arrow.up")
                 .font(.system(size: 14, weight: .medium))

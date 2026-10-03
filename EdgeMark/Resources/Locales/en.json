@@ -280,6 +280,7 @@
   "feedback.copiedPath": "Path copied",
   "feedback.copiedPaths": "{0} paths copied",
   "export.markdown": "Export as Markdown…",
+  "export.pdf": "Export as PDF…",
   "export.failed": "Export failed",
   "settings.keyboard.formatting": "Editor Formatting",
   "settings.keyboard.bold": "Bold",
