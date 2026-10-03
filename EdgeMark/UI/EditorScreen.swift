@@ -113,6 +113,10 @@ struct EditorScreen: View {
                     Spacer()
 
                     HStack(spacing: 4) {
+                        if note.isPlainTextFile {
+                            FileTypeBadge(fileExtension: note.fileExtension, size: 22)
+                        }
+
                         Text(note.title.isEmpty ? l10n["common.untitled"] : note.title)
                             .font(.headline)
                             .lineLimit(1)

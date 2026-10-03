@@ -765,10 +765,7 @@ struct HomeFolderView: View {
             openNote(note)
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "doc.text")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: iconWidth)
+                NoteTypeIcon(note: note, width: iconWidth)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Self.highlightedTitle(note.title, query: trimmedQuery))
@@ -794,10 +791,7 @@ struct HomeFolderView: View {
             openNote(note)
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "doc.text")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: iconWidth)
+                NoteTypeIcon(note: note, width: iconWidth)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(note.title.isEmpty ? L10n.shared["common.untitled"] : note.title)
@@ -825,10 +819,7 @@ struct HomeFolderView: View {
             openNote(note)
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "doc.text")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: iconWidth)
+                NoteTypeIcon(note: note, width: iconWidth)
 
                 TagDotsView(tags: note.tags)
 
@@ -988,10 +979,7 @@ struct NoteRowView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "doc.text")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: iconWidth)
+            NoteTypeIcon(note: note, width: iconWidth)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {

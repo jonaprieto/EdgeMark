@@ -120,10 +120,7 @@ struct PeekContentView: View {
     /// so the preview reads as the same list the user would see on open.
     private func folderNoteRow(_ note: Note) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: "doc.text")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .frame(width: 22)
+            NoteTypeIcon(note: note, width: 22)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
