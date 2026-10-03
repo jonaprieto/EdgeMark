@@ -350,7 +350,7 @@ enum NoteListMenus {
         menu.addItem(.separator())
 
         menu.addActionItem(title: l10n["common.delete"], icon: "trash") {
-            noteStore.trashNote(note)
+            noteStore.trashItems(notes: [note], folders: [])
         }
 
         return menu

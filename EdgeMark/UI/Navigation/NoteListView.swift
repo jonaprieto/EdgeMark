@@ -283,8 +283,11 @@ struct NoteListView: View {
                     l10n: l10n,
                     onRename: { startRenamingFolder(folder.name) },
                     onDelete: {
-                        deletingFolderName = folder.name
-                        showDeleteFolderConfirm = true
+                        // A gist folder gets the gist question instead of this alert.
+                        noteStore.trashItems(notes: [], folders: [folder.name], ifNoGist: {
+                            deletingFolderName = folder.name
+                            showDeleteFolderConfirm = true
+                        })
                     },
                 )
             }

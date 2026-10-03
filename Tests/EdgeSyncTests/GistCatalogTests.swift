@@ -65,4 +65,20 @@ final class GistCatalogTests: XCTestCase {
             "https://gist.github.com/a1#file-notes-md",
         )
     }
+
+    func testParseDetails() {
+        let d = GistCatalog.parseDetails(#"{"description":"My notes","public":false}"#)
+        XCTAssertEqual(d?.isPublic, false)
+        XCTAssertEqual(d?.description, "My notes")
+        XCTAssertEqual(GistCatalog.parseDetails(#"{"description":null,"public":true}"#)?.isPublic, true)
+        XCTAssertEqual(GistCatalog.parseDetails(#"{"description":null,"public":true}"#)?.description, "")
+        XCTAssertNil(GistCatalog.parseDetails("Not Found"))
+    }
+
+    func testDeleteRejectsAnInvalidIDWithoutRunningGh() async {
+        guard case let .failure(error) = await GistCatalog.delete(account: "tester", id: "../x") else {
+            return XCTFail("expected failure")
+        }
+        XCTAssertEqual(error.message, "invalid gist id")
+    }
 }

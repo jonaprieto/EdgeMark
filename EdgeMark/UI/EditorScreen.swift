@@ -149,10 +149,11 @@ struct EditorScreen: View {
 
                     ExportMenuButton(note: note)
 
-                    // Moves to Trash like the note list's Delete, so no confirmation.
+                    // Moves to Trash like the note list's Delete, so no confirmation, unless
+                    // it is the last file of a gist (see `trashItems`).
                     DeleteIconButton {
                         noteStore.closeNote()
-                        noteStore.trashNote(note)
+                        noteStore.trashItems(notes: [note], folders: [])
                     }
                 }
 

@@ -95,6 +95,43 @@ extension GitSync {
         )
     }
 
+    // MARK: - Delete
+
+    /// A synced gist clone: its id, the login that owns it, and its directory.
+    struct GistClone: Equatable {
+        let id: String
+        let account: String
+        let dir: URL
+    }
+
+    /// The gist cloned at `dir`, when `dir` is a synced clone (origin is a gist URL and the
+    /// gist was not deleted on GitHub), else nil.
+    func gistClone(at dir: URL) async -> GistClone? {
+        let target = GitRepo(url: dir)
+        guard target.url != root, let repo = repos().first(where: { $0 == target }),
+              let origin = await repo.originURL(),
+              let id = GistCatalog.gistID(fromOrigin: origin) else { return nil }
+        return GistClone(id: id, account: GistCatalog.login(fromOrigin: origin) ?? settings.account, dir: repo.url)
+    }
+
+    /// Visibility and description of the gist, nil when gh cannot tell.
+    func gistDetails(_ clone: GistClone) async -> (isPublic: Bool, description: String)? {
+        guard case let .success(details) = await fetchGistDetails(clone.account, clone.id) else { return nil }
+        return details
+    }
+
+    /// Deletes the gist on GitHub, then stops syncing its clone and removes the clone
+    /// directory. When gh fails nothing local changes.
+    func deleteGist(_ clone: GistClone) async -> Result<Void, GHError> {
+        if case let .failure(error) = await deleteGistOnGitHub(clone.account, clone.id) {
+            SyncLog.log.error("[GitSync] gist delete failed \(clone.id, privacy: .public): \(error.message, privacy: .public)")
+            return .failure(error)
+        }
+        SyncLog.log.info("[GitSync] deleted gist \(clone.id, privacy: .public) on GitHub")
+        if let error = await discardGistClone(at: clone.dir) { return .failure(error) }
+        return .success(())
+    }
+
     // MARK: - Publish
 
     /// Creates a gist from `file`, clones it under `Gists/`, and removes the cloned copy of

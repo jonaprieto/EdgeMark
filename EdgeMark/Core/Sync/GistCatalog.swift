@@ -154,4 +154,31 @@ enum GistCatalog {
         }
         return .success(id)
     }
+
+    /// Whether the gist is public, and its description.
+    static func details(account: String, id: String) async -> Result<(isPublic: Bool, description: String), GHError> {
+        guard isValidID(id) else { return .failure(GHError(message: "invalid gist id")) }
+        guard let env = await env(account: account) else { return .failure(GHError(message: "gh has no token for \(account)")) }
+        let r = await Shell.run("gh", ["api", "/gists/\(id)", "--jq", "{public, description}"], env: env, timeout: 20)
+        guard r.ok else { return .failure(GHError(message: r.errorLine)) }
+        return parseDetails(r.stdout).map { .success($0) } ?? .failure(GHError(message: "could not read gist details"))
+    }
+
+    /// Parses the `{public, description}` object `details` asks gh for.
+    static func parseDetails(_ json: String) -> (isPublic: Bool, description: String)? {
+        struct Details: Decodable {
+            let `public`: Bool
+            let description: String?
+        }
+        guard let d = try? JSONDecoder().decode(Details.self, from: Data(json.utf8)) else { return nil }
+        return (d.public, d.description ?? "")
+    }
+
+    /// Deletes the gist on GitHub. There is no undo.
+    static func delete(account: String, id: String) async -> Result<Void, GHError> {
+        guard isValidID(id) else { return .failure(GHError(message: "invalid gist id")) }
+        guard let env = await env(account: account) else { return .failure(GHError(message: "gh has no token for \(account)")) }
+        let r = await Shell.run("gh", ["gist", "delete", id, "--yes"], env: env, timeout: 60)
+        return r.ok ? .success(()) : .failure(GHError(message: r.errorLine))
+    }
 }

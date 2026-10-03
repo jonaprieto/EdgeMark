@@ -61,6 +61,17 @@ final class GitSync {
     @ObservationIgnored var createGist: (_ account: String, _ file: URL, _ description: String, _ isPublic: Bool) async -> Result<String, GHError> = {
         await GistCatalog.create(account: $0, file: $1, description: $2, isPublic: $3)
     }
+    /// Gist details, deletion on GitHub, and removal of a clone directory (to the Trash);
+    /// tests swap these too, so no real gist and no real Trash is touched.
+    @ObservationIgnored var fetchGistDetails: (_ account: String, _ id: String) async -> Result<(isPublic: Bool, description: String), GHError> = {
+        await GistCatalog.details(account: $0, id: $1)
+    }
+    @ObservationIgnored var deleteGistOnGitHub: (_ account: String, _ id: String) async -> Result<Void, GHError> = {
+        await GistCatalog.delete(account: $0, id: $1)
+    }
+    @ObservationIgnored var discardClone: (URL) throws -> Void = {
+        try FileManager.default.trashItem(at: $0, resultingItemURL: nil)
+    }
 
     init(settings: SyncSettings = .shared) {
         self.settings = settings
@@ -424,6 +435,30 @@ final class GitSync {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Stops syncing the gist clone at `dir` and removes it with `discardClone`, once any
+    /// git operation on it has finished. Returns the error when the removal failed; the
+    /// clone is then left as it was.
+    func discardGistClone(at dir: URL) async -> GHError? {
+        let repo = GitRepo(url: dir)
+        debounceTasks[repo.url]?.cancel()
+        debounceTasks[repo.url] = nil
+        var failure: GHError?
+        await serialized(repo) { [self] in
+            do {
+                try discardClone(repo.url)
+            } catch {
+                failure = GHError(message: error.localizedDescription)
+            }
+        }
+        guard failure == nil else { return failure }
+        repoStates[repo.url] = nil
+        heldFiles[repo.url] = nil
+        verdictCache[repo.url] = nil
+        lastSync[repo.url] = nil
+        detachedGists.remove(repo.url)
+        return nil
     }
 
     // MARK: - Private

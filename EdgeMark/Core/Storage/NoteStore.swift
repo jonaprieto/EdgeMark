@@ -919,34 +919,52 @@ final class NoteStore {
 
     /// Move every note + folder in the current selection to the trash.
     /// Folders that are descendants of another selected folder are skipped
-    /// because the parent's trash already swept them up.
+    /// because the parent's trash already swept them up. Gists that would be left
+    /// without files are asked about first (`trashItems`); Cancel keeps the selection.
     func trashSelection() {
         guard !selection.isEmpty else { return }
-        let snapshot = selection
-        let noteIDs: [UUID] = snapshot.compactMap {
-            if case let .note(id) = $0 {
-                id
-            } else {
-                nil
+        let notesToTrash = selectedNotes
+        let folderPaths = selectedFolderPaths
+        Log.storage.info("[NoteStore] trashSelection — \(notesToTrash.count) notes, \(folderPaths.count) folders")
+        trashItems(notes: notesToTrash, folders: folderPaths) { [weak self] in
+            self?.clearSelection()
+        }
+    }
+
+    /// Drops a folder whose directory is already gone from disk (a gist clone deleted or
+    /// hidden): its notes leave the list without a Trash entry, and their sidecar entries
+    /// go too. Navigates away when the folder or one of its notes is open.
+    func forgetFolder(_ name: String) {
+        let prefix = name + "/"
+        let gone = notes.filter { $0.folder == name || $0.folder.hasPrefix(prefix) }
+        for note in gone {
+            dirtyNoteIDs.remove(note.id)
+            SidecarStore.shared.removeNote(id: note.id)
+        }
+        SidecarStore.shared.removeFolderSubtree(path: name)
+        try? SidecarStore.shared.save()
+        notes.removeAll { $0.folder == name || $0.folder.hasPrefix(prefix) }
+        selection = selection.filter {
+            switch $0 {
+            case let .note(id): !gone.contains { $0.id == id }
+            case let .folder(path): path != name && !path.hasPrefix(prefix)
             }
         }
-        let folderPaths: [String] = snapshot.compactMap {
-            if case let .folder(path) = $0 {
-                path
-            } else {
-                nil
+        if let open = selectedFolder?.name, open == name || open.hasPrefix(prefix) {
+            navigationDirection = .backward
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedFolder = nil
             }
         }
-        Log.storage.info("[NoteStore] trashSelection — \(noteIDs.count) notes, \(folderPaths.count) folders")
-        for id in noteIDs {
-            if let note = notes.first(where: { $0.id == id }) {
-                trashNote(note)
+        if let open = selectedNote, open.folder == name || open.folder.hasPrefix(prefix) {
+            navigationDirection = .backward
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedNote = nil
             }
         }
-        for path in folderPaths where folders.contains(where: { $0.name == path }) {
-            trashFolder(path)
-        }
-        clearSelection()
+        diskFolderNames = diskFolderNames.filter { $0 != name && !$0.hasPrefix(prefix) }
+        refreshFolders()
+        Log.storage.info("[NoteStore] forgot folder \(name, privacy: .public) with \(gone.count) notes")
     }
 
     /// Notes currently in the selection (resolved against the live note list).

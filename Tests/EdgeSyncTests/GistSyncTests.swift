@@ -74,6 +74,10 @@ final class GistSyncTests: XCTestCase {
         let sync = GitSync(settings: settings)
         sync.guardTransport = StubTransport()
         sync.listGists = { [unowned self] _ in .success(listed) }
+        // Never gh, never the real Trash.
+        sync.fetchGistDetails = { _, _ in .failure(GHError(message: "no gh in tests")) }
+        sync.deleteGistOnGitHub = { _, _ in .failure(GHError(message: "no gh in tests")) }
+        sync.discardClone = { try FileManager.default.removeItem(at: $0) }
         sync.configure(root: root)
         return sync
     }
@@ -239,6 +243,53 @@ final class GistSyncTests: XCTestCase {
         let sync = makeSync(root: root)
         _ = await sync.refreshGistsIfNeeded()
         XCTAssertTrue(sync.detachedGists.isEmpty)
+    }
+
+    // MARK: - Delete
+
+    func testGistCloneResolvesSyncedClonesOnly() async throws {
+        let root = try await makeRoot()
+        await makeGist(id: "a2", files: ["a.md": "a\n"])
+        listed = [gist("a2", "mine", ["a.md"])]
+        let sync = makeSync(root: root)
+        await sync.pullAll(force: true)
+        let dir = root.appendingPathComponent("Gists/mine")
+        let clone = await sync.gistClone(at: dir)
+        XCTAssertEqual(clone?.id, "a2")
+        XCTAssertEqual(clone?.account, "tester")
+        let atRoot = await sync.gistClone(at: root)
+        XCTAssertNil(atRoot)
+        // Deleted on GitHub (detached): not a gist to ask about.
+        listed = []
+        await sync.pullAll(force: true)
+        let detached = await sync.gistClone(at: dir)
+        XCTAssertNil(detached)
+    }
+
+    func testDeleteGistRemovesTheCloneOnlyAfterGitHubDeletedIt() async throws {
+        let root = try await makeRoot()
+        await makeGist(id: "b3", files: ["a.md": "a\n"])
+        listed = [gist("b3", "doomed", ["a.md"])]
+        let sync = makeSync(root: root)
+        await sync.pullAll(force: true)
+        let dir = root.appendingPathComponent("Gists/doomed")
+        let resolved = await sync.gistClone(at: dir)
+        let clone = try XCTUnwrap(resolved)
+
+        // gh fails: the clone stays and keeps syncing.
+        guard case .failure = await sync.deleteGist(clone) else { return XCTFail("expected failure") }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.path))
+        XCTAssertEqual(sync.repos().count, 2)
+
+        var calls: [String] = []
+        sync.deleteGistOnGitHub = { account, id in
+            calls.append("\(account) \(id)")
+            return .success(())
+        }
+        guard case .success = await sync.deleteGist(clone) else { return XCTFail("expected success") }
+        XCTAssertEqual(calls, ["tester b3"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
+        XCTAssertEqual(sync.repos().map(\.url.lastPathComponent), ["root"])
     }
 
     // MARK: - Publish
