@@ -1,12 +1,9 @@
 name: Build and Release
 
+# Fork: upstream's release pipeline (build, publish, update Ender-Wang's Homebrew tap) must not run
+# on a version bump here. Releases of this fork are built by hand (see README), so only a manual
+# dispatch starts this workflow.
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - "EdgeMark.xcodeproj/project.pbxproj"
   workflow_dispatch:
 
 jobs:
