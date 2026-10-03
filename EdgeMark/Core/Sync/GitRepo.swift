@@ -79,8 +79,10 @@ struct GitRepo: Equatable, Hashable {
         await Shell.run("git", args, cwd: url, timeout: timeout)
     }
 
+    /// The configured URL, not rewritten by `url.<base>.insteadOf` as `git remote get-url`
+    /// would: the gist id is read from it, and `connect` puts it back on rollback.
     func originURL() async -> String? {
-        let r = await git("remote", "get-url", "origin")
+        let r = await git("config", "--get", "remote.origin.url")
         return r.ok ? r.stdout.trimmingCharacters(in: .whitespacesAndNewlines) : nil
     }
 
