@@ -7,6 +7,8 @@ struct EditorScreen: View {
     @Environment(L10n.self) var l10n
     @State private var pendingEditorReload: String? = nil
     @State private var isFindBarShowing = false
+    /// Gist holding the open note, for the header pill; nil for ordinary notes.
+    @State private var gist: GitSync.GistInfo?
 
     private var backLabel: String {
         noteStore.selectedFolder?.name ?? l10n["common.home"]
@@ -125,6 +127,16 @@ struct EditorScreen: View {
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
+
+                        if let gist {
+                            GistPill(gist: gist, fileURL: FileStorage.urlForNote(note))
+                        }
+                    }
+                    // The note moves into the clone after publishing, so its path is the
+                    // key. No clone is tracked while sync is off, so then there is no pill.
+                    .task(id: "\(FileStorage.urlForNote(note).path)|\(GitSync.shared.isActive)") {
+                        gist = nil
+                        gist = await GitSync.shared.gistInfo(for: FileStorage.urlForNote(note))
                     }
 
                     Spacer()
@@ -323,6 +335,48 @@ private struct ExportMenuButton: View {
                 NoteExporter.openGist(note: note)
             }
         }
+    }
+}
+
+// MARK: - Gist Pill
+
+/// Small "Gist" pill shown in the header of a note that lives in a gist clone; its menu
+/// links to the gist and syncs it. `EditorScreen` looks the gist up.
+private struct GistPill: View {
+    let gist: GitSync.GistInfo
+    let fileURL: URL
+
+    var body: some View {
+        let l10n = L10n.shared
+        Menu {
+            Button(l10n["sync.copyGistLink"]) {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(gist.webURL.absoluteString, forType: .string)
+            }
+            Button(l10n["gist.openOnGitHub"]) {
+                NSWorkspace.shared.open(gist.webURL)
+            }
+            Divider()
+            // Every repo, not only this gist: the pull is what reloads the open note.
+            Button(l10n["sync.syncNow"]) {
+                Task { await GitSync.shared.syncNow() }
+            }
+            Button(l10n["common.showInFinder"]) {
+                NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+            }
+        } label: {
+            Text(l10n["gist.pill"])
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1.5)
+                .background(Capsule().strokeBorder(.secondary.opacity(0.5), lineWidth: 0.5))
+                .contentShape(Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(l10n["gist.pillHelp"])
     }
 }
 
