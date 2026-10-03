@@ -70,6 +70,20 @@ struct SyncSettingsTab: View {
                     Text(sync.state.summary).textSelection(.enabled)
                 }
             }
+            if let advice = SyncAdvice.current(sync, l10n: l10n) {
+                Text(advice.text).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                if case .conflict = sync.state {
+                    HStack {
+                        Button(l10n["sync.copyFixCommands"]) {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(advice.fixCommands, forType: .string)
+                        }
+                        Button(l10n["common.showInFinder"]) {
+                            NSWorkspace.shared.activateFileViewerSelecting([advice.repo])
+                        }
+                    }
+                }
+            }
             if let error = sync.lastSetupError {
                 Text(error).foregroundStyle(.red).font(.caption).textSelection(.enabled)
             }

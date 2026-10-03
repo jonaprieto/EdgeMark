@@ -16,7 +16,9 @@ struct ContentFooterBar: View {
             }
             Spacer()
             if GitSync.shared.isActive || GitSync.shared.rootRepo != nil {
-                SyncFooterButton(state: GitSync.shared.state, help: l10n.t("sync.footer.help", GitSync.shared.state.summary)) {
+                let advice = SyncAdvice.current(GitSync.shared, l10n: l10n)
+                let detail = advice?.text ?? GitSync.shared.state.summary
+                SyncFooterButton(state: GitSync.shared.state, help: l10n.t("sync.footer.help", detail)) {
                     showSyncMenu()
                 }
             }
@@ -127,6 +129,13 @@ struct ContentFooterBar: View {
         let summary = NSMenuItem(title: state.summary, action: nil, keyEquivalent: "")
         summary.isEnabled = false
         menu.addItem(summary)
+        if let advice = SyncAdvice.current(sync, l10n: l10n) {
+            for line in [advice.problem, advice.fix] {
+                let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
+                item.isEnabled = false
+                menu.addItem(item)
+            }
+        }
         menu.addItem(.separator())
 
         menu.addActionItem(title: l10n["sync.syncNow"], icon: "arrow.triangle.2.circlepath") {
