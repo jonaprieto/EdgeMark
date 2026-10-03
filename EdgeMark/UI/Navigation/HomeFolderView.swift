@@ -119,6 +119,23 @@ struct HomeFolderView: View {
         sortedFolders.map { .folder($0.name) } + rootNotes.map { .note($0.id) }
     }
 
+    /// A selection exists in single-click mode: plain clicks toggle rows instead of
+    /// opening them, so every row shows its checkbox.
+    private var selectionMode: Bool {
+        !noteStore.selection.isEmpty && PanelSettings.shared.openOnSingleClick
+    }
+
+    /// Apply a left click on a row to the selection; true when the row should open.
+    private func applyRowClick(on id: NoteStore.SelectableID, onIcon: Bool, modifiers: NSEvent.ModifierFlags) -> Bool {
+        noteStore.handleRowClick(
+            on: id,
+            onIcon: onIcon,
+            modifiers: modifiers,
+            visibleOrder: visibleOrder,
+            openOnSingleClick: PanelSettings.shared.openOnSingleClick,
+        )
+    }
+
     // MARK: - First-run hint
 
     private var hintBar: some View {
@@ -521,22 +538,20 @@ struct HomeFolderView: View {
                 iconWidth: iconWidth,
                 color: folder.color,
                 isSelected: noteStore.isSelected(id),
+                selectionMode: selectionMode,
             )
             .rowClick(
                 onSingle: { mods in
-                    noteStore.handleSelectionClick(
-                        on: id,
-                        isShift: mods.contains(.shift),
-                        isCommand: mods.contains(.command),
-                        visibleOrder: visibleOrder,
-                    )
-                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                    if applyRowClick(on: id, onIcon: false, modifiers: mods) {
                         noteStore.navigateToFolder(folder)
                     }
                 },
                 onDouble: {
                     if !PanelSettings.shared.openOnSingleClick { noteStore.navigateToFolder(folder) }
                 },
+                onIcon: { mods in _ = applyRowClick(on: id, onIcon: true, modifiers: mods) },
+                iconHitWidth: RowInsets.iconHitWidth(iconWidth: iconWidth),
+                deferSingle: !noteStore.selection.isEmpty,
                 dragItem: .folder(folder.name),
                 dragPreviewLabel: folder.displayName,
             )
@@ -577,22 +592,20 @@ struct HomeFolderView: View {
                 note: note,
                 iconWidth: iconWidth,
                 isSelected: noteStore.isSelected(id),
+                selectionMode: selectionMode,
             )
             .rowClick(
                 onSingle: { mods in
-                    noteStore.handleSelectionClick(
-                        on: id,
-                        isShift: mods.contains(.shift),
-                        isCommand: mods.contains(.command),
-                        visibleOrder: visibleOrder,
-                    )
-                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                    if applyRowClick(on: id, onIcon: false, modifiers: mods) {
                         noteStore.openNote(note)
                     }
                 },
                 onDouble: {
                     if !PanelSettings.shared.openOnSingleClick { noteStore.openNote(note) }
                 },
+                onIcon: { mods in _ = applyRowClick(on: id, onIcon: true, modifiers: mods) },
+                iconHitWidth: RowInsets.iconHitWidth(iconWidth: iconWidth),
+                deferSingle: !noteStore.selection.isEmpty,
                 dragItem: .note(note.id),
                 dragPreviewLabel: note.title,
             )
@@ -922,27 +935,20 @@ struct FolderRowView: View {
     let iconWidth: CGFloat
     var color: TagColor?
     var isSelected: Bool = false
+    /// A selection exists, so every row shows its checkbox.
+    var selectionMode: Bool = false
 
     @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "folder.fill")
-                    .font(.title3)
-                    .foregroundStyle(color?.color ?? Color.accentColor)
-
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 9, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.background)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 0.5)
-                        .background(.primary.opacity(0.8), in: Capsule())
-                        .offset(x: 4, y: -3)
-                }
+            RowSelectionIcon(
+                isSelected: isSelected,
+                showsCheckbox: isHovered || isSelected || selectionMode,
+                width: iconWidth,
+            ) {
+                folderIcon
             }
-            .frame(width: iconWidth)
 
             Text(name)
                 .font(.body)
@@ -958,17 +964,35 @@ struct FolderRowView: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, RowInsets.inner)
         .padding(.vertical, 10)
         .background {
             RoundedRectangle(cornerRadius: 6)
                 .fill(rowBackground)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, RowInsets.outer)
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
+            }
+        }
+    }
+
+    private var folderIcon: some View {
+        ZStack(alignment: .topTrailing) {
+            Image(systemName: "folder.fill")
+                .font(.title3)
+                .foregroundStyle(color?.color ?? Color.accentColor)
+
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.background)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 0.5)
+                    .background(.primary.opacity(0.8), in: Capsule())
+                    .offset(x: 4, y: -3)
             }
         }
     }
@@ -989,12 +1013,20 @@ struct NoteRowView: View {
     let note: Note
     let iconWidth: CGFloat
     var isSelected: Bool = false
+    /// A selection exists, so every row shows its checkbox.
+    var selectionMode: Bool = false
 
     @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
-            NoteTypeIcon(note: note, width: iconWidth)
+            RowSelectionIcon(
+                isSelected: isSelected,
+                showsCheckbox: isHovered || isSelected || selectionMode,
+                width: iconWidth,
+            ) {
+                NoteTypeIcon(note: note, width: iconWidth)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
@@ -1020,13 +1052,13 @@ struct NoteRowView: View {
                 }
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, RowInsets.inner)
         .padding(.vertical, 10)
         .background {
             RoundedRectangle(cornerRadius: 6)
                 .fill(rowBackground)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, RowInsets.outer)
         .contentShape(Rectangle())
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -1040,5 +1072,50 @@ struct NoteRowView: View {
             return Color.accentColor.opacity(isHovered ? 0.28 : 0.20)
         }
         return Color.primary.opacity(isHovered ? 0.06 : 0)
+    }
+}
+
+// MARK: - Row Selection Icon
+
+/// Horizontal insets shared by folder and note rows: from the row's edge to its
+/// background (`outer`), then from there to the icon (`inner`).
+enum RowInsets {
+    static let outer: CGFloat = 8
+    static let inner: CGFloat = 8
+
+    /// Width from the row's leading edge that counts as a click on the icon: both
+    /// insets, the icon, and half the 10 pt gap after it.
+    static func iconHitWidth(iconWidth: CGFloat) -> CGFloat {
+        outer + inner + iconWidth + 5
+    }
+}
+
+/// Leading icon of a folder or note row. It cross-fades into a checkbox circle while the
+/// row is hovered or selected, or while any row is selected, and a click on it (wired by
+/// `.rowClick(onIcon:)`) toggles the row in the selection.
+struct RowSelectionIcon<Icon: View>: View {
+    let isSelected: Bool
+    let showsCheckbox: Bool
+    let width: CGFloat
+    @ViewBuilder let icon: Icon
+
+    var body: some View {
+        // Only one of the two is in the tree, so the file-type badge's own tooltip does not
+        // compete with Select / Deselect while the checkbox shows.
+        ZStack {
+            if showsCheckbox {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                    .transition(.opacity)
+            } else {
+                icon
+                    .transition(.opacity)
+            }
+        }
+        .frame(width: width)
+        .animation(.easeInOut(duration: 0.15), value: showsCheckbox)
+        .animation(.easeInOut(duration: 0.15), value: isSelected)
+        .help(L10n.shared[isSelected ? "tooltip.row.deselect" : "tooltip.row.select"])
     }
 }

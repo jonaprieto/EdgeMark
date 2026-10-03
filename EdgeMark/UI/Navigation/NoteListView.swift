@@ -59,6 +59,23 @@ struct NoteListView: View {
         childFolders.map { .folder($0.name) } + sortedNotes.map { .note($0.id) }
     }
 
+    /// A selection exists in single-click mode: plain clicks toggle rows instead of
+    /// opening them, so every row shows its checkbox.
+    private var selectionMode: Bool {
+        !noteStore.selection.isEmpty && PanelSettings.shared.openOnSingleClick
+    }
+
+    /// Apply a left click on a row to the selection; true when the row should open.
+    private func applyRowClick(on id: NoteStore.SelectableID, onIcon: Bool, modifiers: NSEvent.ModifierFlags) -> Bool {
+        noteStore.handleRowClick(
+            on: id,
+            onIcon: onIcon,
+            modifiers: modifiers,
+            visibleOrder: visibleOrder,
+            openOnSingleClick: PanelSettings.shared.openOnSingleClick,
+        )
+    }
+
     private var isEmpty: Bool {
         sortedNotes.isEmpty && childFolders.isEmpty && !folderRename.isCreating
     }
@@ -233,22 +250,20 @@ struct NoteListView: View {
                 iconWidth: iconWidth,
                 color: folder.color,
                 isSelected: noteStore.isSelected(id),
+                selectionMode: selectionMode,
             )
             .rowClick(
                 onSingle: { mods in
-                    noteStore.handleSelectionClick(
-                        on: id,
-                        isShift: mods.contains(.shift),
-                        isCommand: mods.contains(.command),
-                        visibleOrder: visibleOrder,
-                    )
-                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                    if applyRowClick(on: id, onIcon: false, modifiers: mods) {
                         noteStore.navigateToSubfolder(folder)
                     }
                 },
                 onDouble: {
                     if !PanelSettings.shared.openOnSingleClick { noteStore.navigateToSubfolder(folder) }
                 },
+                onIcon: { mods in _ = applyRowClick(on: id, onIcon: true, modifiers: mods) },
+                iconHitWidth: RowInsets.iconHitWidth(iconWidth: iconWidth),
+                deferSingle: !noteStore.selection.isEmpty,
                 dragItem: .folder(folder.name),
                 dragPreviewLabel: folder.displayName,
             )
@@ -288,22 +303,20 @@ struct NoteListView: View {
                 note: note,
                 iconWidth: iconWidth,
                 isSelected: noteStore.isSelected(id),
+                selectionMode: selectionMode,
             )
             .rowClick(
                 onSingle: { mods in
-                    noteStore.handleSelectionClick(
-                        on: id,
-                        isShift: mods.contains(.shift),
-                        isCommand: mods.contains(.command),
-                        visibleOrder: visibleOrder,
-                    )
-                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                    if applyRowClick(on: id, onIcon: false, modifiers: mods) {
                         noteStore.openNote(note)
                     }
                 },
                 onDouble: {
                     if !PanelSettings.shared.openOnSingleClick { noteStore.openNote(note) }
                 },
+                onIcon: { mods in _ = applyRowClick(on: id, onIcon: true, modifiers: mods) },
+                iconHitWidth: RowInsets.iconHitWidth(iconWidth: iconWidth),
+                deferSingle: !noteStore.selection.isEmpty,
                 dragItem: .note(note.id),
                 dragPreviewLabel: note.title,
             )

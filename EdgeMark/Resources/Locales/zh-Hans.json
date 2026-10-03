@@ -379,6 +379,8 @@
   "tooltip.newFolder": "新建文件夹",
   "tooltip.back": "返回",
   "tooltip.backTo": "返回{0}",
+  "tooltip.row.select": "选择",
+  "tooltip.row.deselect": "取消选择",
   "tooltip.sort": "更改笔记的排序方式",
   "tooltip.menu": "废纸篓、设置和更新",
   "tooltip.pin": "保持面板打开",

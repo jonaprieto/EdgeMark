@@ -779,19 +779,41 @@ final class NoteStore {
             selectionAnchor = item
             selectionExtensionEnd = item
         } else if isShift,
-                  let anchor = selectionAnchor,
-                  let a = visibleOrder.firstIndex(of: anchor),
-                  let b = visibleOrder.firstIndex(of: item)
+                  let range = ListSelection.range(from: selectionAnchor, to: item, in: visibleOrder)
         {
-            let lo = min(a, b)
-            let hi = max(a, b)
-            selection = Set(visibleOrder[lo ... hi])
+            selection = range
             selectionExtensionEnd = item
         } else {
             selection = [item]
             selectionAnchor = item
             selectionExtensionEnd = item
         }
+    }
+
+    /// Left click on a row. `onIcon` is a click on the leading icon, which toggles the row
+    /// like ⌘-click; a plain click while a selection exists toggles too. Returns true when
+    /// the caller should open the row (single-click mode, nothing selected).
+    func handleRowClick(
+        on item: SelectableID,
+        onIcon: Bool,
+        modifiers: NSEvent.ModifierFlags,
+        visibleOrder: [SelectableID],
+        openOnSingleClick: Bool,
+    ) -> Bool {
+        let action = ListSelection.clickAction(
+            onIcon: onIcon,
+            isShift: modifiers.contains(.shift),
+            isCommand: modifiers.contains(.command),
+            hasSelection: !selection.isEmpty,
+            openOnSingleClick: openOnSingleClick,
+        )
+        handleSelectionClick(
+            on: item,
+            isShift: action == .extend,
+            isCommand: action == .toggle,
+            visibleOrder: visibleOrder,
+        )
+        return action == .open
     }
 
     /// Replace selection with a single item (used when right-clicking an unselected row).

@@ -379,6 +379,8 @@
   "tooltip.newFolder": "नया फ़ोल्डर",
   "tooltip.back": "वापस जाएँ",
   "tooltip.backTo": "{0} पर वापस जाएँ",
+  "tooltip.row.select": "चुनें",
+  "tooltip.row.deselect": "चयन हटाएँ",
   "tooltip.sort": "नोट्स का क्रम बदलें",
   "tooltip.menu": "ट्रैश, सेटिंग्स और अपडेट",
   "tooltip.pin": "पैनल को खुला रखें",

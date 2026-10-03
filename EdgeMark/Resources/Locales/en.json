@@ -379,6 +379,8 @@
   "tooltip.newFolder": "New folder",
   "tooltip.back": "Go back",
   "tooltip.backTo": "Back to {0}",
+  "tooltip.row.select": "Select",
+  "tooltip.row.deselect": "Deselect",
   "tooltip.sort": "Change how notes are sorted",
   "tooltip.menu": "Trash, settings and updates",
   "tooltip.pin": "Keep the panel open",

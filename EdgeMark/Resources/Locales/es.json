@@ -379,6 +379,8 @@
   "tooltip.newFolder": "Nueva carpeta",
   "tooltip.back": "Volver",
   "tooltip.backTo": "Volver a {0}",
+  "tooltip.row.select": "Seleccionar",
+  "tooltip.row.deselect": "Quitar selección",
   "tooltip.sort": "Cambiar el orden de las notas",
   "tooltip.menu": "Papelera, ajustes y actualizaciones",
   "tooltip.pin": "Mantener el panel abierto",

@@ -379,6 +379,8 @@
   "tooltip.newFolder": "Neuer Ordner",
   "tooltip.back": "Zurück",
   "tooltip.backTo": "Zurück zu {0}",
+  "tooltip.row.select": "Auswählen",
+  "tooltip.row.deselect": "Auswahl aufheben",
   "tooltip.sort": "Sortierung der Notizen ändern",
   "tooltip.menu": "Papierkorb, Einstellungen und Updates",
   "tooltip.pin": "Das Fenster geöffnet halten",

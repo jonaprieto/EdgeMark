@@ -108,6 +108,9 @@ private struct NSContextMenuOverlay: NSViewRepresentable {
 struct RowClickModifier: ViewModifier {
     let onSingle: (NSEvent.ModifierFlags) -> Void
     let onDouble: () -> Void
+    let onIcon: ((NSEvent.ModifierFlags) -> Void)?
+    let iconHitWidth: CGFloat
+    let deferSingle: Bool
     let dragItem: NoteStore.DragItem?
     let dragPreviewLabel: String?
 
@@ -116,6 +119,9 @@ struct RowClickModifier: ViewModifier {
             RowClickOverlay(
                 onSingle: onSingle,
                 onDouble: onDouble,
+                onIcon: onIcon,
+                iconHitWidth: iconHitWidth,
+                deferSingle: deferSingle,
                 dragItem: dragItem,
                 dragPreviewLabel: dragPreviewLabel,
             )
@@ -127,9 +133,15 @@ extension View {
     /// Attach an instant single/double click handler.
     /// Single click fires immediately on mouse-down with the active modifier flags.
     /// Double click fires when the second click arrives.
+    /// `onIcon` fires instead of either for a click within `iconHitWidth` points of the
+    /// row's leading edge. `deferSingle` holds the single click until mouse-up, so
+    /// pressing on a row to drag it does not change the selection first.
     func rowClick(
         onSingle: @escaping (NSEvent.ModifierFlags) -> Void,
         onDouble: @escaping () -> Void,
+        onIcon: ((NSEvent.ModifierFlags) -> Void)? = nil,
+        iconHitWidth: CGFloat = 0,
+        deferSingle: Bool = false,
         dragItem: NoteStore.DragItem? = nil,
         dragPreviewLabel: String? = nil,
     ) -> some View {
@@ -137,6 +149,9 @@ extension View {
             RowClickModifier(
                 onSingle: onSingle,
                 onDouble: onDouble,
+                onIcon: onIcon,
+                iconHitWidth: iconHitWidth,
+                deferSingle: deferSingle,
                 dragItem: dragItem,
                 dragPreviewLabel: dragPreviewLabel,
             ),
@@ -147,6 +162,9 @@ extension View {
 private struct RowClickOverlay: NSViewRepresentable {
     let onSingle: (NSEvent.ModifierFlags) -> Void
     let onDouble: () -> Void
+    let onIcon: ((NSEvent.ModifierFlags) -> Void)?
+    let iconHitWidth: CGFloat
+    let deferSingle: Bool
     let dragItem: NoteStore.DragItem?
     let dragPreviewLabel: String?
 
@@ -157,6 +175,9 @@ private struct RowClickOverlay: NSViewRepresentable {
     func updateNSView(_ nsView: RowClickCatcher, context _: Context) {
         nsView.onSingle = onSingle
         nsView.onDouble = onDouble
+        nsView.onIcon = onIcon
+        nsView.iconHitWidth = iconHitWidth
+        nsView.deferSingle = deferSingle
         nsView.dragItem = dragItem
         nsView.dragPreviewLabel = dragPreviewLabel
     }
@@ -166,10 +187,15 @@ private struct RowClickOverlay: NSViewRepresentable {
     final class RowClickCatcher: NSView, NSDraggingSource {
         var onSingle: ((NSEvent.ModifierFlags) -> Void)?
         var onDouble: (() -> Void)?
+        var onIcon: ((NSEvent.ModifierFlags) -> Void)?
+        var iconHitWidth: CGFloat = 0
+        var deferSingle = false
         var dragItem: NoteStore.DragItem?
         var dragPreviewLabel: String?
         private var mouseDownLocation: NSPoint?
         private var startedDragging = false
+        /// Click held until mouse-up; dropped when the press turns into a drag.
+        private var pendingClick: (() -> Void)?
 
         override var mouseDownCanMoveWindow: Bool {
             false
@@ -194,15 +220,27 @@ private struct RowClickOverlay: NSViewRepresentable {
         }
 
         override func mouseDown(with event: NSEvent) {
-            mouseDownLocation = convert(event.locationInWindow, from: nil)
+            let location = convert(event.locationInWindow, from: nil)
+            mouseDownLocation = location
             startedDragging = false
+            pendingClick = nil
+            let modifiers = event.modifierFlags
+            // The icon toggles selection on every click, even a quick second one, like a
+            // checkbox. It waits for mouse-up so a drag from the icon moves the row.
+            if let onIcon, location.x < iconHitWidth {
+                pendingClick = { onIcon(modifiers) }
+                return
+            }
             // clickCount is 1 for the first click and 2 for a quick second click.
-            // We fire each immediately — selection is harmless before a follow-up
+            // We fire each immediately: selection is harmless before a follow-up
             // open, and openNote/navigate clear the selection anyway.
             if event.clickCount >= 2 {
                 onDouble?()
+            } else if deferSingle {
+                let onSingle = onSingle
+                pendingClick = { onSingle?(modifiers) }
             } else {
-                onSingle?(event.modifierFlags)
+                onSingle?(modifiers)
             }
         }
 
@@ -215,6 +253,7 @@ private struct RowClickOverlay: NSViewRepresentable {
             guard hypot(currentLocation.x - mouseDownLocation.x, currentLocation.y - mouseDownLocation.y) >= 4 else { return }
 
             startedDragging = true
+            pendingClick = nil
             let pasteboardItem = NSPasteboardItem()
             pasteboardItem.setData(
                 EdgeMarkDragPayload.data(for: dragItem),
@@ -235,8 +274,11 @@ private struct RowClickOverlay: NSViewRepresentable {
         }
 
         override func mouseUp(with _: NSEvent) {
+            let click = startedDragging ? nil : pendingClick
             mouseDownLocation = nil
             startedDragging = false
+            pendingClick = nil
+            click?()
         }
 
         func draggingSession(_: NSDraggingSession, sourceOperationMaskFor _: NSDraggingContext) -> NSDragOperation {
