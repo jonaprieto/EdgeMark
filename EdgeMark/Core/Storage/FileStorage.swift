@@ -217,6 +217,13 @@ enum FileStorage {
         return resolved
     }
 
+    /// Whether `folder` is the `Gists` folder or a gist clone inside it.
+    /// Files there must keep their names: heading anchors in the published gist and the
+    /// `gh gist` file identity are tied to the file name, so title edits never rename them.
+    static func isGistFolder(_ folder: String) -> Bool {
+        folder == "Gists" || folder.hasPrefix("Gists/")
+    }
+
     /// Writes the note to disk. If the title changed since last save, renames the old file
     /// to preserve macOS file metadata (creation date, Finder tags, extended attributes).
     /// Also renames the co-located asset directory and rewrites image paths in the body.
@@ -226,6 +233,15 @@ enum FileStorage {
         try ensureRootExists()
         if !note.folder.isEmpty {
             try ensureFolderExists(note.folder)
+        }
+
+        // Gist clones: write in place under the saved filename, never rename.
+        if isGistFolder(note.folder), let savedFilename = note.savedFilename {
+            let currentURL = rootURL.appendingPathComponent("\(note.folder)/\(savedFilename)")
+            try Data(note.content.utf8).write(to: currentURL, options: .atomic)
+            Task { @MainActor in GitSync.shared.noteActivity(at: currentURL) }
+            upsertSidecarEntry(for: note, filename: savedFilename)
+            return (filename: savedFilename, updatedContent: nil, savedAt: modificationDate(for: note) ?? Date())
         }
 
         let newFilename = note.filename
@@ -971,7 +987,8 @@ enum FileStorage {
     /// newer duplicates get a number suffix ("Title 2", "Title 3", etc.).
     private static func resolveDuplicateFilenames(_ notes: [Note]) throws -> [Note] {
         var groups: [String: [Int]] = [:]
-        for (i, note) in notes.enumerated() {
+        // Gist files keep their names (see `isGistFolder`), so they are never renamed here.
+        for (i, note) in notes.enumerated() where !isGistFolder(note.folder) {
             let key = "\(note.folder)/\(note.filename.lowercased())"
             groups[key, default: []].append(i)
         }
