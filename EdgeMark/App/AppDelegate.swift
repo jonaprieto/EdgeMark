@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SidecarMigration.runIfNeeded()
         try? SidecarStore.shared.load()
         panelController?.noteStore.loadFromDisk()
+        GitSync.shared.apiKeyProvider = { KeychainStore.read() ?? ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"] }
         GitSync.shared.configure(root: StorageSettings.shared.resolvedStorageDirectory)
         ShortcutManager.shared.setup(panelController: panelController!)
 

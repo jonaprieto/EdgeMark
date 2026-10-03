@@ -11,6 +11,8 @@ struct SyncSettingsTab: View {
     @State private var repoName = ""
     @State private var ownerRepo = ""
     @State private var busy = false
+    @State private var apiKey = ""
+    @State private var keyStored = false
 
     private var gitPath: String? { Shell.find("git") }
     private var ghPath: String? { Shell.find("gh") }
@@ -22,9 +24,11 @@ struct SyncSettingsTab: View {
                 setupSection
             }
             optionsSection
+            guardSection
         }
         .formStyle(.grouped)
         .task {
+            keyStored = KeychainStore.read() != nil
             await refreshAccounts()
             await refreshRemote()
         }
@@ -118,6 +122,69 @@ struct SyncSettingsTab: View {
             }
             Toggle(l10n["sync.pushOnQuit"], isOn: $settings.pushOnQuit)
             Toggle(l10n["sync.syncGists"], isOn: $settings.syncGists)
+        }
+    }
+
+    private var keyStatus: String {
+        if keyStored { return l10n["sync.guard.keySaved"] }
+        if ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"]?.isEmpty == false { return l10n["sync.guard.envKey"] }
+        return l10n["sync.guard.noKey"]
+    }
+
+    private var guardSection: some View {
+        Section(l10n["sync.guard.section"]) {
+            Toggle(l10n["sync.guard.enabled"], isOn: $settings.guardEnabled)
+            LabeledContent(l10n["sync.guard.apiKey"]) {
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack {
+                        SecureField("", text: $apiKey).frame(width: 200)
+                        Button(l10n["sync.guard.saveKey"]) {
+                            keyStored = KeychainStore.write(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
+                            apiKey = ""
+                        }
+                        .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Button(l10n["sync.guard.removeKey"]) {
+                            KeychainStore.delete()
+                            keyStored = KeychainStore.read() != nil
+                        }
+                        .disabled(!keyStored)
+                    }
+                    Text(keyStatus).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            Text(l10n["sync.guard.disclosure"]).font(.caption).foregroundStyle(.secondary)
+            if !sync.guardStatus.isEmpty {
+                LabeledContent(l10n["sync.guard.status"]) {
+                    Text(sync.guardStatus).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            ForEach(heldRows, id: \.file) { row in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.display).font(.callout)
+                        Text(row.verdict.reasons.joined(separator: ", ")).font(.caption).foregroundStyle(.red)
+                    }
+                    Spacer()
+                    Button(l10n["sync.guard.allow"]) {
+                        sync.allowHeld(path: row.verdict.path, in: GitRepo(url: row.repo))
+                    }
+                    Button(l10n["common.showInFinder"]) {
+                        NSWorkspace.shared.activateFileViewerSelecting([row.file])
+                    }
+                }
+            }
+        }
+    }
+
+    /// Held files of every repo, with paths shown relative to the notes folder.
+    private var heldRows: [(repo: URL, file: URL, display: String, verdict: GuardVerdict)] {
+        let prefix = (sync.root?.path ?? "") + "/"
+        return sync.heldFiles.sorted { $0.key.path < $1.key.path }.flatMap { repo, verdicts in
+            verdicts.map { verdict in
+                let file = repo.appendingPathComponent(verdict.path)
+                let display = file.path.hasPrefix(prefix) ? String(file.path.dropFirst(prefix.count)) : file.path
+                return (repo, file, display, verdict)
+            }
         }
     }
 
