@@ -47,6 +47,16 @@ final class NoteStore {
     /// `selectedFolder` (which represent what's *open*). Empty after navigation.
     var selection: Set<SelectableID> = []
 
+    /// True when the selection was made on purpose: icon click, ⇧/⌘-click, ⇧-arrows,
+    /// marquee or ⌘A. Only then do plain clicks toggle rows (`inSelectionMode`). A row
+    /// selected by plain arrows or a right-click keeps plain clicks opening rows.
+    private(set) var selectionIsExplicit = false
+
+    /// Plain clicks toggle rows instead of opening them.
+    var inSelectionMode: Bool {
+        selectionIsExplicit && !selection.isEmpty
+    }
+
     /// Anchor row for ⇧-click range selection.
     private var selectionAnchor: SelectableID?
 
@@ -791,8 +801,9 @@ final class NoteStore {
     }
 
     /// Left click on a row. `onIcon` is a click on the leading icon, which toggles the row
-    /// like ⌘-click; a plain click while a selection exists toggles too. Returns true when
-    /// the caller should open the row (single-click mode, nothing selected).
+    /// like ⌘-click; a plain click while an explicit selection exists toggles too. Returns
+    /// true when the caller should open the row (single-click mode, no explicit selection).
+    /// A plain click leaves the selection non-explicit, so the next plain click opens.
     func handleRowClick(
         on item: SelectableID,
         onIcon: Bool,
@@ -804,7 +815,7 @@ final class NoteStore {
             onIcon: onIcon,
             isShift: modifiers.contains(.shift),
             isCommand: modifiers.contains(.command),
-            hasSelection: !selection.isEmpty,
+            hasSelection: inSelectionMode,
             openOnSingleClick: openOnSingleClick,
         )
         handleSelectionClick(
@@ -813,17 +824,20 @@ final class NoteStore {
             isCommand: action == .toggle,
             visibleOrder: visibleOrder,
         )
+        selectionIsExplicit = ListSelection.isExplicit(action)
         return action == .open
     }
 
     /// Replace selection with a single item (used when right-clicking an unselected row).
     func replaceSelection(with item: SelectableID) {
+        selectionIsExplicit = false
         selection = [item]
         selectionAnchor = item
         selectionExtensionEnd = item
     }
 
     func clearSelection() {
+        selectionIsExplicit = false
         selection.removeAll()
         selectionAnchor = nil
         selectionExtensionEnd = nil
@@ -864,6 +878,7 @@ final class NoteStore {
         let index = cursor.flatMap { order.firstIndex(of: $0) }
         guard let next = ListSelection.step(from: index, direction: direction, count: order.count) else { return false }
         let target = order[next]
+        selectionIsExplicit = extending && index != nil
 
         if extending, index != nil {
             // Anchor stays put; only the extension end walks.
@@ -890,9 +905,16 @@ final class NoteStore {
         let order = keyboardNavOrder
         guard !order.isEmpty else { return false }
         selection = ListSelection.all(order)
+        selectionIsExplicit = true
         selectionAnchor = order.first
         selectionExtensionEnd = order.last
         return true
+    }
+
+    /// Selection drawn with the marquee (on top of the baseline it started from).
+    func applyMarqueeSelection(_ items: Set<SelectableID>) {
+        selection = items
+        selectionIsExplicit = true
     }
 
     /// Activate the lone selected item: open the note, or navigate into the folder.

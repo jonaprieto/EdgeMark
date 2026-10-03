@@ -15,9 +15,10 @@ nonisolated enum ListSelection {
         case open
     }
 
-    /// Decide what a click does. A click on the leading icon, or on any row while a
-    /// selection exists in single-click mode, toggles instead of opening, so a selection
-    /// can be built without modifier keys. Shift always extends from the anchor.
+    /// Decide what a click does. A click on the leading icon, or on any row while an
+    /// explicit selection exists in single-click mode (`hasSelection`, see `isExplicit`),
+    /// toggles instead of opening, so a selection can be built without modifier keys.
+    /// Shift always extends from the anchor.
     static func clickAction(
         onIcon: Bool,
         isShift: Bool,
@@ -33,6 +34,13 @@ nonisolated enum ListSelection {
         }
         guard openOnSingleClick else { return .select }
         return hasSelection ? .toggle : .open
+    }
+
+    /// Whether the selection a click leaves behind was made on purpose (toggle or range),
+    /// which turns plain clicks into toggles. Selecting a row by a plain click, arrow keys
+    /// or a right-click does not.
+    static func isExplicit(_ action: ClickAction) -> Bool {
+        action == .toggle || action == .extend
     }
 
     /// Every row from `anchor` to `item` inclusive, in either direction. Nil when either

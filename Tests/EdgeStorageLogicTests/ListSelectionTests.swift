@@ -100,4 +100,19 @@ final class ListSelectionTests: XCTestCase {
     func testSelectAllInEmptyListIsEmpty() {
         XCTAssertEqual(ListSelection.all([Int]()), [])
     }
+
+    func testOnlyToggleAndRangeMakeAnExplicitSelection() {
+        XCTAssertTrue(ListSelection.isExplicit(.toggle))
+        XCTAssertTrue(ListSelection.isExplicit(.extend))
+        XCTAssertFalse(ListSelection.isExplicit(.select))
+        XCTAssertFalse(ListSelection.isExplicit(.open))
+        // A plain click on a row selected without intent (no explicit selection) opens it.
+        let plain = action(hasSelection: false)
+        XCTAssertEqual(plain, .open)
+        XCTAssertFalse(ListSelection.isExplicit(plain))
+        // Icon and command clicks make the selection explicit; then plain clicks toggle.
+        XCTAssertTrue(ListSelection.isExplicit(action(onIcon: true)))
+        XCTAssertTrue(ListSelection.isExplicit(action(command: true)))
+        XCTAssertTrue(ListSelection.isExplicit(action(hasSelection: true)))
+    }
 }

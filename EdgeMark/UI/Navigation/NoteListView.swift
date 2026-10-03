@@ -59,10 +59,10 @@ struct NoteListView: View {
         childFolders.map { .folder($0.name) } + sortedNotes.map { .note($0.id) }
     }
 
-    /// A selection exists in single-click mode: plain clicks toggle rows instead of
-    /// opening them, so every row shows its checkbox.
+    /// An explicit selection exists in single-click mode: plain clicks toggle rows instead
+    /// of opening them, so every row shows its checkbox.
     private var selectionMode: Bool {
-        !noteStore.selection.isEmpty && PanelSettings.shared.openOnSingleClick
+        noteStore.inSelectionMode && PanelSettings.shared.openOnSingleClick
     }
 
     /// Apply a left click on a row to the selection; true when the row should open.
@@ -170,7 +170,7 @@ struct NoteListView: View {
                             // claimed by `.rowClick` first, so this only sees empty-area input.
                             .marqueeSelection(
                                 baseline: { noteStore.selection },
-                                apply: { noteStore.selection = $0 },
+                                apply: { noteStore.applyMarqueeSelection($0) },
                                 onClick: { noteStore.clearSelection() },
                                 backgroundMenu: { backgroundMenu() },
                             )
