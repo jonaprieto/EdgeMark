@@ -23,19 +23,30 @@ struct EditorScreen: View {
             headerContent
         } content: {
             if let note = noteStore.selectedNote {
-                MarkdownEditorView(
-                    noteID: note.id,
-                    noteTitle: note.title,
-                    noteFolder: note.folder,
-                    initialContent: note.content,
-                    onContentChanged: { id, newContent in
-                        noteStore.updateContent(for: id, content: newContent)
-                    },
-                    pendingReload: $pendingEditorReload,
-                    showFindBar: $isFindBarShowing,
-                    onNavigateNext: { noteStore.navigateToNextNote(sortedBy: appSettings) },
-                    onNavigatePrevious: { noteStore.navigateToPreviousNote(sortedBy: appSettings) },
-                )
+                EditorModeChooser(content: note.content) {
+                    MarkdownEditorView(
+                        noteID: note.id,
+                        noteTitle: note.title,
+                        noteFolder: note.folder,
+                        initialContent: note.content,
+                        onContentChanged: { id, newContent in
+                            noteStore.updateContent(for: id, content: newContent)
+                        },
+                        pendingReload: $pendingEditorReload,
+                        showFindBar: $isFindBarShowing,
+                        onNavigateNext: { noteStore.navigateToNextNote(sortedBy: appSettings) },
+                        onNavigatePrevious: { noteStore.navigateToPreviousNote(sortedBy: appSettings) },
+                    )
+                } plain: {
+                    PlainTextNoteEditor(
+                        noteID: note.id,
+                        initialContent: note.content,
+                        onContentChanged: { id, newContent in
+                            noteStore.updateContent(for: id, content: newContent)
+                        },
+                        pendingReload: $pendingEditorReload,
+                    )
+                }
                 .onAppear {
                     noteStore.onNeedEditorReload = { content in
                         pendingEditorReload = content
@@ -145,6 +156,31 @@ struct EditorScreen: View {
 
     private func goBack() {
         noteStore.closeNote()
+    }
+}
+
+// MARK: - Editor Mode
+
+/// Picks the editor once per note, from the content it opened with: the plain-text editor
+/// when `NoteComplexity.isHeavy`, the Markdown editor otherwise. Latched so the editor
+/// does not swap while typing across a limit; the next open decides again.
+private struct EditorModeChooser<Rich: View, Plain: View>: View {
+    @State private var isHeavy: Bool
+    private let rich: () -> Rich
+    private let plain: () -> Plain
+
+    init(content: String, @ViewBuilder rich: @escaping () -> Rich, @ViewBuilder plain: @escaping () -> Plain) {
+        _isHeavy = State(initialValue: NoteComplexity.isHeavy(content))
+        self.rich = rich
+        self.plain = plain
+    }
+
+    var body: some View {
+        if isHeavy {
+            plain()
+        } else {
+            rich()
+        }
     }
 }
 

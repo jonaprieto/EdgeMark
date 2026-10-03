@@ -107,6 +107,7 @@
   "editor.createdAt": "Created at {0}",
   "editor.readOnly": "(read-only)",
   "editor.restoreNote": "Restore Note",
+  "editor.plainTextBanner": "Large note: formatting is off to keep the app responsive",
 
   "trash.title": "Trash",
   "trash.emptyTrash": "Empty Trash",

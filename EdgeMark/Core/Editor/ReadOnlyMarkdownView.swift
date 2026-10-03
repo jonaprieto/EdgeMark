@@ -15,6 +15,15 @@ struct ReadOnlyMarkdownView: View {
     private static let fontSize: CGFloat = 16
 
     var body: some View {
+        // Heavy notes would freeze the engine here too (trash preview, hover peek).
+        if NoteComplexity.isHeavy(content) {
+            PlainTextView(model: PlainTextEditorModel(noteID: UUID()), initialContent: content, isEditable: false)
+        } else {
+            markdownBody
+        }
+    }
+
+    private var markdownBody: some View {
         // Shared with the live editor so previews match. `.id` rebuilds the view
         // (makeNSView) when the task-checkbox style changes — updateNSView doesn't
         // sync taskCheckbox, so only a full re-apply picks up the new symbols.

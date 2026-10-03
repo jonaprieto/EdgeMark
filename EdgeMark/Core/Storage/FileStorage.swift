@@ -249,8 +249,11 @@ enum FileStorage {
         let collapsed = hyphenated.replacingOccurrences(of: "-{2,}", with: "-", options: .regularExpression)
         var result = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
 
-        // Truncate to stay within APFS 255-byte filename limit (.md = 3 bytes + margin)
+        // Truncate to stay within APFS 255-byte filename limit (.md = 3 bytes + margin).
+        // Every Character is at least one byte, so cut to that many Characters first: the
+        // loop below copies the string per step, which never ends for a megabyte title.
         let maxBytes = 248
+        result = String(result.prefix(maxBytes))
         while result.utf8.count > maxBytes {
             result = String(result.dropLast())
         }
