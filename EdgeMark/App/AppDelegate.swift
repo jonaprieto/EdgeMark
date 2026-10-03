@@ -51,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Fork: no automatic update checks, upstream builds would replace this one.
-        // "Check for Updates" in the menu still works on demand.
+        // "Check for Updates" opens the fork's releases page instead (see checkForUpdates).
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -284,10 +284,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         EnvironmentValues().openSettings()
     }
 
+    /// Fork: the built-in updater installs upstream releases, which would replace this
+    /// build. Every "Check for Updates" entry point (menu bar, footer menu) lands here and
+    /// opens the fork's releases page instead; `performUpdateCheck` is no longer called.
     @objc func checkForUpdates() {
-        Task {
-            await performUpdateCheck(source: .manual)
-        }
+        NSWorkspace.shared.open(URL(string: "https://github.com/jonaprieto/EdgeMark/releases")!)
     }
 
     @objc func quitApp() {
