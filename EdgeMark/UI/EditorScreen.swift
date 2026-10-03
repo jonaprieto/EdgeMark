@@ -41,6 +41,10 @@ struct EditorScreen: View {
                     noteStore.onNeedEditorReload = { content in
                         pendingEditorReload = content
                     }
+                    if noteStore.focusEditorOnOpen {
+                        noteStore.focusEditorOnOpen = false
+                        focusEditorForTyping()
+                    }
                 }
                 .onChange(of: noteStore.pendingEditorFind) { _, pending in
                     guard pending else { return }
@@ -77,6 +81,18 @@ struct EditorScreen: View {
             }
         } message: {
             Text(l10n["alert.externalChange.message"])
+        }
+    }
+
+    /// Gives the editor keyboard focus with the cursor at the end, so a freshly created
+    /// note can be typed into right away. Waits for the push transition to finish.
+    private func focusEditorForTyping() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            let window = NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible && $0.canBecomeKey }
+            guard let window, let tv = findEditorTextView(in: window.contentView) else { return }
+            window.makeKey()
+            window.makeFirstResponder(tv)
+            tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
         }
     }
 

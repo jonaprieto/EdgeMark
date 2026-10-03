@@ -42,6 +42,7 @@ final class NoteRenameCoordinator {
         let isNew = newlyCreatedNoteID == note.id
         clear()
         if isNew, let opened = noteStore.notes.first(where: { $0.id == note.id }) {
+            noteStore.focusEditorOnOpen = true
             noteStore.openNote(opened)
         }
     }

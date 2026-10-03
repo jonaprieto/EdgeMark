@@ -240,6 +240,10 @@ final class NoteStore {
         }
     }
 
+    /// Set right before opening a note that was just created, so the editor takes keyboard
+    /// focus and the user can type without clicking. Cleared by the editor on appear.
+    var focusEditorOnOpen = false
+
     func openNote(_ note: Note) {
         let title = note.title
         Log.navigation.debug("[NoteStore] openNote — \(title, privacy: .public)")
