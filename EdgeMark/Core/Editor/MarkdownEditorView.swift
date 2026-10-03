@@ -50,6 +50,7 @@ struct MarkdownEditorView: View {
     @State private var saveDebouncer = Debouncer(delay: 1.0)
     @State private var slashHandler = SlashCommandHandler()
     @State private var noteNavMonitor: Any?
+    @State private var codeBlocks = CodeBlockOverlayModel()
 
     /// Per-note scroll offsets persisted across editor unmount/remount (engine 0.12.0
     /// `onPersistScrollOffset` / `restoreScrollOffset`). Session-level — not persisted
@@ -92,9 +93,11 @@ struct MarkdownEditorView: View {
         // whenever editorFontName or editorFontSize changes.
         let appSettings = AppSettings.shared
         let fontName = Self.resolvedFontFamily(from: appSettings.editorFontName) ?? "SF Pro"
+        let fontSize = CGFloat(appSettings.editorFontSize)
 
         var config = MarkdownEditorConfiguration.makeEdgeMarkConfig(
             noteFolder: noteFolder,
+            fontSize: fontSize,
             bus: MarkdownEditorBus(
                 // Formatting-request channels — posting these drives the engine's
                 // didMarkdown* actions (bold/italic/code/link/strikethrough), which in
@@ -119,7 +122,7 @@ struct MarkdownEditorView: View {
                 text: $text,
                 configuration: config,
                 fontName: fontName,
-                fontSize: CGFloat(appSettings.editorFontSize),
+                fontSize: fontSize,
                 documentId: noteID.uuidString,
                 onPasteImage: { [noteID, noteTitle, noteFolder] pasteboard in
                     guard let (data, ext) = Self.imageData(from: pasteboard) else { return nil }
@@ -128,6 +131,7 @@ struct MarkdownEditorView: View {
                     // onChange converts it back to standard ![](path) markdown before saving.
                     return (try? FileStorage.saveImage(data: data, ext: ext, forNote: note))?.embedMarkdown
                 },
+                onCodeBlockSelectionChange: { [codeBlocks] in codeBlocks.update($0) },
                 onSpellCheckingPolicyChanged: { policy in
                     // Persist context-menu spelling/grammar/autocorrect toggles back to settings
                     // so they survive note switches and app restarts.
@@ -146,6 +150,13 @@ struct MarkdownEditorView: View {
             // changes — the engine's updateNSView doesn't sync taskCheckbox, so only a
             // full config re-application picks up the new SF Symbols.
             .id(appSettings.taskCheckboxPreset)
+            // Line numbers + hover copy button. Copies what is saved to disk: image
+            // embeds inside the block are mapped back to `![](path)` like on save.
+            .codeBlockChrome(
+                codeBlocks,
+                metrics: CodeBlockMetrics(configuration: config, bodySize: fontSize),
+                transformCopy: Self.embedsToImages,
+            )
             .onChange(of: text) { _, newText in
                 let cursorPos = (NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().location ?? 0
                 slashHandler.contentDidChange(content: newText, cursorPos: cursorPos)

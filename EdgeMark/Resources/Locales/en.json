@@ -101,6 +101,7 @@
   "noteList.empty.subtitle": "Tap the pencil icon to create a note",
 
   "editor.copyNote": "Copy Note",
+  "editor.copyCode": "Copy Code",
   "editor.deleteNote": "Delete Note",
   "editor.modifiedAt": "Modified at {0}",
   "editor.createdAt": "Created at {0}",
