@@ -128,7 +128,8 @@ final class PanelSettings {
         didSet { UserDefaults.standard.set(swipeGestureSensitivity, forKey: swipeGestureSensitivityKey) }
     }
 
-    /// Width of the side panel in points. 400 = default minimum.
+    /// Width of the side panel in points. Defaults to 671 on fresh installs; the
+    /// drag handle and the settings slider still allow down to 400.
     var panelWidth: CGFloat {
         didSet { UserDefaults.standard.set(Double(panelWidth), forKey: panelWidthKey) }
     }
@@ -197,7 +198,7 @@ final class PanelSettings {
 
         // Panel width (stored as Double since UserDefaults doesn't have CGFloat)
         let savedWidth = UserDefaults.standard.object(forKey: panelWidthKey) as? Double
-        panelWidth = savedWidth.map { CGFloat($0) } ?? 400
+        panelWidth = savedWidth.map { CGFloat($0) } ?? 671
     }
 }
 
