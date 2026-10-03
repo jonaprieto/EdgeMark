@@ -17,7 +17,7 @@ let package = Package(
             dependencies: ["EdgeStorageLogic"],
             path: "Tests/EdgeStorageLogicTests"
         ),
-        .target(name: "EdgeExportLogic", path: "EdgeMark/Core/Export", sources: ["ExportLinks.swift"]),
+        .target(name: "EdgeExportLogic", path: "EdgeMark/Core/Export", sources: ["ExportLinks.swift", "GistExportOffer.swift"]),
         .testTarget(
             name: "EdgeExportLogicTests",
             dependencies: ["EdgeExportLogic"],

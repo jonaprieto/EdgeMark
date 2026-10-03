@@ -257,7 +257,8 @@ private struct CopyMenuButton: View {
 
 // MARK: - Export Menu Button
 
-/// Share icon that opens a menu with the note export formats.
+/// Share icon that opens a menu with the note export formats, plus the gist items of
+/// `NoteExporter.gistOffer` when sync is active.
 private struct ExportMenuButton: View {
     let note: Note
 
@@ -273,6 +274,7 @@ private struct ExportMenuButton: View {
             Button(l10n["export.pdf"]) {
                 NoteExporter.exportPDF(note: note, noteStore: noteStore)
             }
+            gistItems(l10n)
         } label: {
             Image(systemName: "square.and.arrow.up")
                 .font(.system(size: 14, weight: .medium))
@@ -291,6 +293,34 @@ private struct ExportMenuButton: View {
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
+            }
+        }
+    }
+
+    /// Re-read on every header render (each edit changes `note`), like the context menu,
+    /// which reads it when it opens. With images the export items stay visible but
+    /// disabled, with the reason as tooltip.
+    @ViewBuilder
+    private func gistItems(_ l10n: L10n) -> some View {
+        switch NoteExporter.gistOffer(for: note) {
+        case .none:
+            EmptyView()
+        case let .publish(blockedByImages):
+            Divider()
+            ForEach([false, true], id: \.self) { isPublic in
+                Button(l10n[isPublic ? "export.gistPublic" : "export.gistPrivate"]) {
+                    NoteExporter.exportAsGist(note: note, noteStore: noteStore, isPublic: isPublic)
+                }
+                .disabled(blockedByImages)
+                .help(blockedByImages ? l10n["export.gistHasImages"] : "")
+            }
+        case .linkToGist:
+            Divider()
+            Button(l10n["sync.copyGistLink"]) {
+                NoteExporter.copyGistLink(note: note)
+            }
+            Button(l10n["sync.openGist"]) {
+                NoteExporter.openGist(note: note)
             }
         }
     }

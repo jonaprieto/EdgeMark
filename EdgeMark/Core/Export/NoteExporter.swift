@@ -289,6 +289,35 @@ enum NoteExporter {
 
     // MARK: - Gist
 
+    /// Which gist items the note's menus show; see `GistExportOffer`.
+    static func gistOffer(for note: Note) -> GistExportOffer {
+        GistExportOffer.decide(
+            folder: note.folder,
+            hasImages: FileStorage.hasAssetDirectory(for: note),
+            syncActive: GitSync.shared.isActive,
+        )
+    }
+
+    /// Put the web link of the gist holding `note` on the clipboard. Does nothing when
+    /// the note is not inside a gist clone.
+    static func copyGistLink(note: Note) {
+        let url = FileStorage.urlForNote(note)
+        Task { @MainActor in
+            guard let info = await GitSync.shared.gistInfo(for: url) else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(info.webURL.absoluteString, forType: .string)
+        }
+    }
+
+    /// Open the gist holding `note` in the browser.
+    static func openGist(note: Note) {
+        let url = FileStorage.urlForNote(note)
+        Task { @MainActor in
+            guard let info = await GitSync.shared.gistInfo(for: url) else { return }
+            NSWorkspace.shared.open(info.webURL)
+        }
+    }
+
     /// Publish the note as a gist and move it into the gist's clone under `Gists/`, so the
     /// normal sync keeps the two in step both ways. Asks first (see `confirmPublish`), puts
     /// the gist link on the clipboard and shows a toast either way. Used by the note

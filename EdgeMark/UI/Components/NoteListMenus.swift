@@ -229,35 +229,25 @@ enum NoteListMenus {
     // MARK: - Gist Items
 
     /// "Copy Gist Link" and "Open Gist" for notes inside a gist clone; "Publish as Private
-    /// Gist" and "Publish as Public Gist..." for ordinary notes when sync is active. Menu items are resolved synchronously, so
-    /// the gist lookup runs when the item is clicked.
+    /// Gist" and "Publish as Public Gist..." for ordinary notes without images when sync is
+    /// active. Menu items are resolved synchronously, so the gist lookup runs when the item
+    /// is clicked.
     private static func addGistItems(to menu: NSMenu, note: Note, noteStore: NoteStore, l10n: L10n) {
-        let sync = GitSync.shared
-        guard sync.isActive else { return }
-        let url = FileStorage.urlForNote(note)
-        let inGists = note.folder == "Gists" || note.folder.hasPrefix("Gists/")
-
-        if inGists {
+        switch NoteExporter.gistOffer(for: note) {
+        case .none, .publish(blockedByImages: true):
+            return
+        case .linkToGist:
             menu.addActionItem(title: l10n["sync.copyGistLink"], icon: "link") {
-                Task { @MainActor in
-                    guard let info = await sync.gistInfo(for: url) else { return }
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(info.webURL.absoluteString, forType: .string)
-                }
+                NoteExporter.copyGistLink(note: note)
             }
             menu.addActionItem(title: l10n["sync.openGist"], icon: "safari") {
-                Task { @MainActor in
-                    guard let info = await sync.gistInfo(for: url) else { return }
-                    NSWorkspace.shared.open(info.webURL)
-                }
+                NoteExporter.openGist(note: note)
             }
-            return
-        }
-
-        guard !FileStorage.hasAssetDirectory(for: note) else { return }
-        for (title, isPublic) in [(l10n["sync.publishGist"], false), (l10n["sync.publishGistPublic"], true)] {
-            menu.addActionItem(title: title, icon: "arrow.up.doc") {
-                NoteExporter.exportAsGist(note: note, noteStore: noteStore, isPublic: isPublic)
+        case .publish(blockedByImages: false):
+            for (title, isPublic) in [(l10n["sync.publishGist"], false), (l10n["sync.publishGistPublic"], true)] {
+                menu.addActionItem(title: title, icon: "arrow.up.doc") {
+                    NoteExporter.exportAsGist(note: note, noteStore: noteStore, isPublic: isPublic)
+                }
             }
         }
     }
