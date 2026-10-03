@@ -292,6 +292,63 @@ final class GistSyncTests: XCTestCase {
         XCTAssertEqual(sync.repos().map(\.url.lastPathComponent), ["root"])
     }
 
+    func testIgnoredGistIsNotCloned() async throws {
+        let root = try await makeRoot()
+        await makeGist(id: "c4", files: ["a.md": "a\n"])
+        await makeGist(id: "d5", files: ["b.md": "b\n"])
+        listed = [gist("c4", "hidden", ["a.md"]), gist("d5", "shown", ["b.md"])]
+        let sync = makeSync(root: root)
+        sync.settings.ignoredGistIDs = ["c4"]
+        await sync.pullAll(force: true)
+        XCTAssertEqual(gistDirs(root), ["shown"])
+        XCTAssertEqual(sync.gistDescriptions["c4"], "hidden")
+    }
+
+    func testHideGistRemovesTheCloneAndKeepsItAway() async throws {
+        let root = try await makeRoot()
+        let remote = await makeGist(id: "e6", files: ["a.md": "a\n"])
+        listed = [gist("e6", "away", ["a.md"])]
+        let sync = makeSync(root: root)
+        var deletes = 0
+        sync.deleteGistOnGitHub = { _, _ in
+            deletes += 1
+            return .success(())
+        }
+        await sync.pullAll(force: true)
+        let dir = root.appendingPathComponent("Gists/away")
+        let resolved = await sync.gistClone(at: dir)
+        let clone = try XCTUnwrap(resolved)
+
+        let error = await sync.hideGist(clone, description: "away")
+        XCTAssertNil(error)
+        XCTAssertEqual(deletes, 0, "hiding never deletes on GitHub")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path))
+        XCTAssertEqual(sync.settings.ignoredGistIDs, ["e6"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: remote.path))
+
+        await sync.pullAll(force: true)
+        XCTAssertEqual(gistDirs(root), [])
+
+        sync.unhideGist(id: "e6")
+        await sync.pullAll(force: true)
+        XCTAssertEqual(gistDirs(root), ["away"])
+    }
+
+    func testHideGistThatCannotBeRemovedRecordsNothing() async throws {
+        let root = try await makeRoot()
+        await makeGist(id: "f7", files: ["a.md": "a\n"])
+        listed = [gist("f7", "stuck", ["a.md"])]
+        let sync = makeSync(root: root)
+        sync.discardClone = { _ in throw CocoaError(.fileWriteNoPermission) }
+        await sync.pullAll(force: true)
+        let resolved = await sync.gistClone(at: root.appendingPathComponent("Gists/stuck"))
+        let clone = try XCTUnwrap(resolved)
+        let error = await sync.hideGist(clone, description: nil)
+        XCTAssertNotNil(error)
+        XCTAssertEqual(sync.settings.ignoredGistIDs, [])
+        XCTAssertEqual(sync.repos().count, 2)
+    }
+
     // MARK: - Publish
 
     func testPublishThenMoveNeedsNoExtraCommit() async throws {

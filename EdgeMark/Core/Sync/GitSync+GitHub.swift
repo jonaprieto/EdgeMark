@@ -16,8 +16,8 @@ extension GitSync {
 
     // MARK: - Discovery
 
-    /// Clones gists of the chosen account that have no directory under `Gists/` yet.
-    /// A clone of this account whose gist is no longer listed was deleted on GitHub: its
+    /// Clones gists of the chosen account that have no directory under `Gists/` yet and
+    /// were not hidden on this Mac (`settings.ignoredGistIDs`). A clone of this account whose gist is no longer listed was deleted on GitHub: its
     /// files stay on disk, but it goes into `detachedGists` so it is not synced. A failed
     /// listing changes nothing. Returns how many gists were cloned.
     @discardableResult
@@ -36,6 +36,9 @@ extension GitSync {
             SyncLog.log.error("[GitSync] gist list failed: \(error.message, privacy: .public)")
         case let .success(gists):
             let listed = Set(gists.map(\.id))
+            for gist in gists where !gist.description.isEmpty {
+                gistDescriptions[gist.id] = gist.description
+            }
             // A clone made for another account is not judged by this account's list.
             let account = settings.account
             detachedGists = Set(clones.filter { clone in
@@ -45,7 +48,7 @@ extension GitSync {
                 repoStates[url] = nil
                 SyncLog.log.info("[GitSync] gist in \(url.lastPathComponent, privacy: .public) is gone on GitHub; not syncing it")
             }
-            for gist in gists where !known.contains(gist.id) {
+            for gist in gists where !known.contains(gist.id) && !settings.ignoredGistIDs.contains(gist.id) {
                 if await clone(gist, into: gistsDir) != nil { cloned += 1 }
             }
         }
@@ -130,6 +133,22 @@ extension GitSync {
         SyncLog.log.info("[GitSync] deleted gist \(clone.id, privacy: .public) on GitHub")
         if let error = await discardGistClone(at: clone.dir) { return .failure(error) }
         return .success(())
+    }
+
+    /// Stops syncing the gist on this Mac: removes its clone directory and records its id
+    /// so discovery does not clone it again. The gist stays on GitHub. Returns the error
+    /// when the clone could not be removed; nothing is recorded then.
+    func hideGist(_ clone: GistClone, description: String?) async -> GHError? {
+        if let error = await discardGistClone(at: clone.dir) { return error }
+        settings.ignoredGistIDs.insert(clone.id)
+        if let description, !description.isEmpty { gistDescriptions[clone.id] = description }
+        SyncLog.log.info("[GitSync] hid gist \(clone.id, privacy: .public) on this Mac")
+        return nil
+    }
+
+    /// Lets discovery clone a hidden gist again (at the next forced pull or within the hour).
+    func unhideGist(id: String) {
+        settings.ignoredGistIDs.remove(id)
     }
 
     // MARK: - Publish

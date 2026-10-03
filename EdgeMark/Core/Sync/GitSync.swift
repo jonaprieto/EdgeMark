@@ -56,6 +56,9 @@ final class GitSync {
     /// (deleted on GitHub). Their files stay on disk but they are not pulled or pushed,
     /// which would fail on every sync. Written by gist discovery.
     @ObservationIgnored var detachedGists: Set<URL> = []
+    /// Descriptions by gist id, from the last listing and from hiding a gist, so Settings
+    /// can name hidden gists. Not persisted.
+    var gistDescriptions: [String: String] = [:]
     /// Gist listing and creation; tests swap these for local fakes so `gh` never runs.
     @ObservationIgnored var listGists: (String) async -> Result<[Gist], GHError> = { await GistCatalog.list(account: $0) }
     @ObservationIgnored var createGist: (_ account: String, _ file: URL, _ description: String, _ isPublic: Bool) async -> Result<String, GHError> = {

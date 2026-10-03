@@ -9,6 +9,7 @@ extension NoteStore {
     enum GistTrashAnswer {
         case cancel
         case deleteOnGitHub
+        case removeHere
     }
 
     /// Moves `notes` and `folders` to the Trash. When a gist would be left without files,
@@ -63,17 +64,35 @@ extension NoteStore {
             return true
         }
         var lines: [String] = []
+        var descriptions: [String: String] = [:]
         for folder in plan.gists {
             guard let clone = clones[folder] else { continue }
             let details = await sync.gistDetails(clone)
             let description = details?.description.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let name = description.isEmpty ? (folder as NSString).lastPathComponent : description
+            descriptions[folder] = name
             let visibility = details.map { L10n.shared[$0.isPublic ? "gistTrash.public" : "gistTrash.secret"] }
             lines.append(visibility.map { "\(name) (\($0))" } ?? name)
         }
+        let l10n = L10n.shared
         switch Self.askAboutGists(lines) {
         case .cancel:
             return false
+        case .removeHere:
+            var failure: String?
+            for folder in plan.gists {
+                guard let clone = clones[folder] else { continue }
+                if let error = await sync.hideGist(clone, description: descriptions[folder]) {
+                    failure = failure ?? error.message
+                } else {
+                    forgetFolder(folder)
+                }
+            }
+            trashPlanned(plan)
+            if let failure {
+                FeedbackToast.shared.show(l10n.t("gistTrash.hideFailed", Self.shortMessage(failure)), isError: true)
+            }
+            return true
         case .deleteOnGitHub:
             var deleted = 0
             var failure: String?
@@ -88,7 +107,6 @@ extension NoteStore {
                 }
             }
             trashPlanned(plan)
-            let l10n = L10n.shared
             if let failure {
                 FeedbackToast.shared.show(l10n.t("gistTrash.failed", Self.shortMessage(failure)), isError: true)
             } else {
@@ -99,19 +117,23 @@ extension NoteStore {
     }
 
     /// One alert for every gist in `lines` (name, plus visibility when known). Cancel is
-    /// the default button; the destructive one is never chosen by Return.
+    /// the default button; the destructive one is never chosen by Return. "Only Remove
+    /// Here" hides the gist on this Mac and leaves it on GitHub.
     private static func askAboutGists(_ lines: [String]) -> GistTrashAnswer {
         let l10n = L10n.shared
         let one = lines.count == 1
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = l10n[one ? "gistTrash.title" : "gistTrash.titleMany"]
-        alert.informativeText = lines.joined(separator: "\n") + "\n\n" + l10n[one ? "gistTrash.info" : "gistTrash.infoMany"]
+        alert.informativeText = lines.joined(separator: "\n") + "\n\n"
+            + l10n[one ? "gistTrash.info" : "gistTrash.infoMany"] + " " + l10n[one ? "gistTrash.onlyHereInfo" : "gistTrash.onlyHereInfoMany"]
         alert.addButton(withTitle: l10n["common.cancel"])
         let delete = alert.addButton(withTitle: l10n["gistTrash.delete"])
         delete.hasDestructiveAction = true
+        alert.addButton(withTitle: l10n["gistTrash.onlyHere"])
         switch alert.runModal() {
         case .alertSecondButtonReturn: return .deleteOnGitHub
+        case .alertThirdButtonReturn: return .removeHere
         default: return .cancel
         }
     }

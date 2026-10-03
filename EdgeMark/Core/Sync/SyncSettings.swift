@@ -23,6 +23,10 @@ final class SyncSettings {
     var allowedHashes: Set<String> {
         didSet { defaults.set(try? JSONEncoder().encode(allowedHashes.sorted()), forKey: "sync.allowedHashes") }
     }
+    /// Gist ids removed from this Mac with "Only Remove Here"; discovery does not clone them.
+    var ignoredGistIDs: Set<String> {
+        didSet { defaults.set(try? JSONEncoder().encode(ignoredGistIDs.sorted()), forKey: "sync.ignoredGistIDs") }
+    }
 
     static let defaultTemplate = "notes: {date}"
 
@@ -46,6 +50,9 @@ final class SyncSettings {
         account = defaults.string(forKey: "sync.account") ?? ""
         guardEnabled = defaults.object(forKey: "sync.guardEnabled") as? Bool ?? true
         allowedHashes = defaults.data(forKey: "sync.allowedHashes")
+            .flatMap { try? JSONDecoder().decode([String].self, from: $0) }
+            .map(Set.init) ?? []
+        ignoredGistIDs = defaults.data(forKey: "sync.ignoredGistIDs")
             .flatMap { try? JSONDecoder().decode([String].self, from: $0) }
             .map(Set.init) ?? []
     }

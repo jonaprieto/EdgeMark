@@ -20,6 +20,18 @@ final class SyncSettingsTests: XCTestCase {
         XCTAssertEqual(s.account, "")
         XCTAssertTrue(s.guardEnabled)
         XCTAssertEqual(s.allowedHashes, [])
+        XCTAssertEqual(s.ignoredGistIDs, [])
+    }
+
+    func testIgnoredGistIDsPersistAsAJSONArray() throws {
+        let d = freshDefaults()
+        let a = SyncSettings(defaults: d)
+        a.ignoredGistIDs = ["b2", "a1"]
+        let data = try XCTUnwrap(d.data(forKey: "sync.ignoredGistIDs"))
+        XCTAssertEqual(try JSONDecoder().decode([String].self, from: data), ["a1", "b2"])
+        XCTAssertEqual(SyncSettings(defaults: d).ignoredGistIDs, ["a1", "b2"])
+        a.ignoredGistIDs.remove("a1")
+        XCTAssertEqual(SyncSettings(defaults: d).ignoredGistIDs, ["b2"])
     }
 
     func testPersistsAcrossInstances() {

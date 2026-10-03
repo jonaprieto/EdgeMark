@@ -144,6 +144,32 @@ struct SyncSettingsTab: View {
             }
             Toggle(l10n["sync.pushOnQuit"], isOn: $settings.pushOnQuit)
             Toggle(l10n["sync.syncGists"], isOn: $settings.syncGists)
+            if !settings.ignoredGistIDs.isEmpty {
+                hiddenGists
+            }
+        }
+    }
+
+    /// Gists removed with "Only Remove Here"; Unhide lets discovery clone them again.
+    private var hiddenGists: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(l10n["sync.hiddenGists"])
+            ForEach(settings.ignoredGistIDs.sorted(), id: \.self) { id in
+                HStack {
+                    VStack(alignment: .leading, spacing: 1) {
+                        if let description = sync.gistDescriptions[id] {
+                            Text(description).font(.callout)
+                        }
+                        Text(id).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                    Spacer()
+                    Button(l10n["sync.unhideGist"]) {
+                        sync.unhideGist(id: id)
+                        Task { await sync.pullAll(force: true) }
+                    }
+                    .help(l10n["tooltip.sync.unhideGist"])
+                }
+            }
         }
     }
 
