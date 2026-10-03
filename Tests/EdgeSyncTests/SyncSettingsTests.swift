@@ -41,5 +41,7 @@ final class SyncSettingsTests: XCTestCase {
         XCTAssertTrue(rendered.hasSuffix(" from mbp"), rendered)
         s.commitTemplate = ""
         XCTAssertEqual(s.renderCommitMessage(date: date, host: "mbp").isEmpty, false, "empty template falls back")
+        s.commitTemplate = " \n\t"
+        XCTAssertTrue(s.renderCommitMessage(date: date, host: "mbp").hasPrefix("notes: 2025-10-09 "), "blank template falls back")
     }
 }

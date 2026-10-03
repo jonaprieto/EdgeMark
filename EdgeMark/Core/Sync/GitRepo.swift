@@ -4,7 +4,8 @@ import Foundation
 struct GitRepo: Equatable, Hashable {
     let url: URL
 
-    /// The URL is normalized (standardized, no trailing slash) so it works as a dictionary key.
+    /// The URL is normalized to a directory URL with a standardized path, so equal
+    /// directories give equal keys.
     init(url: URL) {
         self.url = URL(fileURLWithPath: url.standardizedFileURL.path, isDirectory: true)
     }

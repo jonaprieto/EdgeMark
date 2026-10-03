@@ -299,7 +299,8 @@ final class GitSync {
     // MARK: - Private
 
     /// Runs `work` after any earlier operation on the same repo has finished, so two
-    /// git processes never touch one working copy at once.
+    /// git processes never touch one working copy at once. Must not be called
+    /// re-entrantly for the same repo from inside `work`: it would wait on itself.
     private func serialized(_ repo: GitRepo, _ work: @escaping @MainActor () async -> Void) async {
         let previous = inFlight[repo.url]
         let task = Task { @MainActor in

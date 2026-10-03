@@ -41,7 +41,7 @@ final class SyncSettings {
     }
 
     func renderCommitMessage(date: Date = Date(), host: String = SyncSettings.hostName) -> String {
-        let template = commitTemplate.trimmingCharacters(in: .whitespaces).isEmpty ? Self.defaultTemplate : commitTemplate
+        let template = commitTemplate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Self.defaultTemplate : commitTemplate
         return template
             .replacingOccurrences(of: "{date}", with: Self.dateFormatter.string(from: date))
             .replacingOccurrences(of: "{host}", with: host)
