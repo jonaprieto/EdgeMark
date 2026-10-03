@@ -25,17 +25,18 @@ struct ReadOnlyMarkdownView: View {
 
     private var markdownBody: some View {
         // Shared with the live editor so previews match. `.id` rebuilds the view
-        // (makeNSView) when the task-checkbox style changes — updateNSView doesn't
-        // sync taskCheckbox, so only a full re-apply picks up the new symbols.
+        // (makeNSView) when a setting in `EditorRebuildKey` changes: updateNSView doesn't
+        // sync taskCheckbox or extensions, so only a full re-apply picks them up.
         let config = MarkdownEditorConfiguration.makeEdgeMarkConfig(noteFolder: noteFolder, fontSize: Self.fontSize)
+        // A leading front matter block renders as a metadata block, as in the editor.
         return NativeTextViewWrapper(
-            text: .constant(content),
+            text: .constant(NoteText.frontMatterToDisplay(content) ?? content),
             configuration: config,
             fontSize: Self.fontSize,
             isEditable: false,
             onCodeBlockSelectionChange: { [codeBlocks] in codeBlocks.update($0) },
         )
-        .id(AppSettings.shared.taskCheckboxPreset)
+        .id(EditorRebuildKey.current)
         .codeBlockChrome(codeBlocks, metrics: CodeBlockMetrics(configuration: config, bodySize: Self.fontSize))
     }
 }

@@ -119,16 +119,17 @@ enum NoteExporter {
         // page margins take their place.
         let settings = AppSettings.shared
         let fontSize = CGFloat(settings.editorFontSize)
-        var config = MarkdownEditorConfiguration.makeEdgeMarkConfig(noteFolder: note.folder, fontSize: fontSize)
-        config.textInsets = TextInsets(horizontal: 0, vertical: 0)
         // The math and code bridges pick colors from the key window's appearance, not the
         // view's, so pin them to their light variants for paper.
+        var config = MarkdownEditorConfiguration.makeEdgeMarkConfig(
+            noteFolder: note.folder, fontSize: fontSize, pinsLightAppearance: true,
+        )
+        config.textInsets = TextInsets(horizontal: 0, vertical: 0)
         config.theme.latexDarkModeText = config.theme.latexLightModeText
-        config.services.syntaxHighlighter = HighlighterSwiftBridge(autoSwitchAppearance: false)
         let fontName = settings.editorFontName
             .flatMap { NSFont(name: $0, size: 16)?.familyName } ?? "SF Pro"
         let wrapper = NativeTextViewWrapper(
-            text: .constant(MarkdownEditorView.imagesToEmbeds(note.content)),
+            text: .constant(MarkdownEditorView.exportDisplayText(note.content)),
             configuration: config,
             fontName: fontName,
             fontSize: fontSize,

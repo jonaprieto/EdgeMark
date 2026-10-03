@@ -70,6 +70,83 @@ nonisolated enum NoteText {
         legacyFrontMatter(text)?.body ?? text
     }
 
+    // MARK: - Front Matter Display
+
+    /// Invisible mark (WORD JOINER) the editor puts in front of the delimiter lines of a
+    /// leading YAML block, so the engine sees a fenced block instead of two horizontal
+    /// rules. It is display-only: `frontMatterFromDisplay` removes it before saving.
+    static let frontMatterMark: Character = "\u{2060}"
+
+    /// Start of the closing `---` or `...` line of a leading YAML front matter block (its
+    /// opening `---` is always the first line of `text`). Nil unless the
+    /// block opens on the very first line, closes, holds at least one `key:` line, and every
+    /// other line inside is YAML-like (list item, comment, indented line or blank), so a
+    /// horizontal rule followed by prose stays a rule. Nil when `text` already holds the
+    /// mark, which keeps the display round trip exact.
+    static func frontMatterCloseLine(_ text: String) -> String.Index? {
+        guard text.hasPrefix("---"), !text.contains(frontMatterMark) else { return nil }
+        var lineStart = text.startIndex
+        var isFirstLine = true
+        var hasKey = false
+        while lineStart < text.endIndex {
+            let lineEnd = text[lineStart...].firstIndex(where: \.isNewline) ?? text.endIndex
+            let line = text[lineStart ..< lineEnd]
+            var trimmed = line
+            while let last = trimmed.last, last == " " || last == "\t" {
+                trimmed = trimmed.dropLast()
+            }
+            if isFirstLine {
+                guard trimmed == "---", lineEnd < text.endIndex else { return nil }
+                isFirstLine = false
+            } else if trimmed == "---" || trimmed == "..." {
+                return hasKey ? lineStart : nil
+            } else if isYAMLKeyLine(trimmed) {
+                hasKey = true
+            } else if !(trimmed.isEmpty || line.first == " " || line.first == "\t"
+                || trimmed.hasPrefix("#") || trimmed == "-" || trimmed.hasPrefix("- "))
+            {
+                return nil
+            }
+            guard lineEnd < text.endIndex else { break }
+            lineStart = text.index(after: lineEnd)
+        }
+        return nil
+    }
+
+    /// `key:` alone or `key: value`, with a plain key (letters, digits, `_`, `-`, `.`) or a
+    /// quoted one. A key with spaces reads as prose ("Note that: ..."), not YAML.
+    private static func isYAMLKeyLine(_ line: Substring) -> Bool {
+        guard let colon = line.firstIndex(of: ":") else { return false }
+        let after = line.index(after: colon)
+        guard after == line.endIndex || line[after] == " " || line[after] == "\t" else { return false }
+        let key = line[..<colon]
+        guard let first = key.first else { return false }
+        if first == "\"" || first == "'" {
+            return key.count >= 2 && key.last == first
+        }
+        return key.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" || $0 == "." }
+    }
+
+    /// `text` with `frontMatterMark` in front of both delimiter lines of its leading front
+    /// matter block, or nil when it has none (see `frontMatterCloseLine`).
+    static func frontMatterToDisplay(_ text: String) -> String? {
+        guard let close = frontMatterCloseLine(text) else { return nil }
+        var result = text
+        result.insert(frontMatterMark, at: close)
+        result.insert(frontMatterMark, at: result.startIndex)
+        return result
+    }
+
+    /// Inverse of `frontMatterToDisplay`: `text` without any `frontMatterMark`. Only applied
+    /// to text that `frontMatterToDisplay` converted, whose source held no mark, so the
+    /// result is byte for byte what the user typed even after edits around the delimiters.
+    static func frontMatterFromDisplay(_ text: String) -> String {
+        guard text.contains(frontMatterMark) else { return text }
+        var result = text
+        result.removeAll { $0 == frontMatterMark }
+        return result
+    }
+
     // MARK: - Title
 
     /// The first line of `text`, ended by any newline ("\n", "\r\n", "\r", U+2028...).
