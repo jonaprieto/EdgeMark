@@ -18,9 +18,16 @@ struct PeekContentView: View {
 
     // MARK: - Note
 
+    @ViewBuilder
     private func notePreview(_ note: Note) -> some View {
-        ReadOnlyMarkdownView(content: note.content, noteFolder: note.folder)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        if note.isPlainTextFile {
+            // Code and data files are shown as they are, like in their editor.
+            PlainTextView(model: PlainTextEditorModel(noteID: note.id), initialContent: note.content, isEditable: false)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ReadOnlyMarkdownView(content: note.content, noteFolder: note.folder)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 
     // MARK: - Folder

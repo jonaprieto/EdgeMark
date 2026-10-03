@@ -5,8 +5,10 @@ import SwiftUI
 /// monospaced font and no Markdown engine, highlighting or spell checking, so a huge or
 /// pathological note stays responsive. Saves through the same `onContentChanged` path as
 /// `MarkdownEditorView` (debounced, flushed on disappear) and applies `pendingReload`.
+/// Non-Markdown gist files open here too, without the large-note banner.
 struct PlainTextNoteEditor: View {
     let initialContent: String
+    let showsBanner: Bool
     let onContentChanged: (UUID, String) -> Void
     @Binding var pendingReload: String?
 
@@ -19,8 +21,10 @@ struct PlainTextNoteEditor: View {
         initialContent: String,
         onContentChanged: @escaping (UUID, String) -> Void,
         pendingReload: Binding<String?>,
+        showsBanner: Bool = true,
     ) {
         self.initialContent = initialContent
+        self.showsBanner = showsBanner
         self.onContentChanged = onContentChanged
         _pendingReload = pendingReload
         _model = State(initialValue: PlainTextEditorModel(noteID: noteID))
@@ -28,13 +32,15 @@ struct PlainTextNoteEditor: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(L10n.shared["editor.plainTextBanner"])
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(.quaternary.opacity(0.5))
+            if showsBanner {
+                Text(L10n.shared["editor.plainTextBanner"])
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(.quaternary.opacity(0.5))
+            }
             PlainTextView(model: model, initialContent: initialContent)
         }
         .onAppear {

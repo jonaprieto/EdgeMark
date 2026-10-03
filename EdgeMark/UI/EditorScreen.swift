@@ -23,7 +23,7 @@ struct EditorScreen: View {
             headerContent
         } content: {
             if let note = noteStore.selectedNote {
-                EditorModeChooser(content: note.content) {
+                EditorModeChooser(content: note.content, isPlainTextFile: note.isPlainTextFile) {
                     MarkdownEditorView(
                         noteID: note.id,
                         noteTitle: note.title,
@@ -45,6 +45,7 @@ struct EditorScreen: View {
                             noteStore.updateContent(for: id, content: newContent)
                         },
                         pendingReload: $pendingEditorReload,
+                        showsBanner: !note.isPlainTextFile,
                     )
                 }
                 .onAppear {
@@ -162,15 +163,16 @@ struct EditorScreen: View {
 // MARK: - Editor Mode
 
 /// Picks the editor once per note, from the content it opened with: the plain-text editor
-/// when `NoteComplexity.isHeavy`, the Markdown editor otherwise. Latched so the editor
-/// does not swap while typing across a limit; the next open decides again.
+/// for a non-Markdown gist file or when `NoteComplexity.isHeavy`, the Markdown editor
+/// otherwise. Latched so the editor does not swap while typing across a limit; the next
+/// open decides again.
 private struct EditorModeChooser<Rich: View, Plain: View>: View {
     @State private var isHeavy: Bool
     private let rich: () -> Rich
     private let plain: () -> Plain
 
-    init(content: String, @ViewBuilder rich: @escaping () -> Rich, @ViewBuilder plain: @escaping () -> Plain) {
-        _isHeavy = State(initialValue: NoteComplexity.isHeavy(content))
+    init(content: String, isPlainTextFile: Bool, @ViewBuilder rich: @escaping () -> Rich, @ViewBuilder plain: @escaping () -> Plain) {
+        _isHeavy = State(initialValue: isPlainTextFile || NoteComplexity.isHeavy(content))
         self.rich = rich
         self.plain = plain
     }
