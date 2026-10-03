@@ -1,7 +1,7 @@
 import Cocoa
 import SwiftUI
 
-/// Shared footer bar with sort (left) and settings (right) menus.
+/// Shared footer bar with sort (left), sync and settings (right) menus.
 /// Pinned at the bottom of the content card on home and folder list screens.
 struct ContentFooterBar: View {
     @Environment(AppSettings.self) var settings
@@ -16,17 +16,9 @@ struct ContentFooterBar: View {
             }
             Spacer()
             if GitSync.shared.isActive || GitSync.shared.rootRepo != nil {
-                SyncStatusDot(state: GitSync.shared.state)
-                    .help(l10n.t("sync.footer.help", GitSync.shared.state.summary))
-                    // Grow the 7 pt dot into a 15 pt hit area; trailing gap stays 6 pt.
-                    .padding(4)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        SettingsRouter.shared.tab = .sync
-                        openSettings()
-                    }
-                    .accessibilityAddTraits(.isButton)
-                    .padding(.trailing, 2)
+                SyncFooterButton(state: GitSync.shared.state, help: l10n.t("sync.footer.help", GitSync.shared.state.summary)) {
+                    showSyncMenu()
+                }
             }
             HeaderIconButton(systemName: "gearshape", help: l10n["menu.settings"]) {
                 showSettingsMenu()
@@ -123,6 +115,63 @@ struct ContentFooterBar: View {
         popUpMenu(menu)
     }
 
+    // MARK: - Sync Menu
+
+    private func showSyncMenu() {
+        let l10n = L10n.shared
+        let sync = GitSync.shared
+        let state = sync.state
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        let summary = NSMenuItem(title: state.summary, action: nil, keyEquivalent: "")
+        summary.isEnabled = false
+        menu.addItem(summary)
+        menu.addItem(.separator())
+
+        menu.addActionItem(title: l10n["sync.syncNow"], icon: "arrow.triangle.2.circlepath") {
+            Task { await sync.syncNow() }
+        }.isEnabled = sync.isActive && state != .syncing
+
+        let root = sync.root
+        menu.addActionItem(title: l10n["sync.menu.openRepo"], icon: "arrow.up.right.square") {
+            guard let root else { return }
+            Task { _ = await Shell.run("gh", ["repo", "view", "--web"], cwd: root) }
+        }.isEnabled = sync.rootRepo != nil
+
+        menu.addActionItem(title: l10n["sync.menu.showFolder"], icon: "folder") {
+            guard let root else { return }
+            NSWorkspace.shared.activateFileViewerSelecting([root])
+        }.isEnabled = root != nil
+
+        let heldCount = sync.heldFiles.values.reduce(0) { $0 + $1.count }
+        var isConflict = false
+        if case .conflict = state { isConflict = true }
+        if heldCount > 0 || isConflict {
+            menu.addItem(.separator())
+        }
+        if heldCount > 0 {
+            menu.addActionItem(title: l10n.t("sync.menu.held", "\(heldCount)"), icon: "lock.shield") { [openSettings] in
+                SettingsRouter.shared.tab = .sync
+                openSettings()
+            }
+        }
+        if isConflict {
+            menu.addActionItem(title: l10n["sync.menu.resolve"], icon: "exclamationmark.triangle") { [openSettings] in
+                SettingsRouter.shared.tab = .sync
+                openSettings()
+            }
+        }
+
+        menu.addItem(.separator())
+        menu.addActionItem(title: l10n["sync.menu.settings"], icon: "gearshape") { [openSettings] in
+            SettingsRouter.shared.tab = .sync
+            openSettings()
+        }
+
+        popUpMenu(menu)
+    }
+
     // MARK: - Helpers
 
     /// Show an NSMenu at the current click location.
@@ -131,5 +180,48 @@ struct ContentFooterBar: View {
               let view = event.window?.contentView
         else { return }
         NSMenu.popUpContextMenu(menu, with: event, for: view)
+    }
+}
+
+/// Footer sync button: the sync arrows (turning while syncing) with the status dot as a
+/// badge on the lower right corner.
+private struct SyncFooterButton: View {
+    let state: SyncState
+    let help: String
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(isHovered ? .primary : .secondary)
+                .symbolEffect(.rotate, options: .repeat(.continuous), isActive: state == .syncing && !reduceMotion)
+                .frame(width: 20, height: 20)
+                .overlay(alignment: .bottomTrailing) {
+                    SyncStatusDot(state: state)
+                        .padding(1)
+                        .background(Circle().fill(.background))
+                        .offset(x: 2, y: 2)
+                }
+                // Same 28 pt hit area as the neighbouring icon buttons.
+                .padding(4)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.primary.opacity(isHovered ? 0.1 : 0))
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(state.summary)
+        .accessibilityAddTraits(.isButton)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }
