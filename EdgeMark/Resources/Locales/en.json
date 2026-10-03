@@ -96,8 +96,10 @@
 
   "home.title": "EdgeMark",
 
-  "noteList.empty.title": "No Notes",
-  "noteList.empty.subtitle": "Tap the pencil icon to create a note",
+  "noteList.empty.title": "No notes here",
+  "noteList.empty.subtitle": "Press the new-note button above to start.",
+  "hint.firstRun": "Click a note to open it. Right-click for more. The arrow at the bottom syncs with GitHub.",
+  "hint.dismiss": "Hide this hint",
 
   "editor.copyNote": "Copy Note",
   "editor.exportNote": "Export Note",

@@ -27,6 +27,9 @@ struct HomeFolderView: View {
     /// moment before the grow, so the user sees which item was chosen.
     @State private var pickedRootID: String?
 
+    /// First-run hint bar above the list, hidden for good once closed.
+    @AppStorage("hintDismissed") private var hintDismissed = false
+
     private var trimmedQuery: String {
         searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -115,6 +118,37 @@ struct HomeFolderView: View {
         sortedFolders.map { .folder($0.name) } + rootNotes.map { .note($0.id) }
     }
 
+    // MARK: - First-run hint
+
+    private var hintBar: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "lightbulb")
+                .foregroundStyle(.secondary)
+            Text(l10n["hint.firstRun"])
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { hintDismissed = true }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, height: 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(l10n["hint.dismiss"])
+            .accessibilityLabel(l10n["hint.dismiss"])
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+    }
+
     // MARK: - Icon width
 
     /// Fixed width for leading icons so folder and note icons align.
@@ -125,6 +159,9 @@ struct HomeFolderView: View {
             header
         } content: {
             VStack(spacing: 0) {
+                if !noteStore.awaitingRootChoice, !hintDismissed {
+                    hintBar
+                }
                 ZStack {
                     if noteStore.awaitingRootChoice {
                         // Picker mode: small-centered root rows (no own card bg — the
