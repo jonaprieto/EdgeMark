@@ -85,3 +85,5 @@ Layout: `EdgeMark/` holds the app (`Core/` for sync, storage, export and editor 
 ## Credits and license
 
 EdgeMark is by [Ender-Wang](https://github.com/Ender-Wang/EdgeMark) and licensed under the [GNU General Public License v3.0](LICENSE); this fork keeps that license. It builds on [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine) (Apache 2.0), which bundles [HighlighterSwift](https://github.com/smittytone/HighlighterSwift) for code highlighting and [SwiftMath](https://github.com/mgriebling/SwiftMath) for LaTeX. Secret checks use [TypeSafe Jev](https://typesafe.ai).
+
+Mermaid diagrams are drawn by [Mermaid](https://github.com/mermaid-js/mermaid) (MIT), bundled in the app.
