@@ -102,6 +102,19 @@ enum NoteExporter {
         }
     }
 
+    /// What the PDF engine view lays out: a gist code file as one code block in its
+    /// highlight.js language (within `SyntaxLanguage`'s limits, and unless a line of it
+    /// would close the fence), any other note as the editor shows it.
+    private static func pdfText(_ note: Note) -> String {
+        if note.isPlainTextFile,
+           let language = SyntaxLanguage.language(forFileName: note.title, content: note.content),
+           SyntaxLanguage.isSmallEnough(note.content),
+           let fenced = SyntaxLanguage.fencedCodeBlock(note.content, language: language) {
+            return fenced
+        }
+        return MarkdownEditorView.exportDisplayText(note.content)
+    }
+
     private struct RenderError: Error {
         let reason: String
     }
@@ -134,7 +147,7 @@ enum NoteExporter {
         let fontName = settings.editorFontName
             .flatMap { NSFont(name: $0, size: 16)?.familyName } ?? "SF Pro"
         let wrapper = NativeTextViewWrapper(
-            text: .constant(MarkdownEditorView.exportDisplayText(note.content)),
+            text: .constant(pdfText(note)),
             configuration: config,
             fontName: fontName,
             fontSize: fontSize,

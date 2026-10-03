@@ -48,6 +48,8 @@ struct EditorScreen: View {
                         },
                         pendingReload: $pendingEditorReload,
                         showsBanner: !note.isPlainTextFile,
+                        language: note.isPlainTextFile
+                            ? SyntaxLanguage.language(forFileName: note.title, content: note.content) : nil,
                     )
                 }
                 .onAppear {

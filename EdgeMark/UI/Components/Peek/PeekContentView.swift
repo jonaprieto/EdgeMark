@@ -21,11 +21,12 @@ struct PeekContentView: View {
     @ViewBuilder
     private func notePreview(_ note: Note) -> some View {
         if note.isPlainTextFile {
-            // Code and data files are shown as they are, like in their editor.
+            // Code and data files are shown as they are, coloured like in their editor.
             PlainTextView(
                 model: PlainTextEditorModel(noteID: note.id),
                 initialContent: note.content,
                 monoFontName: AppSettings.shared.editorMonoFontName,
+                language: SyntaxLanguage.language(forFileName: note.title, content: note.content),
                 isEditable: false,
             )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -5,10 +5,12 @@ import SwiftUI
 /// user's monospace font and no Markdown engine, highlighting or spell checking, so a huge or
 /// pathological note stays responsive. Saves through the same `onContentChanged` path as
 /// `MarkdownEditorView` (debounced, flushed on disappear) and applies `pendingReload`.
-/// Non-Markdown gist files open here too, without the large-note banner.
+/// Non-Markdown gist files open here too, without the large-note banner, coloured by
+/// highlight.js when `language` is set.
 struct PlainTextNoteEditor: View {
     let initialContent: String
     let showsBanner: Bool
+    let language: String?
     let onContentChanged: (UUID, String) -> Void
     @Binding var pendingReload: String?
 
@@ -22,9 +24,11 @@ struct PlainTextNoteEditor: View {
         onContentChanged: @escaping (UUID, String) -> Void,
         pendingReload: Binding<String?>,
         showsBanner: Bool = true,
+        language: String? = nil,
     ) {
         self.initialContent = initialContent
         self.showsBanner = showsBanner
+        self.language = language
         self.onContentChanged = onContentChanged
         _pendingReload = pendingReload
         _model = State(initialValue: PlainTextEditorModel(noteID: noteID))
@@ -45,6 +49,7 @@ struct PlainTextNoteEditor: View {
                 model: model,
                 initialContent: initialContent,
                 monoFontName: AppSettings.shared.editorMonoFontName,
+                language: language,
             )
         }
         .onAppear {
@@ -61,13 +66,21 @@ struct PlainTextNoteEditor: View {
     }
 }
 
-/// Owns the text view's save debouncing so the SwiftUI side can flush and reload it.
+/// Owns the text view's save debouncing so the SwiftUI side can flush and reload it, and
+/// its syntax colouring when `language` is set.
 final class PlainTextEditorModel: NSObject, NSTextViewDelegate {
     let noteID: UUID
     var onSave: ((UUID, String) -> Void)?
     weak var textView: NSTextView?
+    /// highlight.js language of a gist code file; nil leaves the text uncoloured.
+    var language: String?
     private let saveDebouncer = Debouncer(delay: 1.0)
+    private let highlightDebouncer = Debouncer(delay: 0.25)
     private var hasEdits = false
+    /// Bumped by every text change, so colours worked out for older text are dropped.
+    private var textVersion = 0
+    /// Whether the text currently carries syntax colours.
+    private var isHighlighted = false
 
     init(noteID: UUID) {
         self.noteID = noteID
@@ -75,7 +88,11 @@ final class PlainTextEditorModel: NSObject, NSTextViewDelegate {
 
     func textDidChange(_: Notification) {
         hasEdits = true
+        textVersion += 1
         saveDebouncer.call { [weak self] in self?.flush() }
+        if language != nil {
+            highlightDebouncer.call { [weak self] in self?.highlight() }
+        }
     }
 
     /// Push the text to the store if the user edited it since the last push.
@@ -89,7 +106,36 @@ final class PlainTextEditorModel: NSObject, NSTextViewDelegate {
     func replaceText(_ text: String) {
         saveDebouncer.cancel()
         hasEdits = false
+        textVersion += 1
         textView?.string = text
+        highlight()
+    }
+
+    /// Recolours the text for `language` in the light or dark theme of the text view's
+    /// appearance. highlight.js runs off the main thread; its colours are applied here as
+    /// attributes only, and dropped if the text changed meanwhile. Text that grew past
+    /// `SyntaxLanguage`'s limits goes back to the plain text colour.
+    func highlight() {
+        highlightDebouncer.cancel()
+        guard let language, let textView else { return }
+        let version = textVersion
+        let isDark = textView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        CodeFileHighlighter.shared.colorRuns(for: textView.string, language: language, dark: isDark) { [weak self, weak textView] runs in
+            guard let self, let textView, let storage = textView.textStorage, version == textVersion,
+                  runs != nil || isHighlighted else { return }
+            CodeFileHighlighter.apply(runs, to: storage, base: .textColor)
+            isHighlighted = runs != nil
+        }
+    }
+}
+
+/// Plain text view that reports appearance changes, so code colours follow light and dark.
+final class CodeTextView: NSTextView {
+    var onAppearanceChange: (() -> Void)?
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        onAppearanceChange?()
     }
 }
 
@@ -100,6 +146,8 @@ struct PlainTextView: NSViewRepresentable {
     /// `AppSettings.editorMonoFontName`, passed in so the parent's body tracks it and a
     /// change reaches `updateNSView`.
     let monoFontName: String?
+    /// highlight.js language for a gist code file; nil shows the text uncoloured.
+    var language: String?
     var isEditable = true
 
     /// The monospace font at the system text size; the system monospaced font by default.
@@ -108,10 +156,15 @@ struct PlainTextView: NSViewRepresentable {
         return name.flatMap { NSFont(name: $0, size: size) } ?? .monospacedSystemFont(ofSize: size, weight: .regular)
     }
 
+    /// The model `makeNSView` wired up; a caller may pass a fresh one on every render.
+    func makeCoordinator() -> PlainTextEditorModel {
+        model
+    }
+
     func makeNSView(context _: Context) -> NSScrollView {
         // TextKit 1 with non-contiguous layout lays out only what is on screen, which
         // keeps a multi-megabyte note scrollable.
-        let textView = NSTextView(usingTextLayoutManager: false)
+        let textView = CodeTextView(usingTextLayoutManager: false)
         textView.layoutManager?.allowsNonContiguousLayout = true
         textView.isRichText = false
         textView.importsGraphics = false
@@ -141,6 +194,11 @@ struct PlainTextView: NSViewRepresentable {
         textView.string = initialContent
         textView.delegate = model
         model.textView = textView
+        model.language = language
+        if language != nil {
+            textView.onAppearanceChange = { [weak model] in model?.highlight() }
+            model.highlight()
+        }
 
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
@@ -149,11 +207,12 @@ struct PlainTextView: NSViewRepresentable {
         return scrollView
     }
 
-    func updateNSView(_ scrollView: NSScrollView, context _: Context) {
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         let font = Self.font(named: monoFontName)
         if textView.font != font {
             textView.font = font
+            context.coordinator.highlight()
         }
     }
 }
