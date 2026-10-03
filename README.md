@@ -35,7 +35,7 @@ Secrets guard. Before each commit, the added lines of changed files are checked 
 
 Export. A note can be exported as Markdown (images are copied next to it and links rewritten) or as PDF, from the export menu.
 
-Editor and panel. A single click opens notes and folders. A new note takes focus. Code blocks are compact, with line numbers and a copy button. Image files are removed from disk when you delete the image from the text. The editor header moves a note to Trash instead of deleting it. Very large or pathological notes open in a plain-text mode. A first-run hint and a clearer empty state were added. File type badges mark non-Markdown files.
+Editor and panel. A single click opens notes and folders. A new note takes focus. Code blocks are compact, with line numbers and a copy button. Prose and monospace fonts are set separately in Settings. Mermaid diagrams (a fenced block tagged `mermaid`) render as diagrams while the cursor is outside the block, and as source while it is inside; previews and PDF export show the diagram too. YAML front matter at the top of a note shows as a compact metadata block. Image files are removed from disk when you delete the image from the text. The editor header moves a note to Trash instead of deleting it. Very large or pathological notes open in a plain-text mode. Right-clicking the empty space of the list opens a menu with New Note, New Folder, Sort By, Paste as New Note, Sync Now and more. Icon-only controls have tooltips, with the keyboard shortcut where one is set. A first-run hint and a clearer empty state were added. File type badges mark non-Markdown files, and code files in gists are syntax highlighted by file extension.
 
 Data-loss and speed fixes. Existing front matter and horizontal rules are kept when saving, image alt text is kept, titles with brackets get safe image folder names, CRLF titles and non-UTF-8 notes load correctly, and git and `gh` run off the main actor so the panel does not stall.
 
@@ -71,6 +71,9 @@ To build from source you need Xcode 26 and macOS 15.7 or later:
 
 - In the editor, the line numbers and copy button of a code block are not shown for the block the cursor is in; they appear when you move out of it.
 - PDF export loses the line-number gutter and the copy button of code blocks.
+- Mermaid: while you edit a diagram block you also see two `$$` marker lines around it, and a diagram you just typed renders after the note is reopened. Blocks that contain `$$` stay plain code.
+- Front matter and Mermaid use invisible marker characters in the editor only; the saved file is unchanged, but copying a selection that spans such a block can include them.
+- Highlighting uses highlight.js grammars: Solidity is shown with the JavaScript grammar, Agda and Idris with Haskell, TOML with INI; Lean and a few others stay plain.
 - When an export fails, EdgeMark only beeps and writes a log line. There is no alert.
 - With a Jev key configured, up to 8 KB of the added text of each file that the regex rules did not already flag is sent to api.typesafe.ai before a push. Without a key, only the regex rules run. Settings states this too.
 - `gh` and `git` are hard requirements for sync. There is no merge UI: conflicts are resolved by you in the repo.
