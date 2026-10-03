@@ -6,6 +6,9 @@
 
 <br clear="all" />
 
+> Personal fork with GitHub sync (notes root and gists kept in git through `gh`).
+> See Settings > Sync. Automatic update checks are disabled in this fork.
+
 <p align="center">
   <b>English</b> · <a href="README-zh-Hans.md">简体中文</a> · <a href="README-hi.md">हिन्दी</a> · <a href="README-ES.md">Español</a> · <a href="README-de.md">Deutsch</a>
 </p>
