@@ -202,12 +202,20 @@ private struct SyncFooterButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
 
+    /// One turn every 1.2 s.
+    private static func angle(at date: Date) -> Double {
+        date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2) / 1.2 * 360
+    }
+
     var body: some View {
         Button(action: action) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(isHovered ? .primary : .secondary)
-                .symbolEffect(.rotate, options: .repeat(.continuous), isActive: state == .syncing && !reduceMotion)
+            // Clock-driven rotation, paused unless syncing, so an idle panel draws no frames.
+            TimelineView(.animation(paused: state != .syncing || reduceMotion)) { context in
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isHovered ? .primary : .secondary)
+                    .rotationEffect(.degrees(state == .syncing && !reduceMotion ? Self.angle(at: context.date) : 0))
+            }
                 .frame(width: 20, height: 20)
                 .overlay(alignment: .bottomTrailing) {
                     SyncStatusDot(state: state)

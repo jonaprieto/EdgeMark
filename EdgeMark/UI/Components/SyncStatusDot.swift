@@ -4,8 +4,6 @@ import SwiftUI
 /// conflict, error, or files held back by the secrets guard.
 struct SyncStatusDot: View {
     let state: SyncState
-    @State private var pulse = false
-
     private var color: Color {
         switch state {
         case .off: .gray.opacity(0.5)
@@ -17,15 +15,20 @@ struct SyncStatusDot: View {
     }
 
     var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: 7, height: 7)
-            .opacity(state == .syncing && pulse ? 0.3 : 1)
-            .onChange(of: state == .syncing, initial: true) { _, syncing in
-                withAnimation(syncing ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default) {
-                    pulse = syncing
-                }
-            }
-            .accessibilityLabel(state.summary)
+        // Driven by the clock instead of a repeatForever animation, and paused unless syncing:
+        // an idle paused TimelineView draws no frames, so the panel costs no CPU at rest.
+        TimelineView(.animation(paused: state != .syncing)) { context in
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+                .opacity(state == .syncing ? Self.pulseOpacity(at: context.date) : 1)
+        }
+        .accessibilityLabel(state.summary)
+    }
+
+    /// Eases between 1 and 0.3 with a 1.4 s period.
+    private static func pulseOpacity(at date: Date) -> Double {
+        let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4
+        return 0.65 + 0.35 * cos(phase * 2 * .pi)
     }
 }
