@@ -1,4 +1,5 @@
 import Cocoa
+import OSLog
 import SwiftUI
 
 /// Shared NSMenu builders for note and folder context menus.
@@ -206,6 +207,8 @@ enum NoteListMenus {
             ])
         }
 
+        addGistItems(to: menu, note: note, noteStore: noteStore, l10n: l10n)
+
         menu.addItem(.separator())
 
         menu.addActionItem(title: l10n["common.delete"], icon: "trash") {
@@ -213,6 +216,55 @@ enum NoteListMenus {
         }
 
         return menu
+    }
+
+    // MARK: - Gist Items
+
+    /// "Copy Gist Link" and "Open Gist" for notes inside a gist clone; "Publish as Gist"
+    /// for ordinary notes when sync is active. Menu items are resolved synchronously, so
+    /// the gist lookup runs when the item is clicked.
+    private static func addGistItems(to menu: NSMenu, note: Note, noteStore: NoteStore, l10n: L10n) {
+        let sync = GitSync.shared
+        guard sync.isActive else { return }
+        let url = FileStorage.urlForNote(note)
+        let inGists = note.folder == "Gists" || note.folder.hasPrefix("Gists/")
+
+        if inGists {
+            menu.addActionItem(title: l10n["sync.copyGistLink"], icon: "link") {
+                Task { @MainActor in
+                    guard let info = await sync.gistInfo(for: url) else { return }
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(info.webURL.absoluteString, forType: .string)
+                }
+            }
+            menu.addActionItem(title: l10n["sync.openGist"], icon: "safari") {
+                Task { @MainActor in
+                    guard let info = await sync.gistInfo(for: url) else { return }
+                    NSWorkspace.shared.open(info.webURL)
+                }
+            }
+            return
+        }
+
+        guard !FileStorage.hasAssetDirectory(for: note) else { return }
+        for (title, isPublic) in [(l10n["sync.publishGist"], false), (l10n["sync.publishGistPublic"], true)] {
+            menu.addActionItem(title: title, icon: "arrow.up.doc") {
+                Task { @MainActor in
+                    noteStore.saveDirtyNotes()
+                    switch await sync.publishAsGist(file: url, description: note.title, isPublic: isPublic) {
+                    case let .success(result):
+                        let folder = "Gists/\(result.gistDir.lastPathComponent)"
+                        noteStore.moveNote(note, to: folder)
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(result.webURL.absoluteString, forType: .string)
+                        await sync.commitAndPush(GitRepo(url: result.gistDir))
+                    case let .failure(error):
+                        sync.lastSetupError = error.message
+                        SyncLog.log.error("[Gist] publish failed: \(error.message, privacy: .public)")
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Tags Submenu
