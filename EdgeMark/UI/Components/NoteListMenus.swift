@@ -255,6 +255,17 @@ enum NoteListMenus {
                     case let .success(result):
                         let folder = "Gists/\(result.gistDir.lastPathComponent)"
                         noteStore.moveNote(note, to: folder)
+                        // publishAsGist cleared the file in the clone so the move could land
+                        // there. If the move failed, restore the uploaded copy and do not
+                        // push an empty gist.
+                        let filename = url.lastPathComponent
+                        let moved = result.gistDir.appendingPathComponent(filename)
+                        guard FileManager.default.fileExists(atPath: moved.path) else {
+                            _ = await GitRepo(url: result.gistDir).git("checkout", "--", filename)
+                            sync.lastSetupError = l10n["sync.publishMoveFailed"]
+                            SyncLog.log.error("[Gist] note move into \(folder, privacy: .public) failed")
+                            return
+                        }
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(result.webURL.absoluteString, forType: .string)
                         await sync.commitAndPush(GitRepo(url: result.gistDir))

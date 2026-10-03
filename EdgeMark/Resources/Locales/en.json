@@ -153,6 +153,7 @@
   "sync.copyGitStatus": "Copy git status",
   "sync.publishGist": "Publish as Gist",
   "sync.publishGistPublic": "Publish as Public Gist",
+  "sync.publishMoveFailed": "Gist created, but the note could not be moved into it.",
   "sync.copyGistLink": "Copy Gist Link",
   "sync.openGist": "Open Gist",
   "sync.footer.help": "GitHub sync: {0}",
