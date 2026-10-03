@@ -3,7 +3,8 @@ import PackageDescription
 
 // Builds EdgeMark/Core/Sync standalone so `swift test` can run against a local git
 // remote. EdgeStorageLogic builds the Foundation-only image cleanup rules from
-// EdgeMark/Core/Storage. The app target compiles the same files through its synchronized group.
+// EdgeMark/Core/Storage, and EdgeExportLogic the export link rewriting from
+// EdgeMark/Core/Export. The app target compiles the same files through its synchronized group.
 let package = Package(
     name: "EdgeSync",
     platforms: [.macOS("15.7")],
@@ -15,6 +16,12 @@ let package = Package(
             name: "EdgeStorageLogicTests",
             dependencies: ["EdgeStorageLogic"],
             path: "Tests/EdgeStorageLogicTests"
+        ),
+        .target(name: "EdgeExportLogic", path: "EdgeMark/Core/Export", sources: ["ExportLinks.swift"]),
+        .testTarget(
+            name: "EdgeExportLogicTests",
+            dependencies: ["EdgeExportLogic"],
+            path: "Tests/EdgeExportLogicTests"
         ),
     ]
 )

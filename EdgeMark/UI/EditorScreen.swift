@@ -127,6 +127,8 @@ struct EditorScreen: View {
 
                     CopyMenuButton(note: note)
 
+                    ExportMenuButton(note: note)
+
                     DeleteIconButton {
                         showDeleteConfirm = true
                     }
@@ -216,6 +218,44 @@ private struct CopyMenuButton: View {
               tv.selectedRange().length > 0
         else { return "" }
         return (tv.string as NSString).substring(with: tv.selectedRange())
+    }
+}
+
+// MARK: - Export Menu Button
+
+/// Share icon that opens a menu with the note export formats.
+private struct ExportMenuButton: View {
+    let note: Note
+
+    @Environment(NoteStore.self) private var noteStore
+    @State private var isHovered = false
+
+    var body: some View {
+        let l10n = L10n.shared
+        Menu {
+            Button(l10n["export.markdown"]) {
+                NoteExporter.exportMarkdown(note: note, noteStore: noteStore)
+            }
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(isHovered ? .primary : .secondary)
+                .frame(width: 28, height: 28)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.primary.opacity(isHovered ? 0.1 : 0))
+                }
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(l10n["editor.exportNote"])
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 

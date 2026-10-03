@@ -101,6 +101,7 @@
   "noteList.empty.subtitle": "Tap the pencil icon to create a note",
 
   "editor.copyNote": "Copy Note",
+  "editor.exportNote": "Export Note",
   "editor.copyCode": "Copy Code",
   "editor.deleteNote": "Delete Note",
   "editor.modifiedAt": "Modified at {0}",
@@ -278,6 +279,8 @@
   "settings.keyboard.copyPaths": "Copy Paths",
   "feedback.copiedPath": "Path copied",
   "feedback.copiedPaths": "{0} paths copied",
+  "export.markdown": "Export as Markdown…",
+  "export.failed": "Export failed",
   "settings.keyboard.formatting": "Editor Formatting",
   "settings.keyboard.bold": "Bold",
   "settings.keyboard.italic": "Italic",

@@ -207,6 +207,10 @@ enum NoteListMenus {
             ])
         }
 
+        menu.addActionItem(title: l10n["export.markdown"], icon: "square.and.arrow.up") {
+            NoteExporter.exportMarkdown(note: note, noteStore: noteStore)
+        }
+
         addGistItems(to: menu, note: note, noteStore: noteStore, l10n: l10n)
 
         menu.addItem(.separator())
