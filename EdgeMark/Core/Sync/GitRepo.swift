@@ -39,8 +39,15 @@ struct GitRepo: Equatable, Hashable {
         return r.ok ? r.stdout.trimmingCharacters(in: .whitespacesAndNewlines) : nil
     }
 
+    /// `--no-autostash` overrides a user's `rebase.autoStash`: local edits are committed
+    /// before pulling, so a clash pauses as a rebase rather than a stash pop.
     func pull() async -> Shell.Result {
-        await git("pull", "--rebase", "--autostash", timeout: 120)
+        await git("pull", "--rebase", "--no-autostash", timeout: 120)
+    }
+
+    /// True when the index has unmerged entries, with or without a rebase in progress.
+    func hasConflicts() async -> Bool {
+        await !conflictedFiles().isEmpty
     }
 
     /// Paths with unresolved merge conflicts (empty when there is no conflict).

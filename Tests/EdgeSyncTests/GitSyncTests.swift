@@ -70,6 +70,26 @@ final class GitSyncTests: XCTestCase {
         XCTAssertFalse(files.contains("later.md"))
     }
 
+    func testUncommittedLocalEditPlusRemoteEditPauses() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("# Note\n\nmine\n", to: work.appendingPathComponent("note.md"))
+        TestGit.write("# Note\n\ntheirs\n", to: other.appendingPathComponent("note.md"))
+        _ = await TestGit.run(["commit", "-q", "-am", "theirs"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+        let remoteHead = await Shell.run("git", ["--git-dir", remote.path, "rev-parse", "HEAD^{tree}"])
+
+        let sync = makeSync(root: work)
+        await sync.pullAll()
+        XCTAssertEqual(sync.state, .conflict(["note.md"]))
+        XCTAssertTrue(GitRepo(url: work).rebaseInProgress)
+
+        await sync.commitAndPush(GitRepo(url: work))
+        XCTAssertEqual(sync.state, .conflict(["note.md"]))
+        let after = await Shell.run("git", ["--git-dir", remote.path, "rev-parse", "HEAD^{tree}"])
+        XCTAssertEqual(after.stdout, remoteHead.stdout)
+    }
+
     func testDebouncedActivityPushes() async throws {
         let (remote, work) = try await TestGit.makeRemoteAndClone()
         let sync = makeSync(root: work)

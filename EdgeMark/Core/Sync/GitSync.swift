@@ -118,13 +118,17 @@ final class GitSync {
         await refreshGistsIfNeeded()
         for repo in repos() {
             await serialized(repo) { [self] in
-                if repo.rebaseInProgress {
-                    repoStates[repo.url] = .conflict(await repo.conflictedFiles())
-                    return
-                }
+                if await isPaused(repo) { return }
                 repoStates[repo.url] = .syncing
+                // Commit local edits first: a clash then pauses as a real rebase instead
+                // of an autostash pop that leaves markers git would happily commit.
+                if await repo.stageChanges() {
+                    let c = await repo.commit(message: settings.renderCommitMessage())
+                    guard c.ok else { return await recordFailure(repo, c, during: "commit") }
+                }
                 let r = await repo.pull()
                 if r.ok {
+                    if await isPaused(repo) { return }
                     repoStates[repo.url] = .idle(lastSync: Date())
                 } else {
                     await recordFailure(repo, r, during: "pull")
@@ -137,10 +141,7 @@ final class GitSync {
     func commitAndPush(_ repo: GitRepo) async {
         await serialized(repo) { [self] in
             guard isActive else { return }
-            if repo.rebaseInProgress {
-                repoStates[repo.url] = .conflict(await repo.conflictedFiles())
-                return
-            }
+            if await isPaused(repo) { return }
             let staged = await repo.stageChanges()
             if !staged, !(await repo.hasUnpushedCommits()) {
                 return
@@ -197,6 +198,15 @@ final class GitSync {
         inFlight[repo.url] = task
         await task.value
         if inFlight[repo.url] == task { inFlight[repo.url] = nil }
+    }
+
+    /// Records `.conflict` and returns true while a rebase is paused or the index has
+    /// unmerged entries; the repo must not be touched until the user resolves it.
+    private func isPaused(_ repo: GitRepo) async -> Bool {
+        let unmerged = await repo.hasConflicts()
+        guard repo.rebaseInProgress || unmerged else { return false }
+        repoStates[repo.url] = .conflict(await repo.conflictedFiles())
+        return true
     }
 
     private func recordFailure(_ repo: GitRepo, _ r: Shell.Result, during step: String) async {
