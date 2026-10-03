@@ -92,6 +92,11 @@ final class GitSync {
             .max { $0.url.path.count < $1.url.path.count }
     }
 
+    /// Local-only ignore lines for the notes root and for gist clones. Gists are flat, so
+    /// every directory (image folders and the like) is kept out of them.
+    static let rootExcludes = [".trash/", ".DS_Store", "Gists/"]
+    static let gistExcludes = ["*/", ".DS_Store"]
+
     /// Point the engine at a storage root. Cancels pending work and forgets old state.
     func configure(root: URL?) {
         debounceTasks.values.forEach { $0.cancel() }
@@ -101,6 +106,10 @@ final class GitSync {
         lastPullAll = nil
         lastGistDiscovery = nil
         self.root = root.map { URL(fileURLWithPath: $0.standardizedFileURL.path, isDirectory: true) }
+        if let root = self.root, GitRepo(url: root).isRepo {
+            GitRepo(url: root).ensureLocalExcludes(Self.rootExcludes)
+        }
+        gistRepos().forEach { $0.ensureLocalExcludes(Self.gistExcludes) }
         SyncLog.log.info("[GitSync] configured root \(self.root?.path ?? "none", privacy: .public), active \(self.isActive)")
         Task { await refreshStates() }
     }

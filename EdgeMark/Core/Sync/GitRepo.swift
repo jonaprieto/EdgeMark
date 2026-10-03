@@ -76,6 +76,22 @@ struct GitRepo: Equatable, Hashable {
         return r.ok ? r.stdout.trimmingCharacters(in: .whitespacesAndNewlines) : nil
     }
 
+    /// Appends the missing `lines` to `.git/info/exclude`, an ignore list that stays on
+    /// this machine (unlike `.gitignore`, it is never committed or merged).
+    func ensureLocalExcludes(_ lines: [String]) {
+        let info = gitDir.appendingPathComponent("info", isDirectory: true)
+        let file = info.appendingPathComponent("exclude")
+        let current = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
+        let present = Set(current.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) })
+        let missing = lines.filter { !present.contains($0) }
+        guard !missing.isEmpty else { return }
+        var text = current
+        if !text.isEmpty, !text.hasSuffix("\n") { text += "\n" }
+        text += missing.joined(separator: "\n") + "\n"
+        try? FileManager.default.createDirectory(at: info, withIntermediateDirectories: true)
+        try? Data(text.utf8).write(to: file, options: .atomic)
+    }
+
     /// True when local commits are not on the upstream yet, or no upstream is set.
     /// False when the repo has no commits at all.
     func hasUnpushedCommits() async -> Bool {

@@ -53,6 +53,7 @@ extension GitSync {
             cwd: gistsDir, timeout: 120,
         )
         if r.ok {
+            GitRepo(url: target).ensureLocalExcludes(Self.gistExcludes)
             SyncLog.log.info("[GitSync] cloned gist \(gist.id, privacy: .public) into \(name, privacy: .public)")
             return target
         } else {
@@ -110,6 +111,7 @@ extension GitSync {
             let r = await repo.git("init", "-q", "-b", "main")
             guard r.ok else { return r.errorLine }
         }
+        repo.ensureLocalExcludes(Self.rootExcludes)
         let ignore = root.appendingPathComponent(".gitignore")
         if !FileManager.default.fileExists(atPath: ignore.path) {
             try? Data(".trash/\n.DS_Store\nGists/\n".utf8).write(to: ignore, options: .atomic)

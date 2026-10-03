@@ -265,6 +265,27 @@ final class GitSyncTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(start), 5)
     }
 
+    func testLocalExcludesKeepFoldersOutOfGistsAndRoot() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let gists = work.appendingPathComponent("Gists", isDirectory: true)
+        try FileManager.default.createDirectory(at: gists, withIntermediateDirectories: true)
+        let gist = gists.appendingPathComponent("g", isDirectory: true)
+        _ = await TestGit.run(["clone", "-q", remote.path, gist.path], in: gists)
+        _ = makeSync(root: work)
+
+        try FileManager.default.createDirectory(at: gist.appendingPathComponent(".img"), withIntermediateDirectories: true)
+        TestGit.write("png", to: gist.appendingPathComponent(".img/a.png"))
+        TestGit.write("ds", to: gist.appendingPathComponent(".DS_Store"))
+        let gistStaged = await GitRepo(url: gist).stageChanges()
+        XCTAssertFalse(gistStaged)
+
+        try FileManager.default.createDirectory(at: work.appendingPathComponent(".trash"), withIntermediateDirectories: true)
+        TestGit.write("old\n", to: work.appendingPathComponent(".trash/old.md"))
+        TestGit.write("ds", to: work.appendingPathComponent(".DS_Store"))
+        let rootStaged = await GitRepo(url: work).stageChanges()
+        XCTAssertFalse(rootStaged)
+    }
+
     func testDisabledIsOff() async throws {
         let (_, work) = try await TestGit.makeRemoteAndClone()
         let sync = makeSync(root: work)
