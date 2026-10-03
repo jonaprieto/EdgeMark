@@ -34,18 +34,35 @@ enum SyncState: Equatable {
         return .idle(lastSync: syncTimes.compactMap { $0 }.max())
     }
 
-    /// One line for tooltips and the settings status row.
+    /// One line of bounded length for tooltips and the settings status row: at most
+    /// three conflicted files are named, and error text is flattened and capped.
     var summary: String {
         switch self {
         case .off: "Sync off"
         case .syncing: "Syncing"
         case .pending: "Changes not pushed yet"
-        case let .conflict(files): "Conflict: \(files.joined(separator: ", "))"
-        case let .error(message): "Error: \(message)"
+        case .conflict([]): "Rebase in progress"
+        case let .conflict(files): "Conflict: \(Self.fileList(files))"
+        case let .error(message): "Error: \(Self.oneLine(message))"
         case let .held(paths): "\(paths.count) file(s) held back: possible secrets"
         case .idle(nil): "Not synced yet"
         case let .idle(date?): "Synced \(Self.relative.localizedString(for: date, relativeTo: Date()))"
         }
+    }
+
+    /// Longest error text or file names `summary` shows, in characters.
+    static let maxDetailLength = 200
+
+    /// The first three files (flattened and capped like error text), then "and N more".
+    private static func fileList(_ files: [String]) -> String {
+        let shown = oneLine(files.prefix(3).joined(separator: ", "))
+        return files.count > 3 ? "\(shown) and \(files.count - 3) more" : shown
+    }
+
+    /// `text` on one line (line breaks become spaces), cut to `maxDetailLength` characters.
+    private static func oneLine(_ text: String) -> String {
+        let flat = text.components(separatedBy: .newlines).filter { !$0.isEmpty }.joined(separator: " ")
+        return flat.count > maxDetailLength ? String(flat.prefix(maxDetailLength - 3)) + "..." : flat
     }
 
     private static let relative: RelativeDateTimeFormatter = {
