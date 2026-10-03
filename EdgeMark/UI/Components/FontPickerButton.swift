@@ -34,6 +34,7 @@ final class FontPickerHostView: NSView, NSFontChanging {
         self.target = target
         button = NSButton(title: title, target: nil, action: nil)
         button.bezelStyle = .rounded
+        button.toolTip = L10n.shared[target == .prose ? "tooltip.font.choose" : "tooltip.font.chooseMono"]
         button.translatesAutoresizingMaskIntoConstraints = false
         super.init(frame: .zero)
         addSubview(button)

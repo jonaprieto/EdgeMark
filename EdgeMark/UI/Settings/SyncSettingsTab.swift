@@ -78,9 +78,11 @@ struct SyncSettingsTab: View {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(advice.fixCommands, forType: .string)
                         }
+                        .help(l10n["tooltip.sync.copyFix"])
                         Button(l10n["common.showInFinder"]) {
                             NSWorkspace.shared.activateFileViewerSelecting([advice.repo])
                         }
+                        .help(l10n["tooltip.sync.showRepo"])
                     }
                 }
             }
@@ -90,10 +92,13 @@ struct SyncSettingsTab: View {
             HStack {
                 Button(l10n["sync.syncNow"]) { Task { await run { await sync.syncNow() } } }
                     .disabled(!sync.isActive || busy)
+                    .help(l10n["tooltip.sync.syncNow"])
                 Button(l10n["sync.openOnGitHub"]) { Task { await openOnGitHub() } }
                     .disabled(remote == nil)
+                    .help(l10n["tooltip.sync.openOnGitHub"])
                 Button(l10n["sync.copyGitStatus"]) { Task { await copyGitStatus() } }
                     .disabled(sync.rootRepo == nil)
+                    .help(l10n["tooltip.sync.copyStatus"])
             }
         }
     }
@@ -106,6 +111,7 @@ struct SyncSettingsTab: View {
                     Task { await run { sync.lastSetupError = await sync.createPrivateRepo(named: repoName) } }
                 }
                 .disabled(repoName.isEmpty || settings.account.isEmpty || busy)
+                .help(l10n["tooltip.sync.createRepo"])
             }
             HStack {
                 TextField(l10n["sync.ownerRepo"], text: $ownerRepo)
@@ -113,6 +119,7 @@ struct SyncSettingsTab: View {
                     Task { await run { sync.lastSetupError = await sync.connectExisting(ownerRepo) } }
                 }
                 .disabled(!ownerRepo.contains("/") || settings.account.isEmpty || busy)
+                .help(l10n["tooltip.sync.connect"])
             }
         }
     }
@@ -123,6 +130,7 @@ struct SyncSettingsTab: View {
             LabeledContent(l10n["sync.debounce"]) {
                 HStack {
                     Slider(value: $settings.debounceSeconds, in: 30 ... 600, step: 30)
+                        .help(l10n["tooltip.sync.debounce"])
                     Text(l10n.t("sync.seconds", "\(Int(settings.debounceSeconds))"))
                         .monospacedDigit()
                         .frame(width: 48, alignment: .trailing)
@@ -157,11 +165,13 @@ struct SyncSettingsTab: View {
                             apiKey = ""
                         }
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .help(l10n["tooltip.guard.saveKey"])
                         Button(l10n["sync.guard.removeKey"]) {
                             KeychainStore.delete()
                             keyStored = KeychainStore.read() != nil
                         }
                         .disabled(!keyStored)
+                        .help(l10n["tooltip.guard.removeKey"])
                     }
                     Text(keyStatus).font(.caption2).foregroundStyle(.secondary)
                 }
@@ -182,9 +192,11 @@ struct SyncSettingsTab: View {
                     Button(l10n["sync.guard.allow"]) {
                         sync.allowHeld(path: row.verdict.path, in: GitRepo(url: row.repo))
                     }
+                    .help(l10n["tooltip.guard.allow"])
                     Button(l10n["common.showInFinder"]) {
                         NSWorkspace.shared.activateFileViewerSelecting([row.file])
                     }
+                    .help(l10n["tooltip.guard.showFile"])
                 }
             }
         }

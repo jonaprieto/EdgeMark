@@ -72,6 +72,7 @@ final class KeyRecorderButton: NSView {
     private func setupView() {
         wantsLayer = true
         layer?.cornerRadius = 6
+        toolTip = L10n.shared["tooltip.shortcut.record"]
     }
 
     override var acceptsFirstResponder: Bool {

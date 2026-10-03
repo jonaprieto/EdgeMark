@@ -88,6 +88,7 @@ struct GeneralSettingsTab: View {
                             Button(l10n["settings.editor.resetFont"]) {
                                 settings.editorFontName = nil
                             }
+                            .help(l10n["tooltip.font.reset"])
                         }
                     }
                 }
@@ -104,6 +105,7 @@ struct GeneralSettingsTab: View {
                             Button(l10n["settings.editor.resetFont"]) {
                                 settings.editorMonoFontName = nil
                             }
+                            .help(l10n["tooltip.font.reset"])
                         }
                     }
                 }
@@ -118,10 +120,12 @@ struct GeneralSettingsTab: View {
                             value: $settings.editorFontSize, in: 11 ... 28, step: 1,
                         )
                         .labelsHidden()
+                        .help(l10n["tooltip.font.size"])
                         if settings.editorFontSize != 16 {
                             Button(l10n["settings.editor.resetFont"]) {
                                 settings.editorFontSize = 16
                             }
+                            .help(l10n["tooltip.font.resetSize"])
                         }
                     }
                 }

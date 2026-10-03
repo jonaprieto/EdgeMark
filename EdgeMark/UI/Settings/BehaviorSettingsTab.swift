@@ -73,6 +73,7 @@ struct BehaviorSettingsTab: View {
                 LabeledContent(l10n["settings.behavior.panelWidth"]) {
                     HStack {
                         Slider(value: $panelWidth, in: 400 ... 900, step: 10)
+                            .help(l10n["tooltip.settings.panelWidth"])
                             .onChange(of: panelWidth) { _, v in
                                 PanelSettings.shared.panelWidth = CGFloat(v)
                                 (NSApp.delegate as? AppDelegate)?.panelController?.applyPanelWidth()
@@ -109,6 +110,7 @@ struct BehaviorSettingsTab: View {
                     HStack {
                         Text(l10n["settings.gesture.sensitivity"])
                         Slider(value: $swipeGestureSensitivity, in: 0 ... 1, step: 0.1)
+                            .help(l10n["tooltip.settings.sensitivity"])
                             .onChange(of: swipeGestureSensitivity) { _, v in
                                 PanelSettings.shared.swipeGestureSensitivity = v
                             }
@@ -136,6 +138,7 @@ struct BehaviorSettingsTab: View {
                     HStack {
                         Text(l10n["settings.general.activationDelay"])
                         Slider(value: $activationDelay, in: 0 ... 1, step: 0.1)
+                            .help(l10n["tooltip.settings.activationDelay"])
                             .onChange(of: activationDelay) { _, v in
                                 PanelSettings.shared.activationDelay = v
                             }
@@ -174,6 +177,7 @@ struct BehaviorSettingsTab: View {
                         HStack {
                             Text(l10n["settings.general.hideDelay"])
                             Slider(value: $hideDelay, in: 0 ... 3, step: 0.1)
+                                .help(l10n["tooltip.settings.hideDelay"])
                                 .onChange(of: hideDelay) { _, v in
                                     PanelSettings.shared.hideDelay = v
                                 }
@@ -195,6 +199,7 @@ struct BehaviorSettingsTab: View {
                     HStack {
                         Text(l10n["settings.dismissal.toggleDelay"])
                         Slider(value: $toggleDismissDelay, in: 0.05 ... 2.0, step: 0.05)
+                            .help(l10n["tooltip.settings.toggleDelay"])
                             .onChange(of: toggleDismissDelay) { _, v in
                                 PanelSettings.shared.toggleDismissDelay = v
                             }

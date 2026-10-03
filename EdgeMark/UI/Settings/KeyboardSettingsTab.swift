@@ -153,6 +153,7 @@ struct KeyboardSettingsTab: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
                 .background(RoundedRectangle(cornerRadius: 4).fill(.quaternary))
+                .help(l10n["tooltip.shortcut.reset"])
             }
             ShortcutRecorderView(shortcut: shortcut)
                 .frame(width: 140, height: 32)
