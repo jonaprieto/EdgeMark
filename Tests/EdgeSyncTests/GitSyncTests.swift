@@ -243,6 +243,28 @@ final class GitSyncTests: XCTestCase {
         XCTAssertEqual(sync.repoContaining(work.appendingPathComponent("a.md"))?.url, GitRepo(url: work).url)
     }
 
+    func testFlushOnQuitWithMissingRemoteReturns() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        _ = await TestGit.run(["remote", "set-url", "origin", "/nonexistent/edgesync-remote.git"], in: work)
+        let sync = makeSync(root: work)
+        TestGit.write("# Q\n", to: work.appendingPathComponent("q.md"))
+        let start = Date()
+        await sync.flushOnQuit()
+        XCTAssertLessThan(Date().timeIntervalSince(start), 25)
+        guard case .error = sync.state else { return XCTFail("expected error, got \(sync.state)") }
+    }
+
+    func testFlushOnQuitStopsAtBudgetWhileGitHangs() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        _ = await TestGit.run(["remote", "set-url", "origin", "ssh://example.invalid/notes.git"], in: work)
+        _ = await TestGit.run(["config", "core.sshCommand", "sleep 20; :"], in: work)
+        let sync = makeSync(root: work)
+        TestGit.write("# Q\n", to: work.appendingPathComponent("q.md"))
+        let start = Date()
+        await sync.flushOnQuit(budget: 1)
+        XCTAssertLessThan(Date().timeIntervalSince(start), 5)
+    }
+
     func testDisabledIsOff() async throws {
         let (_, work) = try await TestGit.makeRemoteAndClone()
         let sync = makeSync(root: work)

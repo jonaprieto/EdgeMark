@@ -41,8 +41,8 @@ struct GitRepo: Equatable, Hashable {
 
     /// `--no-autostash` overrides a user's `rebase.autoStash`: local edits are committed
     /// before pulling, so a clash pauses as a rebase rather than a stash pop.
-    func pull() async -> Shell.Result {
-        await git("pull", "--rebase", "--no-autostash", timeout: 120)
+    func pull(timeout: TimeInterval = 120) async -> Shell.Result {
+        await git("pull", "--rebase", "--no-autostash", timeout: timeout)
     }
 
     /// True when the index has unmerged entries, with or without a rebase in progress.
@@ -90,10 +90,10 @@ struct GitRepo: Equatable, Hashable {
         await git("commit", "-q", "-m", message)
     }
 
-    func push() async -> Shell.Result {
-        let r = await git("push", "-q", timeout: 120)
+    func push(timeout: TimeInterval = 120) async -> Shell.Result {
+        let r = await git("push", "-q", timeout: timeout)
         if !r.ok, r.stderr.contains("no upstream branch") {
-            return await git("push", "-q", "-u", "origin", "HEAD", timeout: 120)
+            return await git("push", "-q", "-u", "origin", "HEAD", timeout: timeout)
         }
         return r
     }

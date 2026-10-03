@@ -201,7 +201,8 @@ final class GitSync {
         onPullFinished?(reload)
     }
 
-    func commitAndPush(_ repo: GitRepo) async {
+    /// `timeout` bounds each network step (push, pull) separately.
+    func commitAndPush(_ repo: GitRepo, timeout: TimeInterval = 120) async {
         await serialized(repo) { [self] in
             guard isActive else { return }
             if await isPaused(repo) { return }
@@ -215,15 +216,15 @@ final class GitSync {
                 let c = await repo.commit(message: settings.renderCommitMessage())
                 guard c.ok else { return await recordFailure(repo, c, during: "commit") }
             }
-            var p = await repo.push()
+            var p = await repo.push(timeout: timeout)
             if !p.ok, p.stderr.contains("rejected") || p.stderr.contains("fetch first") {
                 let before = await repo.head()
-                let pulled = await repo.pull()
+                let pulled = await repo.pull(timeout: timeout)
                 let moved = await repo.head() != before
                 let conflicted = await repo.hasConflicts()
                 if moved || conflicted { pendingReload = true }
                 guard pulled.ok else { return await recordFailure(repo, pulled, during: "pull") }
-                p = await repo.push()
+                p = await repo.push(timeout: timeout)
             }
             if p.ok {
                 let now = Date()
@@ -245,15 +246,39 @@ final class GitSync {
         await refreshStates()
     }
 
-    /// Best effort on quit: each repo is attempted while a 20 s budget lasts. A single
-    /// hung push can still run to its own 120 s timeout.
-    func flushOnQuit() async {
+    /// Best effort on quit: commits and pushes every repo (15 s per git network step)
+    /// and returns after at most `budget` seconds even if git is still running.
+    func flushOnQuit(budget: TimeInterval = 20) async {
         guard isActive, settings.pushOnQuit else { return }
         debounceTasks.values.forEach { $0.cancel() }
-        let deadline = Date().addingTimeInterval(20)
-        for repo in repos() where Date() < deadline {
-            await commitAndPush(repo)
+        let targets = repos()
+        let work = Task { [self] in
+            for repo in targets where !Task.isCancelled {
+                await commitAndPush(repo, timeout: 15)
+            }
         }
+        // A task group would wait for its children, and a running git process does not
+        // react to cancellation, so the race resumes a continuation from whichever
+        // side finishes first.
+        var resumed = false
+        var timer: Task<Void, Never>?
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            let finish = { @MainActor in
+                guard !resumed else { return }
+                resumed = true
+                done.resume()
+            }
+            timer = Task {
+                try? await Task.sleep(for: .seconds(budget))
+                finish()
+            }
+            Task {
+                await work.value
+                finish()
+            }
+        }
+        timer?.cancel()
+        work.cancel()
     }
 
     // MARK: - Private
