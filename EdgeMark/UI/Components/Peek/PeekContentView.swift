@@ -22,7 +22,12 @@ struct PeekContentView: View {
     private func notePreview(_ note: Note) -> some View {
         if note.isPlainTextFile {
             // Code and data files are shown as they are, like in their editor.
-            PlainTextView(model: PlainTextEditorModel(noteID: note.id), initialContent: note.content, isEditable: false)
+            PlainTextView(
+                model: PlainTextEditorModel(noteID: note.id),
+                initialContent: note.content,
+                monoFontName: AppSettings.shared.editorMonoFontName,
+                isEditable: false,
+            )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ReadOnlyMarkdownView(content: note.content, noteFolder: note.folder)

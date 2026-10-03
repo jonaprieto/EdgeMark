@@ -17,7 +17,12 @@ struct ReadOnlyMarkdownView: View {
     var body: some View {
         // Heavy notes would freeze the engine here too (trash preview, hover peek).
         if NoteComplexity.isHeavy(content) {
-            PlainTextView(model: PlainTextEditorModel(noteID: UUID()), initialContent: content, isEditable: false)
+            PlainTextView(
+                model: PlainTextEditorModel(noteID: UUID()),
+                initialContent: content,
+                monoFontName: AppSettings.shared.editorMonoFontName,
+                isEditable: false,
+            )
         } else {
             markdownBody
         }

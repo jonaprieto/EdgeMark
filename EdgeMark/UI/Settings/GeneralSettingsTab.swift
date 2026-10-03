@@ -26,7 +26,15 @@ struct GeneralSettingsTab: View {
     }
 
     private var currentFontDescription: String {
-        guard let postscript = appSettings.editorFontName,
+        fontDescription(appSettings.editorFontName)
+    }
+
+    private var currentMonoFontDescription: String {
+        fontDescription(appSettings.editorMonoFontName)
+    }
+
+    private func fontDescription(_ postscriptName: String?) -> String {
+        guard let postscript = postscriptName,
               let f = NSFont(name: postscript, size: 13)
         else {
             return l10n["settings.editor.systemFont"]
@@ -79,6 +87,22 @@ struct GeneralSettingsTab: View {
                         if settings.editorFontName != nil {
                             Button(l10n["settings.editor.resetFont"]) {
                                 settings.editorFontName = nil
+                            }
+                        }
+                    }
+                }
+
+                LabeledContent(l10n["settings.editor.monoFont"]) {
+                    HStack(spacing: 8) {
+                        Text(currentMonoFontDescription)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        FontPickerButton(title: l10n["settings.editor.chooseFont"], target: .monospace)
+                            .fixedSize()
+                        if settings.editorMonoFontName != nil {
+                            Button(l10n["settings.editor.resetFont"]) {
+                                settings.editorMonoFontName = nil
                             }
                         }
                     }

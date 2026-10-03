@@ -13,7 +13,8 @@ extension MarkdownEditorConfiguration {
     /// image/syntax/latex services in one place. The live editor passes its
     /// formatting-request `bus`; the read-only view uses the default (no formatting).
     /// `fontSize` is the body size handed to NativeTextViewWrapper; code blocks are
-    /// set one point below it. `pinsLightAppearance` keeps the code colors on their light
+    /// set one point below it, in the user's monospace font (`editorMonoFontName`) when
+    /// set, else the highlighter's default. `pinsLightAppearance` keeps the code colors on their light
     /// variants whatever the app appearance, for the PDF export.
     static func makeEdgeMarkConfig(
         noteFolder: String,
@@ -22,7 +23,11 @@ extension MarkdownEditorConfiguration {
         pinsLightAppearance: Bool = false,
     ) -> MarkdownEditorConfiguration {
         let preset = AppSettings.shared.taskCheckboxPreset
-        let highlighter = HighlighterSwiftBridge(autoSwitchAppearance: !pinsLightAppearance)
+        let highlighter = if let mono = AppSettings.shared.editorMonoFontName {
+            HighlighterSwiftBridge(autoSwitchAppearance: !pinsLightAppearance, preferredFontNames: [mono])
+        } else {
+            HighlighterSwiftBridge(autoSwitchAppearance: !pinsLightAppearance)
+        }
         var config = MarkdownEditorConfiguration.default
         config.textInsets = TextInsets(horizontal: 16, vertical: 12)
         // Register highlight (==text==) and strikethrough (~~text~~). Opt-in since
@@ -57,16 +62,21 @@ extension MarkdownEditorConfiguration {
 // MARK: - Rebuild key
 
 /// Settings the engine reads only when it makes its text view: `updateNSView` keeps the
-/// first configuration's task-checkbox style and extensions (the front matter block's font
-/// size). Used as the engine view's `.id`, so a change rebuilds it with the new values.
+/// first configuration's task-checkbox style, services (the code font) and extensions (the
+/// front matter block's font). Used as the engine view's `.id`, so a change rebuilds it with the new values.
 /// Reading it in a view body registers @Observable tracking on these settings.
 struct EditorRebuildKey: Hashable {
     let checkboxPreset: AppSettings.TaskCheckboxPreset
     let fontSize: Double
+    let monoFontName: String?
 
     static var current: EditorRebuildKey {
         let settings = AppSettings.shared
-        return EditorRebuildKey(checkboxPreset: settings.taskCheckboxPreset, fontSize: settings.editorFontSize)
+        return EditorRebuildKey(
+            checkboxPreset: settings.taskCheckboxPreset,
+            fontSize: settings.editorFontSize,
+            monoFontName: settings.editorMonoFontName,
+        )
     }
 }
 

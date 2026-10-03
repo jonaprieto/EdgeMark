@@ -205,6 +205,7 @@
   "settings.general.panelTint": "Panel tint",
   "settings.editor.section": "Editor",
   "settings.editor.font": "Font",
+  "settings.editor.monoFont": "Monospace font",
   "settings.editor.chooseFont": "Choose…",
   "settings.editor.resetFont": "Reset",
   "settings.editor.fontSize": "Font size",

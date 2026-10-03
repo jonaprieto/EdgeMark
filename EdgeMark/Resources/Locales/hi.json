@@ -205,6 +205,7 @@
   "settings.general.panelTint": "पैनल टिंट",
   "settings.editor.section": "एडिटर",
   "settings.editor.font": "फ़ॉन्ट",
+  "settings.editor.monoFont": "मोनोस्पेस फ़ॉन्ट",
   "settings.editor.chooseFont": "चुनें…",
   "settings.editor.resetFont": "रीसेट",
   "settings.editor.fontSize": "फ़ॉन्ट साइज़",

@@ -205,6 +205,7 @@
   "settings.general.panelTint": "面板色调",
   "settings.editor.section": "编辑器",
   "settings.editor.font": "字体",
+  "settings.editor.monoFont": "等宽字体",
   "settings.editor.chooseFont": "选择…",
   "settings.editor.resetFont": "重置",
   "settings.editor.fontSize": "字号",

@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Editor for notes that `NoteComplexity.isHeavy` flags: a plain `NSTextView` with a
-/// monospaced font and no Markdown engine, highlighting or spell checking, so a huge or
+/// Editor for notes that `NoteComplexity.isHeavy` flags: a plain `NSTextView` with the
+/// user's monospace font and no Markdown engine, highlighting or spell checking, so a huge or
 /// pathological note stays responsive. Saves through the same `onContentChanged` path as
 /// `MarkdownEditorView` (debounced, flushed on disappear) and applies `pendingReload`.
 /// Non-Markdown gist files open here too, without the large-note banner.
@@ -41,7 +41,11 @@ struct PlainTextNoteEditor: View {
                     .padding(.vertical, 4)
                     .background(.quaternary.opacity(0.5))
             }
-            PlainTextView(model: model, initialContent: initialContent)
+            PlainTextView(
+                model: model,
+                initialContent: initialContent,
+                monoFontName: AppSettings.shared.editorMonoFontName,
+            )
         }
         .onAppear {
             model.onSave = onContentChanged
@@ -93,7 +97,16 @@ final class PlainTextEditorModel: NSObject, NSTextViewDelegate {
 struct PlainTextView: NSViewRepresentable {
     let model: PlainTextEditorModel
     let initialContent: String
+    /// `AppSettings.editorMonoFontName`, passed in so the parent's body tracks it and a
+    /// change reaches `updateNSView`.
+    let monoFontName: String?
     var isEditable = true
+
+    /// The monospace font at the system text size; the system monospaced font by default.
+    private static func font(named name: String?) -> NSFont {
+        let size = NSFont.systemFontSize
+        return name.flatMap { NSFont(name: $0, size: size) } ?? .monospacedSystemFont(ofSize: size, weight: .regular)
+    }
 
     func makeNSView(context _: Context) -> NSScrollView {
         // TextKit 1 with non-contiguous layout lays out only what is on screen, which
@@ -106,7 +119,7 @@ struct PlainTextView: NSViewRepresentable {
         textView.isEditable = isEditable
         textView.isSelectable = true
         textView.usesFindBar = true
-        textView.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        textView.font = Self.font(named: monoFontName)
         textView.textColor = .textColor
         textView.backgroundColor = .clear
         textView.drawsBackground = false
@@ -136,5 +149,11 @@ struct PlainTextView: NSViewRepresentable {
         return scrollView
     }
 
-    func updateNSView(_: NSScrollView, context _: Context) {}
+    func updateNSView(_ scrollView: NSScrollView, context _: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+        let font = Self.font(named: monoFontName)
+        if textView.font != font {
+            textView.font = font
+        }
+    }
 }

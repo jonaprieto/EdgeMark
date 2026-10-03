@@ -205,6 +205,7 @@
   "settings.general.panelTint": "Tinte del panel",
   "settings.editor.section": "Editor",
   "settings.editor.font": "Fuente",
+  "settings.editor.monoFont": "Fuente monoespaciada",
   "settings.editor.chooseFont": "Elegir\u2026",
   "settings.editor.resetFont": "Restablecer",
   "settings.editor.fontSize": "Tamaño de fuente",

@@ -62,6 +62,20 @@ final class AppSettings {
         }
     }
 
+    /// PostScript name of the font for code blocks, inline code, code line numbers and the
+    /// plain-text editor. nil = the engine's default monospaced font. Its size follows
+    /// `editorFontSize` (code is one point smaller), so only the family is stored.
+    var editorMonoFontName: String? {
+        didSet {
+            if let name = editorMonoFontName {
+                UserDefaults.standard.set(name, forKey: "editorMonoFontName")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "editorMonoFontName")
+            }
+            NotificationCenter.default.post(name: .editorFontChanged, object: nil)
+        }
+    }
+
     /// Editor body font size in pixels. Headings scale relative to this via em units.
     var editorFontSize: Double = 16 {
         didSet {
@@ -281,6 +295,16 @@ final class AppSettings {
         return .systemFont(ofSize: size)
     }
 
+    /// Resolved monospace font at code size (one point below the body), falling back to
+    /// the system monospaced font when no custom name is set.
+    var editorMonoFont: NSFont {
+        let size = CGFloat(max(1, editorFontSize - 1))
+        if let name = editorMonoFontName, let f = NSFont(name: name, size: size) {
+            return f
+        }
+        return .monospacedSystemFont(ofSize: size, weight: .regular)
+    }
+
     init() {
         if let raw = UserDefaults.standard.string(forKey: "sortBy"),
            let value = SortBy(rawValue: raw)
@@ -306,6 +330,13 @@ final class AppSettings {
             editorFontName = saved
         } else {
             UserDefaults.standard.removeObject(forKey: "editorFontName")
+        }
+        if let saved = UserDefaults.standard.string(forKey: "editorMonoFontName"),
+           NSFont(name: saved, size: 13) != nil
+        {
+            editorMonoFontName = saved
+        } else {
+            UserDefaults.standard.removeObject(forKey: "editorMonoFontName")
         }
         let savedSize = UserDefaults.standard.object(forKey: "editorFontSize") as? Double
         editorFontSize = savedSize ?? 16
