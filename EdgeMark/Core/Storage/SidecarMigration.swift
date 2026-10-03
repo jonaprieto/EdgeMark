@@ -26,7 +26,7 @@ enum SidecarMigration {
         // --- Active notes ---
         let notePaths = collectMarkdownFiles(in: rootURL, excluding: [trashURL, rootURL.appendingPathComponent(".edgemark")])
         for url in notePaths {
-            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            guard let text = FileStorage.readText(at: url) else { continue }
             let relativePath = String(url.path.dropFirst(rootURL.path.count + 1))
 
             // Only EdgeMark's own block (with an `id:` UUID) is migrated; user YAML stays.
@@ -134,7 +134,7 @@ enum SidecarMigration {
         folderOriginalPath: String? = nil,
         payload: inout SidecarStore.Payload,
     ) {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+        guard let text = FileStorage.readText(at: url) else { return }
         guard case let (metadata, body)? = NoteText.legacyFrontMatter(text) else { return }
 
         let id = metadata["id"].flatMap { UUID(uuidString: $0) } ?? UUID()

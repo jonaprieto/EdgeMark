@@ -106,4 +106,47 @@ final class NoteTextTests: XCTestCase {
         XCTAssertNil(NoteText.safeAssetPath("img/plain.png"))
         XCTAssertNil(NoteText.safeAssetPath(".no-slash"))
     }
+
+    // MARK: - Heading split
+
+    func testSplitHeadingRoundTripsLineEndings() {
+        for text in [
+            "# 17 CRLF\r\n\r\nFirst line.\r\nSecond.\r\n",
+            "# T\nbody",
+            "# T\n\n\n\nbody\n",
+            "# T\n\n",
+            "# T",
+            "#",
+            "no heading\n\nbody",
+            "",
+        ] {
+            let parts = NoteText.splitHeading(text)
+            XCTAssertEqual(NoteText.joinHeading(parts.heading, separator: parts.separator, body: parts.body), text)
+        }
+    }
+
+    func testSplitHeadingParts() {
+        let parts = NoteText.splitHeading("# 17 CRLF\r\n\r\nBody\r\n")
+        XCTAssertEqual(parts.heading, "# 17 CRLF")
+        XCTAssertEqual(parts.separator, "\r\n\r\n")
+        XCTAssertEqual(parts.body, "Body\r\n")
+        XCTAssertEqual(NoteText.splitHeading("plain\nbody").heading, "")
+    }
+
+    func testJoinHeadingAddsBlankLineForNewBody() {
+        XCTAssertEqual(NoteText.joinHeading("# T", separator: "", body: "typed"), "# T\n\ntyped")
+        XCTAssertEqual(NoteText.joinHeading("", separator: "", body: "typed"), "typed")
+    }
+
+    // MARK: - Decoding
+
+    func testWindows1252Decoding() {
+        let data = Data([0x63, 0x61, 0x66, 0xE9, 0x20, 0x93, 0x71, 0x94, 0x20, 0x80])
+        XCTAssertEqual(NoteText.decodeLegacyEncoding(data), "caf\u{E9} \u{201C}q\u{201D} \u{20AC}")
+    }
+
+    func testUndefinedWindows1252BytesStillDecode() {
+        // 0x81 is undefined in Windows-1252; Latin-1 still maps it.
+        XCTAssertFalse(NoteText.decodeLegacyEncoding(Data([0x41, 0x81, 0x42])).isEmpty)
+    }
 }

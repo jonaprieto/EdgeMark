@@ -104,7 +104,7 @@ enum FileStorage {
     /// Reloads a note's content + tags from disk after an external change is detected.
     static func reloadContent(for note: Note) -> (content: String, modifiedAt: Date, savedAt: Date, tags: [TagColor])? {
         let url = rootURL.appendingPathComponent(diskRelativePath(for: note))
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        guard let text = readText(at: url) else { return nil }
         let diskDate = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date) ?? Date()
 
         // Body may still have EdgeMark's YAML if this note wasn't migrated yet: strip it.
@@ -820,8 +820,20 @@ enum FileStorage {
         }
     }
 
+    /// Text of a note file. A file that is not UTF-8 (or UTF-16 with a BOM) is decoded as
+    /// Windows-1252, else Latin-1, so it still shows up; saving it writes UTF-8.
+    static func readText(at url: URL) -> String? {
+        var encoding = String.Encoding.utf8
+        if let text = try? String(contentsOf: url, usedEncoding: &encoding) {
+            return text
+        }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        Log.storage.info("[FileStorage] \(url.lastPathComponent, privacy: .public) is not UTF-8, read as Windows-1252")
+        return NoteText.decodeLegacyEncoding(data)
+    }
+
     private static func readNote(at url: URL, folder: String) -> Note? {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        guard let text = readText(at: url) else { return nil }
         let filename = url.lastPathComponent
 
         // Determine relative path for sidecar lookup.

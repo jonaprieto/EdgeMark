@@ -585,8 +585,7 @@ final class NoteStore {
         // Without this guard, a rename on a headingless note reverts within ~150ms
         // because the editor fires contentChanged on load and extractTitle returns
         // the raw first line, overwriting the manually-set title.
-        let firstLine = content.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
-        if firstLine.hasPrefix("#") {
+        if NoteText.firstLine(content).hasPrefix("#") {
             notes[index].title = Self.extractTitle(from: content)
         }
         dirtyNoteIDs.insert(noteID)
@@ -1722,8 +1721,6 @@ final class NoteStore {
     }
 
     private static func extractTitle(from content: String) -> String {
-        let firstLine = content.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
-        let stripped = firstLine.drop { $0 == "#" || $0 == " " }
-        return stripped.isEmpty ? "Untitled" : String(stripped)
+        NoteText.title(from: content)
     }
 }

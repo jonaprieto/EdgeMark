@@ -104,11 +104,12 @@ extension Note {
         // blank-subtitle can be pinpointed from Console.app (see devlog-0721, #56).
         // Cheap by construction: both checks are bounded to the ≤4 000-grapheme window
         // (no full-content walk).
-        if head.firstIndex(of: "\n") == nil, head.endIndex != content.endIndex {
+        if head.firstIndex(where: \.isNewline) == nil, head.endIndex != content.endIndex {
             let path = relativePath
             Log.storage.debug("[Note] preview capped — first line exceeds 4000 graphemes: \(path, privacy: .public)")
         }
-        let lines = head.split(separator: "\n", omittingEmptySubsequences: true)
+        // Any newline, so "\r\n" (one Character in Swift) also ends a line.
+        let lines = head.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline)
         let raw = lines.dropFirst().prefix(3).joined(separator: " ")
         return raw
             .replacingOccurrences(of: "#{1,6}\\s", with: "", options: .regularExpression)

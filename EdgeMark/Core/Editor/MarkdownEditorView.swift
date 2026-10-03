@@ -53,6 +53,9 @@ struct MarkdownEditorView: View {
 
     @State private var text: String
     @State private var hiddenHeadingLine: String
+    /// The line breaks between the hidden heading and the body, kept as on disk ("\r\n"
+    /// files, one or several blank lines) so viewing a note does not rewrite it.
+    @State private var headingSeparator: String
     /// Alt text of each EdgeMark image, keyed by path. The `![[path]]` embed shown in the
     /// editor has no place for it, so it is put back when the text is converted for saving.
     @State private var imageAlts: [String: String]
@@ -90,11 +93,12 @@ struct MarkdownEditorView: View {
         self.showFindBar = showFindBar
         self.onNavigateNext = onNavigateNext
         self.onNavigatePrevious = onNavigatePrevious
-        let (heading, body) = Self.splitHeading(initialContent)
+        let (heading, separator, body) = NoteText.splitHeading(initialContent)
         let display = Self.imagesToEmbedsKeepingAlts(body)
         _text = State(initialValue: display.text)
         _imageAlts = State(initialValue: display.alts)
         _hiddenHeadingLine = State(initialValue: heading)
+        _headingSeparator = State(initialValue: separator)
         _stableNoteID = State(initialValue: noteID)
     }
 
@@ -172,20 +176,22 @@ struct MarkdownEditorView: View {
                 let cursorPos = (NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().location ?? 0
                 slashHandler.contentDidChange(content: newText, cursorPos: cursorPos)
                 let heading = hiddenHeadingLine
+                let separator = headingSeparator
                 let noteIDSnapshot = stableNoteID
                 let alts = imageAlts
                 saveDebouncer.call { [onContentChanged] in
                     // Convert display-layer ![[path]] embeds back to on-disk ![alt](path) before saving.
                     let storage = Self.embedsToImages(newText, alts: alts)
-                    let full = heading.isEmpty ? storage : heading + "\n\n" + storage
+                    let full = NoteText.joinHeading(heading, separator: separator, body: storage)
                     onContentChanged(noteIDSnapshot, full)
                 }
             }
             .onChange(of: pendingReload) { _, newContent in
                 guard let newContent else { return }
                 saveDebouncer.cancel()
-                let (heading, body) = Self.splitHeading(newContent)
+                let (heading, separator, body) = NoteText.splitHeading(newContent)
                 hiddenHeadingLine = heading
+                headingSeparator = separator
                 let display = Self.imagesToEmbedsKeepingAlts(body)
                 imageAlts = display.alts
                 text = display.text
@@ -259,7 +265,7 @@ struct MarkdownEditorView: View {
             let capturedID = stableNoteID
             saveDebouncer.cancel()
             let storage = Self.embedsToImages(text, alts: imageAlts)
-            let full = hiddenHeadingLine.isEmpty ? storage : hiddenHeadingLine + "\n\n" + storage
+            let full = NoteText.joinHeading(hiddenHeadingLine, separator: headingSeparator, body: storage)
             onContentChanged(capturedID, full)
             slashHandler.dismiss()
             if let m = noteNavMonitor {
@@ -269,16 +275,6 @@ struct MarkdownEditorView: View {
     }
 
     // MARK: - Helpers
-
-    static func splitHeading(_ content: String) -> (heading: String, body: String) {
-        let lines = content.components(separatedBy: "\n")
-        guard let first = lines.first, first.hasPrefix("#") else { return ("", content) }
-        var rest = Array(lines.dropFirst())
-        while rest.first == "" {
-            rest.removeFirst()
-        }
-        return (first, rest.joined(separator: "\n"))
-    }
 
     private static func resolvedFontFamily(from postscriptName: String?) -> String? {
         guard let name = postscriptName, let font = NSFont(name: name, size: 16) else { return nil }

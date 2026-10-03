@@ -95,6 +95,36 @@ nonisolated enum NoteText {
         return stripped.isEmpty ? "Untitled" : String(stripped)
     }
 
+    /// Splits a note whose first line is a `#` heading into that line, the line breaks
+    /// after it (any number, any style) and the rest, so the editor can hide the heading
+    /// and `joinHeading` can put back exactly what was on disk. `heading` is empty when the
+    /// first line is not a heading.
+    static func splitHeading(_ content: String) -> (heading: String, separator: String, body: String) {
+        let heading = firstLine(content)
+        guard heading.hasPrefix("#") else { return ("", "", content) }
+        let rest = content[heading.endIndex...]
+        let bodyStart = rest.firstIndex { !$0.isNewline } ?? rest.endIndex
+        return (String(heading), String(rest[..<bodyStart]), String(rest[bodyStart...]))
+    }
+
+    /// Inverse of `splitHeading`. A heading with no line break after it gets a blank line
+    /// once there is a body, so typed text never runs into the heading.
+    static func joinHeading(_ heading: String, separator: String, body: String) -> String {
+        guard !heading.isEmpty else { return body }
+        let separator = separator.isEmpty && !body.isEmpty ? "\n\n" : separator
+        return heading + separator + body
+    }
+
+    // MARK: - Decoding
+
+    /// Text of a note file that is not valid UTF-8: Windows-1252 (the usual source of such
+    /// files), else ISO Latin-1, which maps every byte, so the note is never dropped.
+    static func decodeLegacyEncoding(_ data: Data) -> String {
+        String(data: data, encoding: .windowsCP1252)
+            ?? String(data: data, encoding: .isoLatin1)
+            ?? String(decoding: data, as: UTF8.self)
+    }
+
     // MARK: - Asset Folders
 
     /// Characters the editor's image link patterns cannot carry in a path: the engine ends
