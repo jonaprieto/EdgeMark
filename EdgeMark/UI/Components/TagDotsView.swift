@@ -13,6 +13,7 @@ struct TagDotsView: View {
                     Circle()
                         .fill(tag.color)
                         .frame(width: size, height: size)
+                        .help(L10n.shared.t("tooltip.tag", AppSettings.shared.label(for: tag)))
                 }
             }
         }

@@ -104,7 +104,7 @@ struct TrashView: View {
             HStack {
                 HeaderIconButton(
                     systemName: "chevron.left",
-                    help: l10n["common.back"],
+                    help: l10n["tooltip.back"],
                 ) {
                     noteStore.closeTrash()
                 }
@@ -115,7 +115,7 @@ struct TrashView: View {
 
                 HeaderIconButton(
                     systemName: "trash.slash",
-                    help: l10n["trash.emptyTrash"],
+                    help: l10n["tooltip.trash.empty"],
                 ) {
                     showEmptyTrashConfirm = true
                 }
@@ -208,7 +208,7 @@ struct TrashView: View {
                     HStack {
                         HeaderIconButton(
                             systemName: "chevron.left",
-                            help: l10n["common.back"],
+                            help: l10n["tooltip.back"],
                         ) {
                             closeNotePreview()
                         }
@@ -230,7 +230,7 @@ struct TrashView: View {
                         if isPreviewingIndividualNote {
                             HeaderIconButton(
                                 systemName: "arrow.uturn.backward",
-                                help: l10n["editor.restoreNote"],
+                                help: l10n["tooltip.trash.restoreNote"],
                             ) {
                                 noteStore.restoreNote(note)
                                 closeNotePreview()
@@ -293,7 +293,7 @@ struct TrashView: View {
             HStack {
                 HeaderIconButton(
                     systemName: "chevron.left",
-                    help: l10n["common.back"],
+                    help: l10n["tooltip.back"],
                 ) {
                     navigateBackInFolder(folder: folder)
                 }
@@ -302,7 +302,7 @@ struct TrashView: View {
 
                 HeaderIconButton(
                     systemName: "arrow.uturn.backward",
-                    help: l10n["trash.restoreFolder"],
+                    help: l10n["tooltip.trash.restoreFolder"],
                 ) {
                     noteStore.restoreFolder(folder)
                     closeTrashedFolder()
@@ -310,7 +310,7 @@ struct TrashView: View {
 
                 HeaderIconButton(
                     systemName: "trash",
-                    help: l10n["common.deletePermanently"],
+                    help: l10n["tooltip.trash.deleteForever"],
                 ) {
                     deletingFolder = folder
                     showDeleteFolderConfirm = true

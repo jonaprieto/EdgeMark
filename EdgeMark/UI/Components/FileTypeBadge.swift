@@ -22,6 +22,31 @@ struct FileTypeBadge: View {
             // Keeps the edge visible on dark backgrounds; invisible on light ones.
             .overlay(shape.strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
             .accessibilityLabel(style.label)
+            .help(Self.tooltip(forExtension: fileExtension))
+    }
+
+    /// Language names for the extensions `FileTypeStyle` knows; proper nouns, so not translated.
+    private static let languages: [String: String] = [
+        "rs": "Rust", "agda": "Agda", "lagda": "Agda", "lean": "Lean", "ex": "Elixir", "exs": "Elixir",
+        "heex": "Elixir", "sol": "Solidity", "py": "Python", "swift": "Swift", "sh": "Shell", "bash": "Shell",
+        "zsh": "Shell", "fish": "Shell", "js": "JavaScript", "mjs": "JavaScript", "cjs": "JavaScript",
+        "jsx": "JavaScript", "ts": "TypeScript", "tsx": "TypeScript", "c": "C", "h": "C", "cpp": "C++",
+        "cc": "C++", "cxx": "C++", "hpp": "C++", "hh": "C++", "go": "Go", "hs": "Haskell", "lhs": "Haskell",
+        "ml": "OCaml", "mli": "OCaml", "nix": "Nix",
+    ]
+
+    /// Plain-words name of the file type, like "Rust source file (.rs)".
+    private static func tooltip(forExtension ext: String) -> String {
+        let l10n = L10n.shared
+        let key = ext.lowercased()
+        if let language = languages[key] {
+            return l10n.t("tooltip.fileType.source", language, key)
+        }
+        if ["txt", "text", ""].contains(key) {
+            return l10n["tooltip.fileType.text"]
+        }
+        let names = ["json": "JSON", "yaml": "YAML", "yml": "YAML", "toml": "TOML", "html": "HTML", "htm": "HTML", "css": "CSS", "scss": "CSS"]
+        return l10n.t("tooltip.fileType.other", names[key] ?? key.uppercased(), key)
     }
 }
 

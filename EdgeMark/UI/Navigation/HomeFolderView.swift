@@ -264,7 +264,7 @@ struct HomeFolderView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.borderless)
-                .help(l10n["search.close"])
+                .help(l10n["tooltip.search.close"])
             }
             .onExitCommand { dismissSearch() }
             .opacity(isSearching && !noteStore.awaitingRootChoice ? 1 : 0)
@@ -281,7 +281,7 @@ struct HomeFolderView: View {
 
                 HeaderIconButton(
                     systemName: "magnifyingglass",
-                    help: l10n["common.search"],
+                    help: l10n.tooltip("tooltip.search", shortcut: ShortcutSettings.shared.searchShortcut),
                 ) {
                     isSearching = true
                     isSearchFieldFocused = true
@@ -289,14 +289,14 @@ struct HomeFolderView: View {
 
                 HeaderIconButton(
                     systemName: "folder.badge.plus",
-                    help: l10n["common.newFolder"],
+                    help: l10n.tooltip("tooltip.newFolder", shortcut: ShortcutSettings.shared.newFolderShortcut),
                 ) {
                     startCreatingFolder()
                 }
 
                 HeaderIconButton(
                     systemName: "square.and.pencil",
-                    help: l10n["common.newNote"],
+                    help: l10n.tooltip("tooltip.newNote", shortcut: ShortcutSettings.shared.newNoteShortcut),
                 ) {
                     createRootNote()
                 }

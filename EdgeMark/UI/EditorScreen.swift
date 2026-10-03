@@ -107,7 +107,7 @@ struct EditorScreen: View {
                 HStack {
                     HeaderIconButton(
                         systemName: "chevron.left",
-                        help: backLabel,
+                        help: l10n.t("tooltip.backTo", backLabel),
                     ) {
                         goBack()
                     }
@@ -251,7 +251,7 @@ private struct CopyMenuButton: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help(l10n["editor.copyNote"])
+        .help(l10n["tooltip.copy"])
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
@@ -301,7 +301,7 @@ private struct ExportMenuButton: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help(l10n["editor.exportNote"])
+        .help(l10n["tooltip.export"])
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
@@ -376,7 +376,7 @@ private struct GistPill: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help(l10n["gist.pillHelp"])
+        .help(l10n["tooltip.gistPill"])
     }
 }
 
@@ -401,7 +401,7 @@ private struct DeleteIconButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(L10n.shared["editor.deleteNote"])
+        .help(L10n.shared["tooltip.deleteNote"])
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering

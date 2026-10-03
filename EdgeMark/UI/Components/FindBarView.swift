@@ -78,7 +78,7 @@ struct FindBarView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(matches.isEmpty)
-                    .help("Previous match (⇧↩)")
+                    .help("\(l10n["tooltip.find.previous"]) (⇧↩)")
 
                     // Next match
                     Button { navigateForward() } label: {
@@ -87,7 +87,7 @@ struct FindBarView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(matches.isEmpty)
-                    .help("Next match (↩)")
+                    .help("\(l10n["tooltip.find.next"]) (↩)")
 
                     Divider().frame(height: 14)
 
@@ -106,7 +106,7 @@ struct FindBarView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .help(l10n["find.caseSensitive"])
+                    .help(l10n["tooltip.find.matchCase"])
 
                     Divider().frame(height: 14)
 
@@ -133,11 +133,13 @@ struct FindBarView: View {
 
                     Button(l10n["find.replace"]) { replaceCurrent() }
                         .buttonStyle(.plain)
+                        .help(l10n["tooltip.find.replace"])
                         .disabled(matches.isEmpty || query.isEmpty)
                         .foregroundStyle(matches.isEmpty || query.isEmpty ? .tertiary : .primary)
 
                     Button(l10n["find.replaceAll"]) { replaceAll() }
                         .buttonStyle(.plain)
+                        .help(l10n["tooltip.find.replaceAll"])
                         .disabled(matches.isEmpty || query.isEmpty)
                         .foregroundStyle(matches.isEmpty || query.isEmpty ? .tertiary : .primary)
 

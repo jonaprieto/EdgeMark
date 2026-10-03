@@ -17,7 +17,7 @@ struct TagFilterBar: View {
                     TagFilterDot(tag: tag, isActive: noteStore.activeTagFilter.contains(tag)) {
                         noteStore.toggleTagFilter(tag)
                     }
-                    .help(appSettings.label(for: tag))
+                    .help(l10n.t("tooltip.tagFilter", appSettings.label(for: tag)))
                 }
                 if !noteStore.activeTagFilter.isEmpty {
                     Button {

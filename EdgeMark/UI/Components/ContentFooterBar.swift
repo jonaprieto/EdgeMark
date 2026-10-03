@@ -11,7 +11,7 @@ struct ContentFooterBar: View {
     var body: some View {
         let l10n = L10n.shared
         HStack {
-            HeaderIconButton(systemName: "arrow.up.arrow.down", help: l10n["sort.help"]) {
+            HeaderIconButton(systemName: "arrow.up.arrow.down", help: l10n["tooltip.sort"]) {
                 showSortMenu()
             }
             Spacer()
@@ -22,7 +22,7 @@ struct ContentFooterBar: View {
                     showSyncMenu()
                 }
             }
-            HeaderIconButton(systemName: "gearshape", help: l10n["menu.settings"]) {
+            HeaderIconButton(systemName: "gearshape", help: l10n["tooltip.menu"]) {
                 showSettingsMenu()
             }
         }

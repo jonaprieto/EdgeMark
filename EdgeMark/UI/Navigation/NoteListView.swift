@@ -68,7 +68,7 @@ struct NoteListView: View {
             HStack(spacing: 8) {
                 HeaderIconButton(
                     systemName: "chevron.left",
-                    help: l10n["common.back"],
+                    help: l10n["tooltip.back"],
                 ) {
                     navigateBack()
                 }
@@ -96,7 +96,7 @@ struct NoteListView: View {
 
                 HeaderIconButton(
                     systemName: "magnifyingglass",
-                    help: l10n["common.search"],
+                    help: l10n.tooltip("tooltip.search", shortcut: ShortcutSettings.shared.searchShortcut),
                 ) {
                     noteStore.searchReturnFolder = noteStore.selectedFolder
                     noteStore.pendingSearchOnHome = true
@@ -105,14 +105,14 @@ struct NoteListView: View {
 
                 HeaderIconButton(
                     systemName: "folder.badge.plus",
-                    help: l10n["common.newFolder"],
+                    help: l10n.tooltip("tooltip.newFolder", shortcut: ShortcutSettings.shared.newFolderShortcut),
                 ) {
                     startCreatingFolder()
                 }
 
                 HeaderIconButton(
                     systemName: "square.and.pencil",
-                    help: l10n["common.newNote"],
+                    help: l10n.tooltip("tooltip.newNote", shortcut: ShortcutSettings.shared.newNoteShortcut),
                 ) {
                     createNote()
                 }

@@ -29,7 +29,7 @@ struct PinButton: View {
         .buttonStyle(.plain)
         .opacity(isVisible ? 1 : 0)
         .allowsHitTesting(isVisible)
-        .help(isPinned ? l10n["common.unpin"] : l10n["common.pin"])
+        .help(l10n.tooltip(isPinned ? "tooltip.unpin" : "tooltip.pin", shortcut: ShortcutSettings.shared.pinShortcut))
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.15)) {
                 isHovered = hovering
