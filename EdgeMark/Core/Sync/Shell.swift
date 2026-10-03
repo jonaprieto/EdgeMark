@@ -22,6 +22,13 @@ nonisolated enum Shell {
 
     static let searchPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]
 
+    /// Most arguments `run` passes on. Foundation raises an uncatchable
+    /// NSInvalidArgumentException from `Process.run()` above 4096.
+    static let maxArguments = 4000
+    /// Most bytes (each argument plus its NUL) `run` passes on; macOS ARG_MAX is 1 MiB,
+    /// and the environment shares it.
+    static let maxArgumentBytes = 1_000_000
+
     /// Absolute path of a tool, or nil when it is not installed in any search path.
     static func find(_ name: String) -> String? {
         if name.hasPrefix("/") {
@@ -39,6 +46,13 @@ nonisolated enum Shell {
     ) async -> Result {
         guard let exe = find(tool) else {
             return Result(status: 127, stdout: "", stderr: "\(tool) not found in \(searchPaths.joined(separator: ":"))")
+        }
+        if args.count > maxArguments {
+            return Result(status: 126, stdout: "", stderr: "too many arguments for \(tool): \(args.count), limit is \(maxArguments)")
+        }
+        let bytes = args.reduce(0) { $0 + $1.utf8.count + 1 }
+        if bytes > maxArgumentBytes {
+            return Result(status: 126, stdout: "", stderr: "argument list for \(tool) too long: \(bytes) bytes, limit is \(maxArgumentBytes)")
         }
         return await Task.detached(priority: .utility) {
             runBlocking(exe: exe, args: args, cwd: cwd, env: env, timeout: timeout)
@@ -93,7 +107,8 @@ nonisolated enum Shell {
         environment["GH_PROMPT_DISABLED"] = "1"
         environment["GH_NO_UPDATE_NOTIFIER"] = "1"
         environment["LC_ALL"] = "C"
-        for (key, value) in env {
+        // A key that is empty or holds `=` or NUL would reach the child as a different variable.
+        for (key, value) in env where !key.isEmpty && !key.contains("=") && !key.contains("\0") {
             environment[key] = value
         }
         process.environment = environment
