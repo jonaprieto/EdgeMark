@@ -649,6 +649,13 @@ final class SidePanelController: NSWindowController {
         window.setFrame(frame, display: true)
     }
 
+    /// Apply `PanelSettings.panelWidth` to the live panel (Behavior settings slider).
+    /// A hidden panel picks the width up on its next show via `panelFrames`.
+    func applyPanelWidth() {
+        guard isShown, !isAnimating else { return }
+        panelDidResize(to: PanelSettings.shared.panelWidth)
+    }
+
     private func panelResizeEnded(width: CGFloat) {
         PanelSettings.shared.panelWidth = window?.frame.width ?? width
         Log.window.info("[SidePanelController] panel resized to \(PanelSettings.shared.panelWidth, privacy: .public)pt")

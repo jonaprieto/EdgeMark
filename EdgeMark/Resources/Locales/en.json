@@ -220,6 +220,7 @@
   "settings.dismissal.toggleDelay": "Dismiss delay",
   "settings.general.autoHideOnExit": "Auto-hide when mouse exits",
   "settings.general.hideDelay": "Hide delay",
+  "settings.behavior.panelWidth": "Panel width",
   "settings.general.hideOnClickOutside": "Hide when clicking outside",
   "settings.general.system": "System",
   "settings.general.launchAtLogin": "Launch at login",

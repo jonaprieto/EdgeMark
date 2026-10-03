@@ -16,6 +16,7 @@ struct BehaviorSettingsTab: View {
     @State private var editorSwipeToNavigateEnabled: Bool
     @State private var swipeGestureSensitivity: Double
     @State private var animationStyle: AnimationStyle
+    @State private var panelWidth: Double
 
     init() {
         let s = PanelSettings.shared
@@ -32,6 +33,7 @@ struct BehaviorSettingsTab: View {
         _editorSwipeToNavigateEnabled = State(initialValue: s.editorSwipeToNavigateEnabled)
         _swipeGestureSensitivity = State(initialValue: s.swipeGestureSensitivity)
         _animationStyle = State(initialValue: s.animationStyle)
+        _panelWidth = State(initialValue: Double(s.panelWidth))
     }
 
     var body: some View {
@@ -63,6 +65,20 @@ struct BehaviorSettingsTab: View {
                 .labelsHidden()
                 .onChange(of: edgeSide) { _, newValue in
                     PanelSettings.shared.edgeSide = newValue
+                }
+
+                // 400 pt matches the drag handle's minimum width.
+                LabeledContent(l10n["settings.behavior.panelWidth"]) {
+                    HStack {
+                        Slider(value: $panelWidth, in: 400 ... 900, step: 10)
+                            .onChange(of: panelWidth) { _, v in
+                                PanelSettings.shared.panelWidth = CGFloat(v)
+                                (NSApp.delegate as? AppDelegate)?.panelController?.applyPanelWidth()
+                            }
+                        Text("\(Int(panelWidth)) pt")
+                            .monospacedDigit()
+                            .frame(width: 52, alignment: .trailing)
+                    }
                 }
             } header: {
                 Label(l10n["settings.general.panelPosition"], systemImage: "sidebar.right")
