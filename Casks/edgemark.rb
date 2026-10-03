@@ -7,8 +7,8 @@ cask "edgemark" do
   desc "Side-panel Markdown notes app with GitHub and gist sync (personal fork)"
   homepage "https://github.com/jonaprieto/EdgeMark"
 
-  # Same app and bundle identifier as Ender-Wang's EdgeMark, so only one can be installed.
-  conflicts_with cask: "ender-wang/tap/edgemark"
+  # Same token and bundle identifier as Ender-Wang's EdgeMark, so only one of them can be installed;
+  # always use the full name jonaprieto/tap/edgemark.
   depends_on macos: :sequoia
 
   app "EdgeMark.app"
