@@ -175,6 +175,13 @@ private struct RowClickOverlay: NSViewRepresentable {
             false
         }
 
+        /// The panel opens from a screen-edge hover without becoming the key window. By
+        /// default AppKit spends the first click on activating it and never delivers it to
+        /// the row, so rows seemed dead until clicked twice.
+        override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
+            true
+        }
+
         override func hitTest(_ point: NSPoint) -> NSView? {
             // Only intercept left-clicks; pass everything else through.
             if let event = NSApp.currentEvent, event.type == .leftMouseDown {
