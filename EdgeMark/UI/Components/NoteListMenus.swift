@@ -272,19 +272,28 @@ enum NoteListMenus {
                         guard FileManager.default.fileExists(atPath: moved.path) else {
                             _ = await GitRepo(url: result.gistDir).git("checkout", "--", filename)
                             sync.lastSetupError = l10n["sync.publishMoveFailed"]
+                            FeedbackToast.shared.show(l10n.t("sync.publishFailed", l10n["sync.publishMoveFailed"]), isError: true)
                             SyncLog.log.error("[Gist] note move into \(folder, privacy: .public) failed")
                             return
                         }
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(result.webURL.absoluteString, forType: .string)
+                        FeedbackToast.shared.show(l10n["sync.publishDone"])
                         await sync.commitAndPush(GitRepo(url: result.gistDir))
                     case let .failure(error):
                         sync.lastSetupError = error.message
+                        FeedbackToast.shared.show(l10n.t("sync.publishFailed", shortMessage(error.message)), isError: true)
                         SyncLog.log.error("[Gist] publish failed: \(error.message, privacy: .public)")
                     }
                 }
             }
         }
+    }
+
+    /// First line of `message`, cut to 120 characters, for the publish toast.
+    private static func shortMessage(_ message: String) -> String {
+        let line = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+        return line.count > 120 ? String(line.prefix(117)) + "..." : line
     }
 
     /// Asks before publishing. A private gist asks only when the guard flags the note; a

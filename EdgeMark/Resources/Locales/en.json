@@ -163,6 +163,8 @@
   "sync.secretsTitle": "Possible secrets in this note",
   "sync.secretsReasons": "Possible secrets: {0}",
   "sync.publishMoveFailed": "Gist created, but the note could not be moved into it.",
+  "sync.publishDone": "Gist created, link copied",
+  "sync.publishFailed": "Publish failed: {0}",
   "sync.copyGistLink": "Copy Gist Link",
   "sync.openGist": "Open Gist",
   "sync.footer.help": "GitHub sync: {0}",

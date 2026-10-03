@@ -82,8 +82,18 @@ struct ContentView: View {
                     .zIndex(1)
             }
         }
+        .overlay(alignment: .bottom) {
+            if let toast = FeedbackToast.shared.message {
+                ClipboardFeedbackView(text: toast.text, isError: toast.isError)
+                    // Above the footer bar of the list screens.
+                    .padding(.bottom, 48)
+                    .padding(.horizontal, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .clipped()
         .animation(.easeInOut(duration: 0.2), value: noteStore.copiedPathsCount)
+        .animation(.easeInOut(duration: 0.2), value: FeedbackToast.shared.message?.text)
         // Dismiss any open hover/Quick-Look preview when the user navigates
         // deeper (open note, enter folder, open trash). The preview is anchored
         // to a row in the list view we're leaving, so it would otherwise float
