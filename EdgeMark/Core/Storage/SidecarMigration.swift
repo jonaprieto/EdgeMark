@@ -27,10 +27,10 @@ enum SidecarMigration {
         let notePaths = collectMarkdownFiles(in: rootURL, excluding: [trashURL, rootURL.appendingPathComponent(".edgemark")])
         for url in notePaths {
             guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
-            let (metadata, body) = FileStorage.parseFrontMatter(text)
             let relativePath = String(url.path.dropFirst(rootURL.path.count + 1))
 
-            if !metadata.isEmpty {
+            // Only EdgeMark's own block (with an `id:` UUID) is migrated; user YAML stays.
+            if case let (metadata, body)? = NoteText.legacyFrontMatter(text) {
                 let id = metadata["id"].flatMap { UUID(uuidString: $0) } ?? UUID()
                 let created = metadata["created"].flatMap { iso.date(from: $0) } ?? fileBirthdate(url)
                 let modified = metadata["modified"].flatMap { iso.date(from: $0) } ?? fileMtime(url)
@@ -135,8 +135,7 @@ enum SidecarMigration {
         payload: inout SidecarStore.Payload,
     ) {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return }
-        let (metadata, body) = FileStorage.parseFrontMatter(text)
-        guard !metadata.isEmpty else { return }
+        guard case let (metadata, body)? = NoteText.legacyFrontMatter(text) else { return }
 
         let id = metadata["id"].flatMap { UUID(uuidString: $0) } ?? UUID()
         let created = metadata["created"].flatMap { iso.date(from: $0) } ?? fileBirthdate(url)

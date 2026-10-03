@@ -107,14 +107,15 @@ enum FileStorage {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
         let diskDate = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date) ?? Date()
 
-        // Body may still have YAML if this note wasn't migrated yet — strip it.
-        let (metadata, body) = parseFrontMatter(text)
-        let content = metadata.isEmpty ? text : body
+        // Body may still have EdgeMark's YAML if this note wasn't migrated yet: strip it.
+        // Any other leading `---` block is the user's and stays in the content.
+        let legacy = NoteText.legacyFrontMatter(text)
+        let content = legacy?.body ?? text
 
         let tags: [TagColor] = if let entry = SidecarStore.shared.noteEntry(for: note.id) {
             entry.tags.compactMap { TagColor(rawValue: $0) }
         } else {
-            parseTagList(metadata["tags"] ?? "")
+            parseTagList(legacy?.metadata["tags"] ?? "")
         }
         // After an external edit, savedAt should advance to the new disk date so the
         // watcher doesn't fire again for the same change.
@@ -800,8 +801,7 @@ enum FileStorage {
         // --- Sidecar path (preferred) ---
         if isTrash {
             if let (id, entry) = SidecarStore.shared.trashEntry(forFilename: relativePath) {
-                let (_, body) = parseFrontMatter(text) // strip any residual YAML
-                let content = text.hasPrefix("---") ? body : text
+                let content = NoteText.strippingLegacyFrontMatter(text) // strip any residual YAML
                 let tags = entry.tags.compactMap { TagColor(rawValue: $0) }
                 let folder = (entry.originalPath as NSString).deletingLastPathComponent
                 let resolvedFolder = folder == "." || folder.isEmpty ? "" : folder
@@ -820,8 +820,7 @@ enum FileStorage {
             }
         } else {
             if let (id, entry) = SidecarStore.shared.noteEntry(forPath: relativePath) {
-                let (_, body) = parseFrontMatter(text)
-                let content = text.hasPrefix("---") ? body : text
+                let content = NoteText.strippingLegacyFrontMatter(text)
                 let tags = entry.tags.compactMap { TagColor(rawValue: $0) }
                 return Note(
                     id: id,
@@ -837,16 +836,18 @@ enum FileStorage {
             }
         }
 
-        // --- YAML fallback (unmigrated file or sidecar entry missing) ---
-        let (metadata, body) = parseFrontMatter(text)
-        if !metadata.isEmpty {
+        // --- YAML fallback (unmigrated EdgeMark file or sidecar entry missing) ---
+        // Only EdgeMark's own block (with an `id:` UUID) is metadata; user YAML stays content.
+        if case let (metadata, body)? = NoteText.legacyFrontMatter(text) {
             let id = metadata["id"].flatMap { UUID(uuidString: $0) } ?? UUID()
             let title = metadata["title"] ?? extractTitle(from: body)
             let created = metadata["created"].flatMap { dateFormatter.date(from: $0) } ?? Date()
             let modified = metadata["modified"].flatMap { dateFormatter.date(from: $0) } ?? Date()
             let trashed = metadata["trashed"].flatMap { dateFormatter.date(from: $0) }
             let tags = parseTagList(metadata["tags"] ?? "")
-            let resolvedFolder = metadata["folder"] ?? folder
+            // `folder:` is the return address EdgeMark wrote for trashed notes only; an
+            // active note stays in the folder its file is in.
+            let resolvedFolder = isTrash ? (metadata["folder"] ?? folder) : folder
 
             // Inject into sidecar so future reads don't need to parse YAML
             if isTrash {
@@ -936,39 +937,10 @@ enum FileStorage {
 
     // MARK: - Front Matter
 
+    /// Any leading `---` block. Only for EdgeMark's own files such as `.folder.md`; note
+    /// files go through `NoteText.legacyFrontMatter` so user YAML is never stripped.
     static func parseFrontMatter(_ text: String) -> (metadata: [String: String], body: String) {
-        guard text.hasPrefix("---\n") || text.hasPrefix("---\r\n") else {
-            return ([:], text)
-        }
-
-        let lines = text.components(separatedBy: "\n")
-        var metadata: [String: String] = [:]
-        var endIndex = -1
-
-        for i in 1 ..< lines.count {
-            let line = lines[i].trimmingCharacters(in: .whitespaces)
-            if line == "---" {
-                endIndex = i
-                break
-            }
-            if let colonIndex = line.firstIndex(of: ":") {
-                let key = String(line[line.startIndex ..< colonIndex]).trimmingCharacters(in: .whitespaces)
-                let value = String(line[line.index(after: colonIndex)...]).trimmingCharacters(in: .whitespaces)
-                if !key.isEmpty {
-                    metadata[key] = value
-                }
-            }
-        }
-
-        guard endIndex > 0 else { return ([:], text) }
-
-        let bodyLines = Array(lines[(endIndex + 1)...])
-        var body = bodyLines.joined(separator: "\n")
-        // Strip leading newline after front matter
-        if body.hasPrefix("\n") {
-            body = String(body.dropFirst())
-        }
-        return (metadata, body)
+        NoteText.frontMatter(text) ?? ([:], text)
     }
 
     static func serializeFrontMatter(note: Note) -> String {
@@ -1048,10 +1020,7 @@ enum FileStorage {
     }
 
     private static func extractTitle(from content: String) -> String {
-        let firstLine = content.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? ""
-        // Strip leading # for markdown headings
-        let stripped = firstLine.drop { $0 == "#" || $0 == " " }
-        return stripped.isEmpty ? "Untitled" : String(stripped)
+        NoteText.title(from: content)
     }
 
     // MARK: - Sync helpers
