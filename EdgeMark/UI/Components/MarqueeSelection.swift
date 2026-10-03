@@ -46,10 +46,12 @@ extension View {
 ///   Used together with `⇧` (union) and `⌘` (symmetric difference) modifiers.
 /// - `apply`: receives the resolved selection set on each drag tick.
 /// - `onClick`: empty-area click without drag (typically `clearSelection`).
+/// - `backgroundMenu`: context menu for a right-click on empty space; rows keep their own.
 struct MarqueeSelectionModifier: ViewModifier {
     let baseline: () -> Set<NoteStore.SelectableID>
     let apply: (Set<NoteStore.SelectableID>) -> Void
     let onClick: () -> Void
+    let backgroundMenu: (() -> NSMenu)?
 
     @State private var rowFrames: [NoteStore.SelectableID: CGRect] = [:]
 
@@ -63,6 +65,7 @@ struct MarqueeSelectionModifier: ViewModifier {
                     baseline: baseline,
                     apply: apply,
                     onClick: onClick,
+                    backgroundMenu: backgroundMenu,
                 )
             }
     }
@@ -75,8 +78,9 @@ extension View {
         baseline: @escaping () -> Set<NoteStore.SelectableID>,
         apply: @escaping (Set<NoteStore.SelectableID>) -> Void,
         onClick: @escaping () -> Void,
+        backgroundMenu: (() -> NSMenu)? = nil,
     ) -> some View {
-        modifier(MarqueeSelectionModifier(baseline: baseline, apply: apply, onClick: onClick))
+        modifier(MarqueeSelectionModifier(baseline: baseline, apply: apply, onClick: onClick, backgroundMenu: backgroundMenu))
     }
 }
 
@@ -87,6 +91,7 @@ private struct MarqueeOverlay: NSViewRepresentable {
     let baseline: () -> Set<NoteStore.SelectableID>
     let apply: (Set<NoteStore.SelectableID>) -> Void
     let onClick: () -> Void
+    let backgroundMenu: (() -> NSMenu)?
 
     func makeNSView(context _: Context) -> MarqueeView {
         let view = MarqueeView()
@@ -94,6 +99,7 @@ private struct MarqueeOverlay: NSViewRepresentable {
         view.getBaseline = baseline
         view.applySelection = apply
         view.onClick = onClick
+        view.backgroundMenu = backgroundMenu
         return view
     }
 
@@ -102,17 +108,20 @@ private struct MarqueeOverlay: NSViewRepresentable {
         nsView.getBaseline = baseline
         nsView.applySelection = apply
         nsView.onClick = onClick
+        nsView.backgroundMenu = backgroundMenu
     }
 }
 
 /// Transparent NSView placed behind the row stack. Claims `mouseDown` only
 /// when the click lands in empty space (i.e. not over any reported row),
 /// then tracks dragging to draw a translucent rectangle and update selection.
+/// A right-click on empty space opens `backgroundMenu` and leaves the selection alone.
 final class MarqueeView: NSView {
     var rowFrames: [NoteStore.SelectableID: CGRect] = [:]
     var getBaseline: (() -> Set<NoteStore.SelectableID>)?
     var applySelection: ((Set<NoteStore.SelectableID>) -> Void)?
     var onClick: (() -> Void)?
+    var backgroundMenu: (() -> NSMenu)?
 
     private var dragOrigin: NSPoint?
     private var didDrag = false
@@ -154,9 +163,11 @@ final class MarqueeView: NSView {
     // MARK: Hit-testing
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        // Only claim left mouse-down events; let everything else (right-clicks,
-        // scrolls, hovers) pass through to SwiftUI.
-        guard let event = NSApp.currentEvent, event.type == .leftMouseDown else {
+        // Only claim left mouse-down events (and right mouse-down when there is a
+        // background menu); let everything else (scrolls, hovers) pass through to SwiftUI.
+        guard let event = NSApp.currentEvent,
+              event.type == .leftMouseDown || (event.type == .rightMouseDown && backgroundMenu != nil)
+        else {
             return nil
         }
         let local = convert(point, from: superview)
@@ -185,6 +196,11 @@ final class MarqueeView: NSView {
         if let timer = autoScrollTimer {
             RunLoop.current.add(timer, forMode: .eventTracking)
         }
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        guard let menu = backgroundMenu?() else { return super.rightMouseDown(with: event) }
+        menu.popUpContextMenu(with: event, for: self)
     }
 
     override func mouseDragged(with event: NSEvent) {

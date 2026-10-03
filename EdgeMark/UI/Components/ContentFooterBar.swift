@@ -37,23 +37,7 @@ struct ContentFooterBar: View {
         let menu = NSMenu()
         let delegate = NSApp.delegate as? AppDelegate
 
-        for option in AppSettings.SortBy.allCases {
-            let action: Selector = switch option {
-            case .name: #selector(AppDelegate.setSortByName)
-            case .dateModified: #selector(AppDelegate.setSortByDateModified)
-            case .dateCreated: #selector(AppDelegate.setSortByDateCreated)
-            }
-            let iconName = switch option {
-            case .name: "textformat"
-            case .dateModified: "clock"
-            case .dateCreated: "calendar"
-            }
-            let item = NSMenuItem(title: option.displayName(l10n), action: action, keyEquivalent: "")
-            item.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
-            item.target = delegate
-            item.state = settings.sortBy == option ? .on : .off
-            menu.addItem(item)
-        }
+        NoteListMenus.addSortFieldItems(to: menu, settings: settings, l10n: l10n)
 
         menu.addItem(.separator())
 

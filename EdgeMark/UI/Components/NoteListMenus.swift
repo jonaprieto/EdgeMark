@@ -1,3 +1,4 @@
+import Carbon
 import Cocoa
 import OSLog
 import SwiftUI
@@ -5,6 +6,125 @@ import SwiftUI
 /// Shared NSMenu builders for note and folder context menus.
 /// Uses NSMenu instead of SwiftUI `.contextMenu` so SF Symbol icons render reliably on macOS.
 enum NoteListMenus {
+    // MARK: - Background Context Menu
+
+    /// Build an NSMenu shown when right-clicking the empty space of a note list.
+    /// `folder` is the folder being viewed ("" at home); `onNewNote` and `onNewFolder`
+    /// are the list's own creation paths so the inline rename flow runs as usual.
+    static func backgroundMenu(
+        folder: String,
+        noteStore: NoteStore,
+        settings: AppSettings,
+        l10n: L10n,
+        onNewNote: @escaping () -> Void,
+        onNewFolder: @escaping () -> Void,
+        onSettings: @escaping () -> Void,
+    ) -> NSMenu {
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let sync = GitSync.shared
+        let pasteText = NSPasteboard.general.string(forType: .string)
+        let groups = NoteListBackgroundMenu.groups(
+            folder: folder,
+            syncActive: sync.isActive,
+            pasteboardText: pasteText,
+        )
+
+        for (index, group) in groups.enumerated() {
+            if index > 0 {
+                menu.addItem(.separator())
+            }
+            for item in group {
+                switch item {
+                case .newNote:
+                    let menuItem = menu.addActionItem(title: l10n["common.newNote"], icon: "square.and.pencil", action: onNewNote)
+                    showShortcut(ShortcutSettings.shared.newNoteShortcut, on: menuItem)
+                case .newFolder:
+                    let menuItem = menu.addActionItem(title: l10n["common.newFolder"], icon: "folder.badge.plus", action: onNewFolder)
+                    showShortcut(ShortcutSettings.shared.newFolderShortcut, on: menuItem)
+                case .sortBy:
+                    let sortItem = NSMenuItem(title: l10n["sort.sortBy"], action: nil, keyEquivalent: "")
+                    sortItem.image = NSImage(systemSymbolName: "arrow.up.arrow.down", accessibilityDescription: nil)
+                    sortItem.submenu = sortSubmenu(settings: settings, l10n: l10n)
+                    menu.addItem(sortItem)
+                case .pasteAsNewNote:
+                    guard let pasteText else { continue }
+                    menu.addActionItem(title: l10n["noteList.pasteAsNewNote"], icon: "doc.on.clipboard") {
+                        let note = noteStore.createNote(withText: pasteText, in: folder)
+                        noteStore.openNote(note)
+                    }
+                case .showInFinder:
+                    menu.addActionItem(title: l10n["common.showInFinder"], icon: "folder") {
+                        NSWorkspace.shared.open(FileStorage.urlForFolder(folder))
+                    }
+                case .syncNow:
+                    menu.addActionItem(title: l10n["sync.syncNow"], icon: "arrow.triangle.2.circlepath") {
+                        Task { await sync.syncNow() }
+                    }.isEnabled = sync.state != .syncing
+                case .trash:
+                    menu.addActionItem(title: l10n["common.trash"], icon: "trash") {
+                        noteStore.openTrash()
+                    }
+                case .settings:
+                    menu.addActionItem(title: l10n["menu.settings"], icon: "gearshape", action: onSettings)
+                }
+            }
+        }
+        return menu
+    }
+
+    /// Sort field items (Name, Date Modified, Date Created) with the current one checked.
+    /// Shared by the footer sort menu and the background menu's "Sort By" submenu.
+    static func addSortFieldItems(to menu: NSMenu, settings: AppSettings, l10n: L10n) {
+        let delegate = NSApp.delegate as? AppDelegate
+        for option in AppSettings.SortBy.allCases {
+            let action: Selector = switch option {
+            case .name: #selector(AppDelegate.setSortByName)
+            case .dateModified: #selector(AppDelegate.setSortByDateModified)
+            case .dateCreated: #selector(AppDelegate.setSortByDateCreated)
+            }
+            let iconName = switch option {
+            case .name: "textformat"
+            case .dateModified: "clock"
+            case .dateCreated: "calendar"
+            }
+            let item = NSMenuItem(title: option.displayName(l10n), action: action, keyEquivalent: "")
+            item.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
+            item.target = delegate
+            item.state = settings.sortBy == option ? .on : .off
+            menu.addItem(item)
+        }
+    }
+
+    private static func sortSubmenu(settings: AppSettings, l10n: L10n) -> NSMenu {
+        let menu = NSMenu()
+        addSortFieldItems(to: menu, settings: settings, l10n: l10n)
+        menu.addItem(.separator())
+        for (title, icon, ascending) in [(l10n["sort.ascending"], "arrow.up", true), (l10n["sort.descending"], "arrow.down", false)] {
+            let item = menu.addActionItem(title: title, icon: icon) {
+                settings.sortAscending = ascending
+            }
+            item.state = settings.sortAscending == ascending ? .on : .off
+        }
+        return menu
+    }
+
+    /// Show a configured shortcut next to a menu item. Only plain letter and digit keys
+    /// map to a key equivalent; other keys are left off.
+    private static func showShortcut(_ shortcut: KeyboardShortcut?, on item: NSMenuItem) {
+        guard let shortcut,
+              let key = KeyCodeTranslator.shared.string(for: shortcut.keyCode),
+              key.count == 1, key.first?.isLetter == true || key.first?.isNumber == true
+        else { return }
+        var mask: NSEvent.ModifierFlags = []
+        if shortcut.modifiers & UInt32(cmdKey) != 0 { mask.insert(.command) }
+        if shortcut.modifiers & UInt32(shiftKey) != 0 { mask.insert(.shift) }
+        if shortcut.modifiers & UInt32(optionKey) != 0 { mask.insert(.option) }
+        if shortcut.modifiers & UInt32(controlKey) != 0 { mask.insert(.control) }
+        item.keyEquivalent = key.lowercased()
+        item.keyEquivalentModifierMask = mask
+    }
+
     // MARK: - Multi-Selection Context Menu
 
     /// Build an NSMenu shown when right-clicking on a multi-row selection.

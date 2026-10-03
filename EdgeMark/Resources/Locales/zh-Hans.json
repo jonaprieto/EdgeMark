@@ -68,6 +68,7 @@
   "sort.ascending": "升序",
   "sort.descending": "降序",
   "sort.help": "排序",
+  "sort.sortBy": "排序方式",
 
   "alert.deleteFolder.title": "删除文件夹？",
   "alert.deleteFolder.withNotes": "“{0}”及其 {1} 篇笔记将被移入废纸篓。",
@@ -98,6 +99,7 @@
 
   "noteList.empty.title": "这里没有笔记",
   "noteList.empty.subtitle": "点按上方的新建笔记按钮开始。",
+  "noteList.pasteAsNewNote": "粘贴为新笔记",
   "hint.firstRun": "点按笔记即可打开。右键点按查看更多操作。底部的箭头用于与 GitHub 同步。",
   "hint.dismiss": "隐藏此提示",
 

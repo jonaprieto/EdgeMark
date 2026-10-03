@@ -68,6 +68,7 @@
   "sort.ascending": "Ascendente",
   "sort.descending": "Descendente",
   "sort.help": "Ordenar",
+  "sort.sortBy": "Ordenar por",
 
   "alert.deleteFolder.title": "¿Eliminar carpeta?",
   "alert.deleteFolder.withNotes": "\"{0}\" y sus {1} nota(s) se moverán a la papelera.",
@@ -98,6 +99,7 @@
 
   "noteList.empty.title": "No hay notas aquí",
   "noteList.empty.subtitle": "Pulsa el botón de nueva nota de arriba para empezar.",
+  "noteList.pasteAsNewNote": "Pegar como nota nueva",
   "hint.firstRun": "Haz clic en una nota para abrirla. Clic derecho para más opciones. La flecha de abajo sincroniza con GitHub.",
   "hint.dismiss": "Ocultar este consejo",
 

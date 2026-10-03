@@ -5,6 +5,7 @@ struct NoteListView: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(AppSettings.self) var appSettings
     @Environment(L10n.self) var l10n
+    @Environment(\.openSettings) private var openSettings
 
     @State private var noteRename = NoteRenameCoordinator()
     @State private var folderRename = FolderRenameCoordinator()
@@ -119,8 +120,10 @@ struct NoteListView: View {
         } content: {
             VStack(spacing: 0) {
                 ZStack {
+                    // The whole area is empty space here, so it takes the background menu too.
                     emptyState
                         .opacity(isEmpty ? 1 : 0)
+                        .nsContextMenu { backgroundMenu() }
 
                     GeometryReader { geo in
                         ScrollView {
@@ -152,6 +155,7 @@ struct NoteListView: View {
                                 baseline: { noteStore.selection },
                                 apply: { noteStore.selection = $0 },
                                 onClick: { noteStore.clearSelection() },
+                                backgroundMenu: { backgroundMenu() },
                             )
                         }
                     }
@@ -422,6 +426,21 @@ struct NoteListView: View {
             icon: "note.text",
             title: l10n["noteList.empty.title"],
             subtitle: l10n["noteList.empty.subtitle"],
+        )
+    }
+
+    // MARK: - Background Menu
+
+    /// Context menu for a right-click on the empty space below the rows.
+    private func backgroundMenu() -> NSMenu {
+        NoteListMenus.backgroundMenu(
+            folder: noteStore.selectedFolder?.name ?? "",
+            noteStore: noteStore,
+            settings: appSettings,
+            l10n: l10n,
+            onNewNote: { createNote() },
+            onNewFolder: { startCreatingFolder() },
+            onSettings: { [openSettings] in openSettings() },
         )
     }
 

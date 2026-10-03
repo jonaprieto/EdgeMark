@@ -6,6 +6,7 @@ struct HomeFolderView: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(AppSettings.self) var appSettings
     @Environment(L10n.self) var l10n
+    @Environment(\.openSettings) private var openSettings
     @State private var noteRename = NoteRenameCoordinator()
     @State private var folderRename = FolderRenameCoordinator()
     @State private var isSearching = false
@@ -401,6 +402,7 @@ struct HomeFolderView: View {
                     baseline: { noteStore.selection },
                     apply: { noteStore.selection = $0 },
                     onClick: { noteStore.clearSelection() },
+                    backgroundMenu: { backgroundMenu() },
                 )
             }
         }
@@ -431,6 +433,19 @@ struct HomeFolderView: View {
                 Text(l10n.t("alert.deleteFolder.empty", folderName))
             }
         }
+    }
+
+    /// Context menu for a right-click on the empty space below the rows.
+    private func backgroundMenu() -> NSMenu {
+        NoteListMenus.backgroundMenu(
+            folder: "",
+            noteStore: noteStore,
+            settings: appSettings,
+            l10n: l10n,
+            onNewNote: { createRootNote() },
+            onNewFolder: { startCreatingFolder() },
+            onSettings: { [openSettings] in openSettings() },
+        )
     }
 
     // MARK: - Inline Folder Editor

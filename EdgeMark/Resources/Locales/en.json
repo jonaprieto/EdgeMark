@@ -68,6 +68,7 @@
   "sort.ascending": "Ascending",
   "sort.descending": "Descending",
   "sort.help": "Sort",
+  "sort.sortBy": "Sort By",
 
   "alert.deleteFolder.title": "Delete Folder?",
   "alert.deleteFolder.withNotes": "\"{0}\" and its {1} note(s) will be moved to Trash.",
@@ -98,6 +99,7 @@
 
   "noteList.empty.title": "No notes here",
   "noteList.empty.subtitle": "Press the new-note button above to start.",
+  "noteList.pasteAsNewNote": "Paste as New Note",
   "hint.firstRun": "Click a note to open it. Right-click for more. The arrow at the bottom syncs with GitHub.",
   "hint.dismiss": "Hide this hint",
 

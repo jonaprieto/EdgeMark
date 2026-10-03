@@ -11,7 +11,7 @@ let package = Package(
     targets: [
         .target(name: "EdgeSync", path: "EdgeMark/Core/Sync"),
         .testTarget(name: "EdgeSyncTests", dependencies: ["EdgeSync"], path: "Tests/EdgeSyncTests"),
-        .target(name: "EdgeStorageLogic", path: "EdgeMark/Core/Storage", sources: ["ImageCleanup.swift", "NoteText.swift", "NoteComplexity.swift", "GistTextFile.swift", "FileTypeStyle.swift"]),
+        .target(name: "EdgeStorageLogic", path: "EdgeMark/Core/Storage", sources: ["ImageCleanup.swift", "NoteText.swift", "NoteComplexity.swift", "GistTextFile.swift", "FileTypeStyle.swift", "NoteListBackgroundMenu.swift"]),
         .testTarget(
             name: "EdgeStorageLogicTests",
             dependencies: ["EdgeStorageLogic"],

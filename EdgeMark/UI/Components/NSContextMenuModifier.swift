@@ -305,6 +305,13 @@ extension NSMenu {
         MenuDispatch.shared.clear()
     }
 
+    /// Pop up this menu (built with addActionItem) as the context menu for a right-click
+    /// event. Blocks until dismissed, then clears MenuDispatch closures.
+    func popUpContextMenu(with event: NSEvent, for view: NSView) {
+        NSMenu.popUpContextMenu(self, with: event, for: view)
+        MenuDispatch.shared.clear()
+    }
+
     /// Pop up this menu at a screen-coordinate point.
     /// AppKit automatically flips the menu above the cursor when near the bottom of the screen.
     func popUpAtScreenPoint(_ screenPoint: NSPoint) {

@@ -68,6 +68,7 @@
   "sort.ascending": "Aufsteigend",
   "sort.descending": "Absteigend",
   "sort.help": "Sortieren",
+  "sort.sortBy": "Sortieren nach",
 
   "alert.deleteFolder.title": "Ordner löschen?",
   "alert.deleteFolder.withNotes": "„{0}“ und seine {1} Notiz(en) werden in den Papierkorb verschoben.",
@@ -98,6 +99,7 @@
 
   "noteList.empty.title": "Keine Notizen hier",
   "noteList.empty.subtitle": "Klicke oben auf die Schaltfläche für neue Notizen, um zu beginnen.",
+  "noteList.pasteAsNewNote": "Als neue Notiz einsetzen",
   "hint.firstRun": "Klicke auf eine Notiz, um sie zu öffnen. Rechtsklick für mehr. Der Pfeil unten synchronisiert mit GitHub.",
   "hint.dismiss": "Hinweis ausblenden",
 

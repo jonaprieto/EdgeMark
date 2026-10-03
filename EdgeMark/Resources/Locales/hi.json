@@ -68,6 +68,7 @@
   "sort.ascending": "A से Z",
   "sort.descending": "Z से A",
   "sort.help": "सॉर्ट करें",
+  "sort.sortBy": "इसके अनुसार सॉर्ट करें",
 
   "alert.deleteFolder.title": "फ़ोल्डर हटाएं?",
   "alert.deleteFolder.withNotes": "\"{0}\" और उसके {1} नोट ट्रैश में भेजे जाएंगे.",
@@ -98,6 +99,7 @@
 
   "noteList.empty.title": "यहाँ कोई नोट नहीं",
   "noteList.empty.subtitle": "शुरू करने के लिए ऊपर नया-नोट बटन दबाएं।",
+  "noteList.pasteAsNewNote": "नए नोट के रूप में पेस्ट करें",
   "hint.firstRun": "नोट खोलने के लिए उस पर क्लिक करें। और विकल्पों के लिए राइट-क्लिक करें। नीचे का तीर GitHub से सिंक करता है।",
   "hint.dismiss": "यह संकेत छिपाएं",
 

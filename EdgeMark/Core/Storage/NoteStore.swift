@@ -602,6 +602,24 @@ final class NoteStore {
         return createNote(title: title, content: "# \(title)\n\n", in: folder)
     }
 
+    /// Create a note whose body is `text`, titled from its first line like a note read
+    /// from disk. In a gist the new file keeps the usual "Untitled.md" name.
+    func createNote(withText text: String, in folder: String) -> Note {
+        if FileStorage.isGistFolder(folder) {
+            let note = createNote(in: folder)
+            updateContent(for: note.id, content: text)
+            return notes.first { $0.id == note.id } ?? note
+        }
+        let base = Self.extractTitle(from: text)
+        var title = base
+        var counter = 2
+        while noteTitleExists(title, in: folder) {
+            title = "\(base) \(counter)"
+            counter += 1
+        }
+        return createNote(title: title, content: text, in: folder)
+    }
+
     private func createNote(title: String, content: String, in folder: String) -> Note {
         let now = Date()
         var note = Note(
