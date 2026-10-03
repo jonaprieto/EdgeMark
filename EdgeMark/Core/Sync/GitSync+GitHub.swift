@@ -65,7 +65,7 @@ extension GitSync {
 
     /// Gist metadata for a note that lives inside a gist clone, else nil.
     func gistInfo(for noteURL: URL) async -> GistInfo? {
-        guard let gistsDir, noteURL.path.hasPrefix(gistsDir.path + "/"),
+        guard let gistsDir, GitRepo.resolvedURL(noteURL).path.hasPrefix(gistsDir.path + "/"),
               let repo = repoContaining(noteURL), repo.url != root,
               let origin = await repo.originURL(),
               let id = GistCatalog.gistID(fromOrigin: origin) else { return nil }

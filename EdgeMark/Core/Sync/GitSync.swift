@@ -94,9 +94,10 @@ final class GitSync {
             .sorted { $0.url.path < $1.url.path }
     }
 
-    /// Deepest repo whose directory contains `url` (a gist beats the root).
+    /// Deepest repo whose directory contains `url` (a gist beats the root). Paths are
+    /// compared with symlinks resolved, as `GitRepo` stores them.
     func repoContaining(_ url: URL) -> GitRepo? {
-        let path = url.standardizedFileURL.path
+        let path = GitRepo.resolvedURL(url).path
         return repos()
             .filter { path.hasPrefix($0.url.path + "/") }
             .max { $0.url.path.count < $1.url.path.count }
@@ -117,7 +118,8 @@ final class GitSync {
         lastSync = [:]
         lastPullAll = nil
         lastGistDiscovery = nil
-        self.root = root.map { URL(fileURLWithPath: $0.standardizedFileURL.path, isDirectory: true) }
+        // Resolved like `GitRepo.url`, so the root and its repo share one key.
+        self.root = root.map { URL(fileURLWithPath: GitRepo.resolvedURL($0).path, isDirectory: true) }
         if let root = self.root, GitRepo(url: root).isRepo {
             GitRepo(url: root).ensureLocalExcludes(Self.rootExcludes)
         }
