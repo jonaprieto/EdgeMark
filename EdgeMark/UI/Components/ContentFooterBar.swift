@@ -18,11 +18,15 @@ struct ContentFooterBar: View {
             if GitSync.shared.isActive || GitSync.shared.rootRepo != nil {
                 SyncStatusDot(state: GitSync.shared.state)
                     .help(l10n.t("sync.footer.help", GitSync.shared.state.summary))
-                    .padding(.trailing, 6)
+                    // Grow the 7 pt dot into a 15 pt hit area; trailing gap stays 6 pt.
+                    .padding(4)
+                    .contentShape(Rectangle())
                     .onTapGesture {
                         SettingsRouter.shared.tab = .sync
                         openSettings()
                     }
+                    .accessibilityAddTraits(.isButton)
+                    .padding(.trailing, 2)
             }
             HeaderIconButton(systemName: "gearshape", help: l10n["menu.settings"]) {
                 showSettingsMenu()
