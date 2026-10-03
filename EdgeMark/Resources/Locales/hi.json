@@ -72,7 +72,6 @@
   "alert.deleteFolder.title": "फ़ोल्डर हटाएं?",
   "alert.deleteFolder.withNotes": "\"{0}\" और उसके {1} नोट ट्रैश में भेजे जाएंगे.",
   "alert.deleteFolder.empty": "\"{0}\" हटाया जाएगा.",
-  "alert.deleteNote.title": "नोट हटाएं?",
   "alert.externalChange.title": "नोट बाहर से बदला गया",
   "alert.externalChange.message": "जब आप एडिट कर रहे थे, तब इस नोट को किसी दूसरे ऐप ने बदल दिया. अपनी EdgeMark एडिट्स रखें या डिस्क से फिर से लोड करें?",
   "alert.externalChange.keepEdgeMarkEdits": "मेरी एडिट्स रखें",

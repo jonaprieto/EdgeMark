@@ -72,7 +72,6 @@
   "alert.deleteFolder.title": "Delete Folder?",
   "alert.deleteFolder.withNotes": "\"{0}\" and its {1} note(s) will be moved to Trash.",
   "alert.deleteFolder.empty": "\"{0}\" will be deleted.",
-  "alert.deleteNote.title": "Delete Note?",
   "alert.externalChange.title": "Note Modified Externally",
   "alert.externalChange.message": "This note was changed by another app while you were editing. Keep your EdgeMark edits or reload from disk?",
   "alert.externalChange.keepEdgeMarkEdits": "Keep My Edits",

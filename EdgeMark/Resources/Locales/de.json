@@ -72,7 +72,6 @@
   "alert.deleteFolder.title": "Ordner löschen?",
   "alert.deleteFolder.withNotes": "„{0}“ und seine {1} Notiz(en) werden in den Papierkorb verschoben.",
   "alert.deleteFolder.empty": "„{0}“ wird gelöscht.",
-  "alert.deleteNote.title": "Notiz löschen?",
   "alert.externalChange.title": "Notiz extern geändert",
   "alert.externalChange.message": "Diese Notiz wurde während der Bearbeitung von einer anderen App geändert. Behalte deine EdgeMark-Änderungen oder lade vom Datenträger neu?",
   "alert.externalChange.keepEdgeMarkEdits": "Meine Änderungen behalten",

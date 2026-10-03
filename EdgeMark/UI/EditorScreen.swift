@@ -5,7 +5,6 @@ struct EditorScreen: View {
     @Environment(NoteStore.self) var noteStore
     @Environment(AppSettings.self) var appSettings
     @Environment(L10n.self) var l10n
-    @State private var showDeleteConfirm = false
     @State private var pendingEditorReload: String? = nil
     @State private var isFindBarShowing = false
 
@@ -52,15 +51,6 @@ struct EditorScreen: View {
                     isFindBarShowing = true
                 }
             }
-        }
-        .alert(l10n["alert.deleteNote.title"], isPresented: $showDeleteConfirm) {
-            Button(l10n["common.delete"], role: .destructive) {
-                if let note = noteStore.selectedNote {
-                    noteStore.closeNote()
-                    noteStore.deleteNote(note)
-                }
-            }
-            Button(l10n["common.cancel"], role: .cancel) {}
         }
         .alert(
             l10n["alert.externalChange.title"],
@@ -129,8 +119,10 @@ struct EditorScreen: View {
 
                     ExportMenuButton(note: note)
 
+                    // Moves to Trash like the note list's Delete, so no confirmation.
                     DeleteIconButton {
-                        showDeleteConfirm = true
+                        noteStore.closeNote()
+                        noteStore.trashNote(note)
                     }
                 }
 

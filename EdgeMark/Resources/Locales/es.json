@@ -72,7 +72,6 @@
   "alert.deleteFolder.title": "¿Eliminar carpeta?",
   "alert.deleteFolder.withNotes": "\"{0}\" y sus {1} nota(s) se moverán a la papelera.",
   "alert.deleteFolder.empty": "\"{0}\" se eliminará.",
-  "alert.deleteNote.title": "¿Eliminar nota?",
   "alert.externalChange.title": "Nota modificada externamente",
   "alert.externalChange.message": "Esta nota fue modificada por otra aplicación mientras la editabas. ¿Conservar tus cambios o recargar desde el disco?",
   "alert.externalChange.keepEdgeMarkEdits": "Conservar mis cambios",
