@@ -478,8 +478,13 @@ struct HomeFolderView: View {
                         isCommand: mods.contains(.command),
                         visibleOrder: visibleOrder,
                     )
+                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                        noteStore.navigateToFolder(folder)
+                    }
                 },
-                onDouble: { noteStore.navigateToFolder(folder) },
+                onDouble: {
+                    if !PanelSettings.shared.openOnSingleClick { noteStore.navigateToFolder(folder) }
+                },
                 dragItem: .folder(folder.name),
                 dragPreviewLabel: folder.displayName,
             )
@@ -529,8 +534,13 @@ struct HomeFolderView: View {
                         isCommand: mods.contains(.command),
                         visibleOrder: visibleOrder,
                     )
+                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                        noteStore.openNote(note)
+                    }
                 },
-                onDouble: { noteStore.openNote(note) },
+                onDouble: {
+                    if !PanelSettings.shared.openOnSingleClick { noteStore.openNote(note) }
+                },
                 dragItem: .note(note.id),
                 dragPreviewLabel: note.title,
             )

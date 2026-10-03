@@ -6,6 +6,7 @@ struct BehaviorSettingsTab: View {
     @State private var edgeSide: EdgeSide
     @State private var dismissalMode: DismissalMode
     @State private var edgeActivationEnabled: Bool
+    @State private var openOnSingleClick: Bool
     @State private var activationDelay: Double
     @State private var toggleDismissDelay: Double
     @State private var excludeCorners: Bool
@@ -23,6 +24,7 @@ struct BehaviorSettingsTab: View {
         _edgeSide = State(initialValue: s.edgeSide)
         _dismissalMode = State(initialValue: s.dismissalMode)
         _edgeActivationEnabled = State(initialValue: s.edgeActivationEnabled)
+        _openOnSingleClick = State(initialValue: s.openOnSingleClick)
         _activationDelay = State(initialValue: s.activationDelay)
         _toggleDismissDelay = State(initialValue: s.toggleDismissDelay)
         _excludeCorners = State(initialValue: s.excludeCorners)
@@ -121,6 +123,10 @@ struct BehaviorSettingsTab: View {
             }
 
             Section {
+                Toggle(l10n["settings.behavior.openOnSingleClick"], isOn: $openOnSingleClick)
+                    .onChange(of: openOnSingleClick) { _, v in
+                        PanelSettings.shared.openOnSingleClick = v
+                    }
                 Toggle(l10n["settings.general.enableEdgeActivation"], isOn: $edgeActivationEnabled)
                     .onChange(of: edgeActivationEnabled) { _, v in
                         PanelSettings.shared.edgeActivationEnabled = v

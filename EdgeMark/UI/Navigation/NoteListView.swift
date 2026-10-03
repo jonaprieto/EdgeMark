@@ -238,8 +238,13 @@ struct NoteListView: View {
                         isCommand: mods.contains(.command),
                         visibleOrder: visibleOrder,
                     )
+                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                        noteStore.navigateToSubfolder(folder)
+                    }
                 },
-                onDouble: { noteStore.navigateToSubfolder(folder) },
+                onDouble: {
+                    if !PanelSettings.shared.openOnSingleClick { noteStore.navigateToSubfolder(folder) }
+                },
                 dragItem: .folder(folder.name),
                 dragPreviewLabel: folder.displayName,
             )
@@ -288,8 +293,13 @@ struct NoteListView: View {
                         isCommand: mods.contains(.command),
                         visibleOrder: visibleOrder,
                     )
+                    if PanelSettings.shared.openOnSingleClick, mods.isDisjoint(with: [.shift, .command]) {
+                        noteStore.openNote(note)
+                    }
                 },
-                onDouble: { noteStore.openNote(note) },
+                onDouble: {
+                    if !PanelSettings.shared.openOnSingleClick { noteStore.openNote(note) }
+                },
                 dragItem: .note(note.id),
                 dragPreviewLabel: note.title,
             )

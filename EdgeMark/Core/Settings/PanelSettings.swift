@@ -83,6 +83,12 @@ final class PanelSettings {
     }
 
     /// Whether edge activation (mouse hover to trigger) is enabled.
+    /// Open notes and folders with a single click. Shift/Command-click still multi-selects;
+    /// off restores Finder-style select-then-double-click.
+    var openOnSingleClick: Bool {
+        didSet { UserDefaults.standard.set(openOnSingleClick, forKey: openOnSingleClickKey) }
+    }
+
     var edgeActivationEnabled: Bool {
         didSet { UserDefaults.standard.set(edgeActivationEnabled, forKey: edgeActivationEnabledKey) }
     }
@@ -141,6 +147,7 @@ final class PanelSettings {
     private let edgeSideKey = "edgeSide"
     private let dismissalModeKey = "dismissalMode"
     private let edgeActivationEnabledKey = "edgeActivationEnabled"
+    private let openOnSingleClickKey = "openOnSingleClick"
     private let excludeCornersKey = "excludeCorners"
     private let hideOnClickOutsideKey = "hideOnClickOutside"
     private let swipeToNavigateEnabledKey = "swipeToNavigateEnabled"
@@ -156,6 +163,7 @@ final class PanelSettings {
         hideDelay = UserDefaults.standard.object(forKey: hideDelayKey) as? Double ?? 0.5
         activationDelay = UserDefaults.standard.object(forKey: activationDelayKey) as? Double ?? 0.0
         toggleDismissDelay = UserDefaults.standard.object(forKey: toggleDismissDelayKey) as? Double ?? 0.3
+        openOnSingleClick = UserDefaults.standard.object(forKey: openOnSingleClickKey) as? Bool ?? true
 
         if let raw = UserDefaults.standard.string(forKey: edgeSideKey),
            let side = EdgeSide(rawValue: raw)
