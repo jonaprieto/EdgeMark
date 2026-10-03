@@ -23,6 +23,8 @@ final class L10n: @unchecked Sendable {
     }
 
     private var strings: [String: String] = [:]
+    /// English table, used for keys the selected locale lacks.
+    private var english: [String: String] = [:]
 
     private init() {
         locale = UserDefaults.standard.string(forKey: "app.locale") ?? "system"
@@ -65,7 +67,7 @@ final class L10n: @unchecked Sendable {
     // MARK: - Lookup
 
     func t(_ key: String, _ args: String...) -> String {
-        var result = strings[key] ?? key
+        var result = strings[key] ?? english[key] ?? key
         for (index, arg) in args.enumerated() {
             result = result.replacingOccurrences(of: "{\(index)}", with: arg)
         }
@@ -96,32 +98,28 @@ final class L10n: @unchecked Sendable {
     }
 
     private func loadStrings() {
-        let resolved = resolveLocale()
-
-        guard let url = Bundle.main.url(
-            forResource: resolved,
-            withExtension: "json",
-            subdirectory: "Resources/Locales",
-        ) else {
-            // Fallback: try without subdirectory (flat bundle)
-            if let fallbackURL = Bundle.main.url(forResource: resolved, withExtension: "json") {
-                loadFromURL(fallbackURL)
-            }
-            return
+        if english.isEmpty {
+            english = loadTable("en") ?? [:]
         }
-        loadFromURL(url)
+        if let table = loadTable(resolveLocale()) {
+            strings = table
+        }
     }
 
-    private func loadFromURL(_ url: URL) {
+    /// The `<code>.json` table from the bundle, or nil when it is missing or unreadable.
+    private func loadTable(_ code: String) -> [String: String]? {
+        // Fallback: try without subdirectory (flat bundle)
+        guard let url = Bundle.main.url(forResource: code, withExtension: "json", subdirectory: "Resources/Locales")
+            ?? Bundle.main.url(forResource: code, withExtension: "json")
+        else { return nil }
         do {
             let data = try Data(contentsOf: url)
-            if let dict = try JSONSerialization.jsonObject(with: data) as? [String: String] {
-                strings = dict
-            }
+            return try JSONSerialization.jsonObject(with: data) as? [String: String]
         } catch {
             let path = url.path
             let desc = error.localizedDescription
             Log.app.error("[L10n] loadStrings failed from \(path, privacy: .public) — \(desc, privacy: .public)")
+            return nil
         }
     }
 }
