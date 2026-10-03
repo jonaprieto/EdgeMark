@@ -85,7 +85,8 @@ extension GitSync {
     /// Creates a gist from `file`, clones it under `Gists/`, and removes the cloned copy of
     /// the file so the caller can move the original note into the clone (same name, same
     /// content, so git sees no change). Returns the clone directory and the web URL.
-    func publishAsGist(file: URL, description: String, isPublic: Bool) async -> Result<(gistDir: URL, webURL: URL), GHError> {
+    /// The gist is secret unless `isPublic`.
+    func publishAsGist(file: URL, description: String, isPublic: Bool = false) async -> Result<(gistDir: URL, webURL: URL), GHError> {
         guard !settings.account.isEmpty else { return .failure(GHError(message: "Choose a GitHub account in Settings first")) }
         guard let gistsDir else { return .failure(GHError(message: "No storage root")) }
         let id: String

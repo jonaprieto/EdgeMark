@@ -112,8 +112,8 @@ enum GistCatalog {
         return .success(parseGistLines(r.stdout))
     }
 
-    /// Creates a gist from one file and returns its id.
-    static func create(account: String, file: URL, description: String, isPublic: Bool) async -> Result<String, GHError> {
+    /// Creates a gist from one file and returns its id. Secret (unlisted) unless `isPublic`.
+    static func create(account: String, file: URL, description: String, isPublic: Bool = false) async -> Result<String, GHError> {
         guard let env = await env(account: account) else { return .failure(GHError(message: "gh has no token for \(account)")) }
         var args = ["gist", "create", "--desc", description, file.path]
         if isPublic { args.append("--public") }

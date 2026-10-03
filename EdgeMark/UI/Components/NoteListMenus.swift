@@ -220,8 +220,8 @@ enum NoteListMenus {
 
     // MARK: - Gist Items
 
-    /// "Copy Gist Link" and "Open Gist" for notes inside a gist clone; "Publish as Gist"
-    /// for ordinary notes when sync is active. Menu items are resolved synchronously, so
+    /// "Copy Gist Link" and "Open Gist" for notes inside a gist clone; "Publish as Private
+    /// Gist" and "Publish as Public Gist..." for ordinary notes when sync is active. Menu items are resolved synchronously, so
     /// the gist lookup runs when the item is clicked.
     private static func addGistItems(to menu: NSMenu, note: Note, noteStore: NoteStore, l10n: L10n) {
         let sync = GitSync.shared
@@ -251,6 +251,7 @@ enum NoteListMenus {
             menu.addActionItem(title: title, icon: "arrow.up.doc") {
                 Task { @MainActor in
                     noteStore.saveDirtyNotes()
+                    guard await confirmPublish(note: note, file: url, isPublic: isPublic, l10n: l10n) else { return }
                     switch await sync.publishAsGist(file: url, description: note.title, isPublic: isPublic) {
                     case let .success(result):
                         let folder = "Gists/\(result.gistDir.lastPathComponent)"
@@ -276,6 +277,32 @@ enum NoteListMenus {
                 }
             }
         }
+    }
+
+    /// Asks before publishing. A private gist asks only when the guard flags the note; a
+    /// public gist always asks, with stricter thresholds. Reasons never quote the note.
+    private static func confirmPublish(note: Note, file: URL, isPublic: Bool, l10n: L10n) async -> Bool {
+        let verdicts = await GitSync.shared.checkBeforePublish(file: file, strict: isPublic)
+        var reasons: [String] = []
+        for reason in verdicts.flatMap(\.reasons) where !reasons.contains(reason) {
+            reasons.append(reason)
+        }
+        let reasonLine = l10n.t("sync.secretsReasons", reasons.joined(separator: ", "))
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        if isPublic {
+            alert.messageText = l10n.t("sync.publishPublicTitle", note.title)
+            alert.informativeText = l10n["sync.publishPublicInfo"] + (reasons.isEmpty ? "" : "\n\n" + reasonLine)
+            alert.addButton(withTitle: l10n["common.cancel"])
+            alert.addButton(withTitle: l10n[reasons.isEmpty ? "sync.publishPublic" : "sync.publishPublicAnyway"])
+        } else {
+            guard !reasons.isEmpty else { return true }
+            alert.messageText = l10n["sync.secretsTitle"]
+            alert.informativeText = reasonLine
+            alert.addButton(withTitle: l10n["common.cancel"])
+            alert.addButton(withTitle: l10n["sync.publishPrivateAnyway"])
+        }
+        return alert.runModal() == .alertSecondButtonReturn
     }
 
     // MARK: - Tags Submenu
