@@ -9,6 +9,8 @@ final class SyncSettings {
     var enabled: Bool { didSet { defaults.set(enabled, forKey: "sync.enabled") } }
     /// Seconds between the last note save and the commit+push (30 to 600).
     var debounceSeconds: Double { didSet { defaults.set(debounceSeconds, forKey: "sync.debounceSeconds") } }
+    /// Minimum seconds between two unforced pulls (panel shows in quick succession).
+    var pullIntervalSeconds: Double { didSet { defaults.set(pullIntervalSeconds, forKey: "sync.pullIntervalSeconds") } }
     /// Placeholders: `{date}` (yyyy-MM-dd HH:mm) and `{host}`.
     var commitTemplate: String { didSet { defaults.set(commitTemplate, forKey: "sync.commitTemplate") } }
     var pushOnQuit: Bool { didSet { defaults.set(pushOnQuit, forKey: "sync.pushOnQuit") } }
@@ -31,6 +33,7 @@ final class SyncSettings {
         self.defaults = defaults
         enabled = defaults.object(forKey: "sync.enabled") as? Bool ?? true
         debounceSeconds = defaults.object(forKey: "sync.debounceSeconds") as? Double ?? 120
+        pullIntervalSeconds = defaults.object(forKey: "sync.pullIntervalSeconds") as? Double ?? 60
         commitTemplate = defaults.string(forKey: "sync.commitTemplate") ?? Self.defaultTemplate
         pushOnQuit = defaults.object(forKey: "sync.pushOnQuit") as? Bool ?? true
         syncGists = defaults.object(forKey: "sync.syncGists") as? Bool ?? true

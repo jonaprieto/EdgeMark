@@ -37,6 +37,11 @@ final class GitSync {
     @ObservationIgnored private var inFlight: [URL: Task<Void, Never>] = [:]
     /// Time of the last successful pull or push per repo, kept while the repo is pending.
     @ObservationIgnored private var lastSync: [URL: Date] = [:]
+    /// End of the last `pullAll` that ran git, whatever each repo's outcome; throttles
+    /// unforced pulls so a paused or failing repo does not run git on every panel show.
+    @ObservationIgnored private var lastPullAll: Date?
+    /// Start of the last gist discovery; it runs at most hourly unless forced.
+    @ObservationIgnored private var lastGistDiscovery: Date?
 
     init(settings: SyncSettings = .shared) {
         self.settings = settings
@@ -93,6 +98,8 @@ final class GitSync {
         debounceTasks = [:]
         repoStates = [:]
         lastSync = [:]
+        lastPullAll = nil
+        lastGistDiscovery = nil
         self.root = root.map { URL(fileURLWithPath: $0.standardizedFileURL.path, isDirectory: true) }
         SyncLog.log.info("[GitSync] configured root \(self.root?.path ?? "none", privacy: .public), active \(self.isActive)")
         Task { await refreshStates() }
@@ -142,14 +149,24 @@ final class GitSync {
 
     /// Pull every repo in turn, then let the app re-read files from disk.
     /// The callback runs on every call: with false when sync is inactive, and right away
-    /// when a pull is already in flight; then the flag is true only if an earlier
+    /// when a pull is already in flight or (unless `force`) one finished less than
+    /// `settings.pullIntervalSeconds` ago; then the flag is true only if an earlier
     /// `commitAndPush` pulled new commits.
-    func pullAll() async {
+    /// Gist discovery runs when forced or when the last one is over an hour old.
+    func pullAll(force: Bool = false) async {
         guard isActive else { onPullFinished?(false); return }
         if pulling { finishPull(changed: false); return }
+        if !force, let lastPullAll, Date().timeIntervalSince(lastPullAll) < settings.pullIntervalSeconds {
+            finishPull(changed: false)
+            return
+        }
         pulling = true
         defer { pulling = false }
-        var changed = await refreshGistsIfNeeded() > 0
+        var changed = false
+        if force || lastGistDiscovery.map({ Date().timeIntervalSince($0) >= 3600 }) ?? true {
+            lastGistDiscovery = Date()
+            changed = await refreshGistsIfNeeded() > 0
+        }
         for repo in repos() {
             await serialized(repo) { [self] in
                 if await isPaused(repo) { return }
@@ -173,6 +190,7 @@ final class GitSync {
                 }
             }
         }
+        lastPullAll = Date()
         finishPull(changed: changed)
     }
 
@@ -220,7 +238,7 @@ final class GitSync {
 
     /// Settings button: pull, then push whatever is pending in every repo.
     func syncNow() async {
-        await pullAll()
+        await pullAll(force: true)
         for repo in repos() {
             await commitAndPush(repo)
         }

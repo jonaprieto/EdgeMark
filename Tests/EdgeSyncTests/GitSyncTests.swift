@@ -102,8 +102,46 @@ final class GitSyncTests: XCTestCase {
         _ = await TestGit.run(["add", "-A"], in: other)
         _ = await TestGit.run(["commit", "-q", "-m", "other"], in: other)
         _ = await TestGit.run(["push", "-q"], in: other)
-        await sync.pullAll()
+        await sync.pullAll(force: true)
         XCTAssertEqual(flags, [false, true])
+    }
+
+    func testPullsAreThrottledUnlessForced() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        var flags: [Bool] = []
+        sync.onPullFinished = { flags.append($0) }
+        await sync.pullAll()
+
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("from other\n", to: other.appendingPathComponent("other.md"))
+        _ = await TestGit.run(["add", "-A"], in: other)
+        _ = await TestGit.run(["commit", "-q", "-m", "other"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+        let otherNote = work.appendingPathComponent("other.md").path
+
+        await sync.pullAll()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: otherNote), "second pull should be skipped")
+        await sync.pullAll(force: true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: otherNote))
+        XCTAssertEqual(flags, [false, false, true])
+    }
+
+    func testFailedPullStillArmsThrottle() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        _ = await TestGit.run(["remote", "set-url", "origin", "/nonexistent/edgesync-remote.git"], in: work)
+        let sync = makeSync(root: work)
+        await sync.pullAll()
+        guard case .error = sync.state else { return XCTFail("expected error, got \(sync.state)") }
+
+        _ = await TestGit.run(["remote", "set-url", "origin", remote.path], in: work)
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("from other\n", to: other.appendingPathComponent("other.md"))
+        _ = await TestGit.run(["add", "-A"], in: other)
+        _ = await TestGit.run(["commit", "-q", "-m", "other"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+        await sync.pullAll()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: work.appendingPathComponent("other.md").path))
     }
 
     func testRejectedPushPullMarksReload() async throws {

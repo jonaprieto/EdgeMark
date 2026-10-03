@@ -13,6 +13,7 @@ final class SyncSettingsTests: XCTestCase {
         let s = SyncSettings(defaults: freshDefaults())
         XCTAssertTrue(s.enabled)
         XCTAssertEqual(s.debounceSeconds, 120)
+        XCTAssertEqual(s.pullIntervalSeconds, 60)
         XCTAssertEqual(s.commitTemplate, "notes: {date}")
         XCTAssertTrue(s.pushOnQuit)
         XCTAssertTrue(s.syncGists)

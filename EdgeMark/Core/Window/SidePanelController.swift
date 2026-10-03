@@ -451,7 +451,7 @@ final class SidePanelController: NSWindowController {
         // Pull from GitHub, then check for external file changes (the pull is one of them).
         if GitSync.shared.isActive {
             GitSync.shared.onPullFinished = { [weak self] _ in self?.noteStore.checkForExternalChanges() }
-            Task { await GitSync.shared.pullAll() }
+            Task { await GitSync.shared.pullAll(force: false) }
         } else {
             noteStore.checkForExternalChanges()
         }
