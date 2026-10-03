@@ -80,16 +80,27 @@ struct GitRepo: Equatable, Hashable {
     /// this machine (unlike `.gitignore`, it is never committed or merged).
     func ensureLocalExcludes(_ lines: [String]) {
         let info = gitDir.appendingPathComponent("info", isDirectory: true)
-        let file = info.appendingPathComponent("exclude")
+        try? FileManager.default.createDirectory(at: info, withIntermediateDirectories: true)
+        _ = try? Self.appendMissingLines(lines, to: info.appendingPathComponent("exclude"))
+    }
+
+    /// Appends the `lines` that `file` does not contain yet (creating it if needed).
+    /// Returns true when the file changed.
+    static func appendMissingLines(_ lines: [String], to file: URL) throws -> Bool {
         let current = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
         let present = Set(current.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) })
         let missing = lines.filter { !present.contains($0) }
-        guard !missing.isEmpty else { return }
+        guard !missing.isEmpty else { return false }
         var text = current
         if !text.isEmpty, !text.hasSuffix("\n") { text += "\n" }
         text += missing.joined(separator: "\n") + "\n"
-        try? FileManager.default.createDirectory(at: info, withIntermediateDirectories: true)
-        try? Data(text.utf8).write(to: file, options: .atomic)
+        try Data(text.utf8).write(to: file, options: .atomic)
+        return true
+    }
+
+    /// True when the current branch tracks a remote branch.
+    func hasUpstream() async -> Bool {
+        await git("rev-parse", "--abbrev-ref", "@{u}").ok
     }
 
     /// True when local commits are not on the upstream yet, or no upstream is set.

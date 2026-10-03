@@ -103,8 +103,10 @@ extension GitSync {
 
     // MARK: - Repository setup
 
-    /// `git init` plus `.gitignore` and an initial local commit, when the root is not a repo yet.
-    private func ensureRootRepo() async -> String? {
+    /// `git init` plus an initial local commit, when the root is not a repo yet. With
+    /// `writeIgnore`, a missing `.gitignore` is created first; connecting to an existing
+    /// remote skips it so it cannot clash with the remote's own `.gitignore`.
+    private func ensureRootRepo(writeIgnore: Bool) async -> String? {
         guard let root else { return "No storage root" }
         let repo = GitRepo(url: root)
         if !repo.isRepo {
@@ -113,8 +115,8 @@ extension GitSync {
         }
         repo.ensureLocalExcludes(Self.rootExcludes)
         let ignore = root.appendingPathComponent(".gitignore")
-        if !FileManager.default.fileExists(atPath: ignore.path) {
-            try? Data(".trash/\n.DS_Store\nGists/\n".utf8).write(to: ignore, options: .atomic)
+        if writeIgnore, !FileManager.default.fileExists(atPath: ignore.path) {
+            _ = try? GitRepo.appendMissingLines(Self.rootExcludes, to: ignore)
         }
         let head = await repo.git("rev-parse", "--verify", "HEAD")
         if !head.ok {
@@ -125,11 +127,24 @@ extension GitSync {
         return nil
     }
 
+    /// Appends the missing local-folder lines to the root's `.gitignore` and commits it.
+    private func ensureIgnoreCommitted(_ repo: GitRepo) async -> String? {
+        do {
+            let ignore = repo.url.appendingPathComponent(".gitignore")
+            guard try GitRepo.appendMissingLines(Self.rootExcludes, to: ignore) else { return nil }
+        } catch {
+            return error.localizedDescription
+        }
+        _ = await repo.git("add", ".gitignore")
+        let c = await repo.commit(message: "notes: ignore local folders")
+        return c.ok ? nil : c.errorLine
+    }
+
     /// Creates `<account>/<name>` as a private repo and makes it `origin`. Nothing is pushed.
     func createPrivateRepo(named name: String) async -> String? {
         guard !settings.account.isEmpty else { return "Choose a GitHub account first" }
         guard let root else { return "No storage root" }
-        if let error = await ensureRootRepo() { return error }
+        if let error = await ensureRootRepo(writeIgnore: true) { return error }
         guard let token = await GistCatalog.token(account: settings.account) else { return "gh has no token for \(settings.account)" }
         let r = await Shell.run(
             "gh", ["repo", "create", name, "--private", "--source", root.path, "--remote", "origin"],
@@ -145,29 +160,65 @@ extension GitSync {
     /// Uses an existing `owner/repo` as origin and merges its history into the local notes.
     func connectExisting(_ ownerRepo: String) async -> String? {
         guard !settings.account.isEmpty else { return "Choose a GitHub account first" }
-        guard let root else { return "No storage root" }
-        if let error = await ensureRootRepo() { return error }
+        guard root != nil else { return "No storage root" }
         guard let token = await GistCatalog.token(account: settings.account) else { return "gh has no token for \(settings.account)" }
         let view = await Shell.run(
             "gh", ["repo", "view", ownerRepo, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"],
             env: ["GH_TOKEN": token],
         )
         guard view.ok else { return view.errorLine }
-        var branch = view.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        if branch.isEmpty || branch == "null" { branch = "main" }
+        let name = view.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let branch = name.isEmpty || name == "null" ? nil : name
+        return await connect(remoteURL: "https://\(settings.account)@github.com/\(ownerRepo).git", branch: branch)
+    }
+
+    /// Makes `remoteURL` the root's origin and rebases the local notes onto `branch`.
+    /// A nil `branch` means the remote is empty: nothing is pulled and the first push
+    /// sets the upstream. On failure the origin and branch name are put back as they
+    /// were and no rebase is left in progress. Returns an error message, or nil.
+    func connect(remoteURL: String, branch: String?) async -> String? {
+        guard let root else { return "No storage root" }
+        if let error = await ensureRootRepo(writeIgnore: false) { return error }
         let repo = GitRepo(url: root)
-        let url = "https://\(settings.account)@github.com/\(ownerRepo).git"
-        _ = await repo.git("remote", "remove", "origin")
-        let add = await repo.git("remote", "add", "origin", url)
-        guard add.ok else { return add.errorLine }
-        _ = await repo.git("branch", "-M", branch)
-        let pull = await repo.git("pull", "-q", "--rebase", "--allow-unrelated-histories", "origin", branch, timeout: 120)
-        guard pull.ok else {
-            let files = await repo.conflictedFiles()
-            _ = await repo.git("rebase", "--abort")
-            return files.isEmpty ? pull.errorLine : "Conflict: \(files.joined(separator: ", "))"
+        let oldBranch = (await repo.git("rev-parse", "--abbrev-ref", "HEAD")).stdout
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let oldOrigin = await repo.originURL()
+
+        func rollback() async {
+            if repo.rebaseInProgress { _ = await repo.git("rebase", "--abort") }
+            if let oldOrigin {
+                _ = await repo.git("remote", "set-url", "origin", oldOrigin)
+            } else {
+                _ = await repo.git("remote", "remove", "origin")
+            }
+            if !oldBranch.isEmpty { _ = await repo.git("branch", "-M", oldBranch) }
         }
-        _ = await repo.git("branch", "--set-upstream-to=origin/\(branch)", branch)
+
+        let set = oldOrigin == nil
+            ? await repo.git("remote", "add", "origin", remoteURL)
+            : await repo.git("remote", "set-url", "origin", remoteURL)
+        guard set.ok else {
+            await rollback()
+            return set.errorLine
+        }
+        if let branch {
+            let rename = await repo.git("branch", "-M", branch)
+            guard rename.ok else {
+                await rollback()
+                return rename.errorLine
+            }
+            let pull = await repo.git("pull", "-q", "--rebase", "--allow-unrelated-histories", "origin", branch, timeout: 120)
+            guard pull.ok else {
+                let files = await repo.conflictedFiles()
+                await rollback()
+                return files.isEmpty ? pull.errorLine : "Conflict: \(files.joined(separator: ", "))"
+            }
+            _ = await repo.git("branch", "--set-upstream-to=origin/\(branch)", branch)
+        }
+        if let error = await ensureIgnoreCommitted(repo) {
+            await rollback()
+            return error
+        }
         configure(root: root)
         return nil
     }

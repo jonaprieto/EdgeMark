@@ -286,6 +286,87 @@ final class GitSyncTests: XCTestCase {
         XCTAssertFalse(rootStaged)
     }
 
+    // MARK: - connect
+
+    /// A notes folder that is not a git repo yet, next to the fixture remote.
+    private func makeNotes(_ files: [String: String], near remote: URL) -> URL {
+        let notes = remote.deletingLastPathComponent().appendingPathComponent("notes", isDirectory: true)
+        try! FileManager.default.createDirectory(at: notes, withIntermediateDirectories: true)
+        for (name, text) in files {
+            TestGit.write(text, to: notes.appendingPathComponent(name))
+        }
+        return notes
+    }
+
+    func testConnectMergesUnrelatedHistory() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        TestGit.write("*.tmp\n", to: work.appendingPathComponent(".gitignore"))
+        _ = await TestGit.run(["add", "-A"], in: work)
+        _ = await TestGit.run(["commit", "-q", "-m", "remote ignore"], in: work)
+        _ = await TestGit.run(["push", "-q"], in: work)
+        let notes = makeNotes(["local.md": "# Local\n"], near: remote)
+        let sync = makeSync(root: notes)
+
+        let error = await sync.connect(remoteURL: remote.path, branch: "main")
+        XCTAssertNil(error)
+        XCTAssertNotNil(sync.rootRepo)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: notes.appendingPathComponent("note.md").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: notes.appendingPathComponent("local.md").path))
+        let ignore = try String(contentsOf: notes.appendingPathComponent(".gitignore"), encoding: .utf8)
+        XCTAssertEqual(ignore, "*.tmp\n.trash/\n.DS_Store\nGists/\n")
+        let upstream = await TestGit.run(["rev-parse", "--abbrev-ref", "@{u}"], in: notes)
+        XCTAssertEqual(upstream.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "origin/main")
+        let dirty = await GitRepo(url: notes).hasChanges()
+        XCTAssertFalse(dirty)
+    }
+
+    func testFailedConnectRollsBack() async throws {
+        let (remote, _) = try await TestGit.makeRemoteAndClone()
+        let notes = makeNotes(["note.md": "# Note\n\nmine\n"], near: remote)
+        _ = await TestGit.run(["init", "-q", "-b", "local"], in: notes)
+        _ = await TestGit.run(["add", "-A"], in: notes)
+        _ = await TestGit.run(["commit", "-q", "-m", "mine"], in: notes)
+        let sync = makeSync(root: notes)
+
+        let error = await sync.connect(remoteURL: remote.path, branch: "main")
+        XCTAssertEqual(error, "Conflict: note.md")
+        let repo = GitRepo(url: notes)
+        XCTAssertFalse(repo.hasOrigin)
+        XCTAssertFalse(repo.rebaseInProgress)
+        let branch = await TestGit.run(["rev-parse", "--abbrev-ref", "HEAD"], in: notes)
+        XCTAssertEqual(branch.stdout.trimmingCharacters(in: .whitespacesAndNewlines), "local")
+        XCTAssertNil(sync.rootRepo)
+    }
+
+    func testConnectToEmptyRemote() async throws {
+        TestGit.setUpEnvironment()
+        let base = TestGit.tempDir()
+        let remote = base.appendingPathComponent("empty.git")
+        _ = await TestGit.run(["init", "-q", "--bare", "-b", "main", remote.path], in: base)
+        let notes = makeNotes(["a.md": "# A\n"], near: remote)
+        let sync = makeSync(root: notes)
+
+        let error = await sync.connect(remoteURL: remote.path, branch: nil)
+        XCTAssertNil(error)
+        XCTAssertNotNil(sync.rootRepo)
+        await sync.commitAndPush(GitRepo(url: notes))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertEqual(Set(files), [".gitignore", "a.md"])
+    }
+
+    func testPullWithoutUpstreamIsNotAnError() async throws {
+        let (remote, _) = try await TestGit.makeRemoteAndClone()
+        let notes = makeNotes(["a.md": "# A\n"], near: remote)
+        _ = await TestGit.run(["init", "-q", "-b", "main"], in: notes)
+        _ = await TestGit.run(["add", "-A"], in: notes)
+        _ = await TestGit.run(["commit", "-q", "-m", "local"], in: notes)
+        _ = await TestGit.run(["remote", "add", "origin", remote.path], in: notes)
+        let sync = makeSync(root: notes)
+        XCTAssertTrue(sync.isActive)
+        await sync.pullAll(force: true)
+        if case .error(let message) = sync.state { XCTFail("unexpected error: \(message)") }
+    }
+
     func testDisabledIsOff() async throws {
         let (_, work) = try await TestGit.makeRemoteAndClone()
         let sync = makeSync(root: work)

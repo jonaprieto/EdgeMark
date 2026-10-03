@@ -179,6 +179,12 @@ final class GitSync {
         for repo in repos() {
             await serialized(repo) { [self] in
                 if await isPaused(repo) { return }
+                // A fresh repo (created here, or connected to an empty remote) has no
+                // upstream until its first push; there is nothing to pull yet.
+                guard await repo.hasUpstream() else {
+                    SyncLog.log.debug("[GitSync] no upstream in \(repo.url.lastPathComponent, privacy: .public), skipping pull")
+                    return
+                }
                 repoStates[repo.url] = .syncing
                 // Commit local edits first: a clash then pauses as a real rebase instead
                 // of an autostash pop that leaves markers git would happily commit.
