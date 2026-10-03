@@ -336,6 +336,11 @@ final class NoteStore {
 
     private var dirtyNoteIDs: Set<UUID> = []
 
+    /// True while some note has edits that are not on disk yet.
+    var hasDirtyNotes: Bool {
+        !dirtyNoteIDs.isEmpty
+    }
+
     // MARK: - Lifecycle
 
     func loadFromDisk() {

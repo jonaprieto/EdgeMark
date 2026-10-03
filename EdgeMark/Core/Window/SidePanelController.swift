@@ -448,12 +448,39 @@ final class SidePanelController: NSWindowController {
         let side = PanelSettings.shared.edgeSide
         Log.window.info("[SidePanelController] showPanel (\(side.rawValue, privacy: .public) edge)")
 
-        // Pull from GitHub, then check for external file changes (the pull is one of them).
+        // With sync on, unsaved edits go to disk before the pull so it commits them and any
+        // clash becomes a visible conflict instead of a silent overwrite.
         if GitSync.shared.isActive {
-            GitSync.shared.onPullFinished = { [weak self] _ in self?.noteStore.checkForExternalChanges() }
+            noteStore.saveDirtyNotes()
+        }
+        noteStore.checkForExternalChanges()
+
+        // Pull from GitHub in the background. A pull can add, delete or rename files and
+        // rewrite the sidecar, which the per-note check above cannot see, so reload from disk.
+        if GitSync.shared.isActive {
+            GitSync.shared.onPullFinished = { [weak self] changed in
+                guard changed, let self else { return }
+                // Edits typed during the pull are not on disk; a full reload would drop
+                // them. Only check per note, which prompts if the open note changed too.
+                guard !noteStore.hasDirtyNotes else {
+                    noteStore.checkForExternalChanges()
+                    return
+                }
+                try? SidecarStore.shared.load()
+                noteStore.loadFromDisk()
+                // loadFromDisk replaces `notes` but leaves `selectedNote` as the old copy.
+                // Re-select the open note by id so the editor tracks the pulled version.
+                if let open = noteStore.selectedNote,
+                   let fresh = noteStore.notes.first(where: { $0.id == open.id })
+                {
+                    noteStore.selectedNote = fresh
+                    if fresh.content != open.content {
+                        noteStore.onNeedEditorReload?(fresh.content)
+                    }
+                }
+                noteStore.checkForExternalChanges()
+            }
             Task { await GitSync.shared.pullAll(force: false) }
-        } else {
-            noteStore.checkForExternalChanges()
         }
 
         isShown = true
