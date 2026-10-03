@@ -30,7 +30,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SidecarMigration.runIfNeeded()
         try? SidecarStore.shared.load()
         panelController?.noteStore.loadFromDisk()
-        GitSync.shared.apiKeyProvider = { KeychainStore.read() ?? ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"] }
+        // Key sources, first hit wins: Keychain, this process's environment, then the login shell
+        // (a Finder launch has no shell variables, so the shell is asked once in the background).
+        GitSync.shared.apiKeyProvider = {
+            KeychainStore.read()
+                ?? ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"]
+                ?? ShellEnvironmentKey.cached("TYPESAFE_API_KEY")
+        }
+        Task { await ShellEnvironmentKey.load("TYPESAFE_API_KEY") }
         GitSync.shared.configure(root: StorageSettings.shared.resolvedStorageDirectory)
         ShortcutManager.shared.setup(panelController: panelController!)
 
