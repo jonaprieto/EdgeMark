@@ -3,13 +3,14 @@ import XCTest
 
 @MainActor
 final class GitSyncTests: XCTestCase {
-    private func makeSync(root: URL) -> GitSync {
+    private func makeSync(root: URL, transport: JevTransport = StubTransport()) -> GitSync {
         let name = "edgesync-tests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
         let settings = SyncSettings(defaults: defaults)
         settings.syncGists = false
         settings.debounceSeconds = 0.2
         let sync = GitSync(settings: settings)
+        sync.guardTransport = transport
         sync.configure(root: root)
         return sync
     }
@@ -373,5 +374,184 @@ final class GitSyncTests: XCTestCase {
         sync.settings.enabled = false
         XCTAssertFalse(sync.isActive)
         XCTAssertEqual(sync.state, .off)
+    }
+
+    // MARK: - Secrets guard
+
+    private static let pem = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA\n"
+
+    /// Commits and pushes `name` with harmless content, so a later edit is a tracked
+    /// modification.
+    private func addTrackedFile(_ name: String, in work: URL) async {
+        TestGit.write("# Harmless\n", to: work.appendingPathComponent(name))
+        _ = await TestGit.run(["add", "-A"], in: work)
+        _ = await TestGit.run(["commit", "-q", "-m", "add \(name)"], in: work)
+        let pushed = await TestGit.run(["push", "-q"], in: work)
+        XCTAssertTrue(pushed.ok, pushed.stderr)
+    }
+
+    private func remoteText(_ remote: URL, _ path: String) async -> String {
+        await Shell.run("git", ["--git-dir", remote.path, "show", "HEAD:\(path)"]).stdout
+    }
+
+    func testGuardHoldsSecretAndPushesTheRest() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        await addTrackedFile("secret.md", in: work)
+        let stub = StubTransport()
+        let sync = makeSync(root: work, transport: stub)
+        TestGit.write("# Keys\n\n" + Self.pem, to: work.appendingPathComponent("secret.md"))
+        TestGit.write("# Benign\n", to: work.appendingPathComponent("ok.md"))
+        await sync.commitAndPush(GitRepo(url: work))
+
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("ok.md"))
+        let remoteSecret = await remoteText(remote, "secret.md")
+        XCTAssertEqual(remoteSecret, "# Harmless\n")
+        let staged = await TestGit.run(["diff", "--cached", "--name-only"], in: work)
+        XCTAssertEqual(staged.stdout, "")
+        let status = await TestGit.run(["status", "--porcelain"], in: work)
+        XCTAssertEqual(status.stdout, " M secret.md\n")
+        XCTAssertEqual(sync.state, .held(["secret.md"]))
+        XCTAssertEqual(sync.heldFiles[GitRepo(url: work).url]?.first?.viaRegex, true)
+        let calls = await stub.texts
+        XCTAssertEqual(calls, ["# Benign"], "only the benign file goes to Jev")
+
+        // A pull with the held edit in the tree is skipped instead of failing.
+        await sync.pullAll(force: true)
+        XCTAssertEqual(sync.state, .held(["secret.md"]))
+    }
+
+    func testJevScoreHoldsFileWithoutRegexHit() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work, transport: StubTransport(credentials: 0.9))
+        TestGit.write("my bank password is hunter2\n", to: work.appendingPathComponent("pw.md"))
+        await sync.commitAndPush(GitRepo(url: work))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertFalse(files.contains("pw.md"))
+        XCTAssertEqual(sync.state, .held(["pw.md"]))
+        XCTAssertEqual(sync.guardStatus, "Jev ok")
+    }
+
+    func testAllowHeldThenNextSyncPushes() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work, transport: StubTransport(credentials: 0.9))
+        TestGit.write("my bank password is hunter2\n", to: work.appendingPathComponent("pw.md"))
+        let repo = GitRepo(url: work)
+        await sync.commitAndPush(repo)
+        XCTAssertEqual(sync.state, .held(["pw.md"]))
+
+        sync.allowHeld(path: "pw.md", in: repo)
+        XCTAssertEqual(sync.settings.allowedHashes.count, 1)
+        await sync.commitAndPush(repo)
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("pw.md"))
+        XCTAssertNil(sync.heldFiles[repo.url])
+        guard case .idle = sync.state else { return XCTFail("expected idle, got \(sync.state)") }
+    }
+
+    func testGuardOffPushesEverything() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let stub = StubTransport(credentials: 0.9)
+        let sync = makeSync(root: work, transport: stub)
+        sync.settings.guardEnabled = false
+        TestGit.write(Self.pem, to: work.appendingPathComponent("secret.md"))
+        await sync.commitAndPush(GitRepo(url: work))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("secret.md"))
+        XCTAssertEqual(sync.guardStatus, "Guard off")
+        let calls = await stub.calls
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testUnchangedHeldFileIsNotSentAgain() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let stub = StubTransport(credentials: 0.9)
+        let sync = makeSync(root: work, transport: stub)
+        TestGit.write("my bank password is hunter2\n", to: work.appendingPathComponent("pw.md"))
+        let repo = GitRepo(url: work)
+        await sync.commitAndPush(repo)
+        await sync.commitAndPush(repo)
+        var calls = await stub.calls
+        XCTAssertEqual(calls, 1)
+        XCTAssertEqual(sync.state, .held(["pw.md"]))
+
+        TestGit.write("my bank password is hunter3\n", to: work.appendingPathComponent("pw.md"))
+        await sync.commitAndPush(repo)
+        calls = await stub.calls
+        XCTAssertEqual(calls, 2, "a changed file is judged again")
+    }
+
+    func testInitialImportHoldsSecretBack() async throws {
+        TestGit.setUpEnvironment()
+        let base = TestGit.tempDir()
+        let remote = base.appendingPathComponent("empty.git")
+        _ = await TestGit.run(["init", "-q", "--bare", "-b", "main", remote.path], in: base)
+        let notes = makeNotes(["secret.md": Self.pem, "ok.md": "# Benign\n"], near: remote)
+        let sync = makeSync(root: notes)
+
+        let error = await sync.connect(remoteURL: remote.path, branch: nil)
+        XCTAssertNil(error)
+        await sync.commitAndPush(GitRepo(url: notes))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("ok.md"))
+        XCTAssertFalse(files.contains("secret.md"))
+        XCTAssertEqual(sync.heldFiles[GitRepo(url: notes).url]?.map(\.path), ["secret.md"])
+        XCTAssertEqual(sync.state, .held(["secret.md"]))
+    }
+
+    func testInitialImportWithEverythingHeldSkipsTheCommit() async throws {
+        TestGit.setUpEnvironment()
+        let base = TestGit.tempDir()
+        let remote = base.appendingPathComponent("empty.git")
+        _ = await TestGit.run(["init", "-q", "--bare", "-b", "main", remote.path], in: base)
+        let notes = makeNotes(["secret.md": Self.pem], near: remote)
+        let sync = makeSync(root: notes)
+
+        let error = await sync.connect(remoteURL: remote.path, branch: nil)
+        XCTAssertNil(error)
+        await sync.commitAndPush(GitRepo(url: notes))
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertFalse(files.contains("secret.md"))
+        if case .error = sync.state { XCTFail("unexpected error state \(sync.state)") }
+    }
+
+    func testPullWorksWhileAFileIsHeld() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        await addTrackedFile("secret.md", in: work)
+        let sync = makeSync(root: work)
+        TestGit.write("# Keys\n\n" + Self.pem, to: work.appendingPathComponent("secret.md"))
+        let repo = GitRepo(url: work)
+        await sync.commitAndPush(repo)
+        XCTAssertEqual(sync.state, .held(["secret.md"]))
+
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("from other\n", to: other.appendingPathComponent("other.md"))
+        _ = await TestGit.run(["add", "-A"], in: other)
+        _ = await TestGit.run(["commit", "-q", "-m", "other"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+
+        await sync.pullAll(force: true)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: work.appendingPathComponent("other.md").path))
+        let status = await TestGit.run(["status", "--porcelain"], in: work)
+        XCTAssertEqual(status.stdout, " M secret.md\n")
+        let remoteSecret = await remoteText(remote, "secret.md")
+        XCTAssertEqual(remoteSecret, "# Harmless\n")
+        XCTAssertEqual(sync.state, .held(["secret.md"]))
+    }
+
+    func testAddedLinesSkipsHeaders() {
+        let diff = """
+        diff --git a/a.md b/a.md
+        index 1..2 100644
+        --- a/a.md
+        +++ b/a.md
+        @@ -1 +1,2 @@
+        -old
+        +new
+        +++plus
+        diff --git a/b.bin b/b.bin
+        Binary files a/b.bin and b/b.bin differ
+        """
+        XCTAssertEqual(GitSync.addedLines(inDiff: diff), "new\n++plus")
     }
 }

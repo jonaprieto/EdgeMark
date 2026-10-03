@@ -17,6 +17,12 @@ final class SyncSettings {
     var syncGists: Bool { didSet { defaults.set(syncGists, forKey: "sync.syncGists") } }
     /// GitHub login used for gh calls and embedded in remote URLs. Empty = not chosen.
     var account: String { didSet { defaults.set(account, forKey: "sync.account") } }
+    /// Check changed files for secrets before every commit that will be pushed.
+    var guardEnabled: Bool { didSet { defaults.set(guardEnabled, forKey: "sync.guardEnabled") } }
+    /// Content hashes (see `SecretGuard.contentHash`) the user allowed despite a verdict.
+    var allowedHashes: Set<String> {
+        didSet { defaults.set(try? JSONEncoder().encode(allowedHashes.sorted()), forKey: "sync.allowedHashes") }
+    }
 
     static let defaultTemplate = "notes: {date}"
 
@@ -38,6 +44,10 @@ final class SyncSettings {
         pushOnQuit = defaults.object(forKey: "sync.pushOnQuit") as? Bool ?? true
         syncGists = defaults.object(forKey: "sync.syncGists") as? Bool ?? true
         account = defaults.string(forKey: "sync.account") ?? ""
+        guardEnabled = defaults.object(forKey: "sync.guardEnabled") as? Bool ?? true
+        allowedHashes = defaults.data(forKey: "sync.allowedHashes")
+            .flatMap { try? JSONDecoder().decode([String].self, from: $0) }
+            .map(Set.init) ?? []
     }
 
     func renderCommitMessage(date: Date = Date(), host: String = SyncSettings.hostName) -> String {

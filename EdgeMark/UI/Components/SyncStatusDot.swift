@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 7 pt status dot: grey off, green idle, orange pending, pulsing blue syncing, red
-/// conflict or error.
+/// conflict, error, or files held back by the secrets guard.
 struct SyncStatusDot: View {
     let state: SyncState
     @State private var pulse = false
@@ -12,7 +12,7 @@ struct SyncStatusDot: View {
         case .idle: .green
         case .pending: .orange
         case .syncing: .blue
-        case .conflict, .error: .red
+        case .conflict, .error, .held: .red
         }
     }
 

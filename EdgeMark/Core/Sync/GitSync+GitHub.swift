@@ -120,9 +120,14 @@ extension GitSync {
         }
         let head = await repo.git("rev-parse", "--verify", "HEAD")
         if !head.ok {
-            _ = await repo.stageChanges()
-            let c = await repo.commit(message: "notes: initial import")
-            guard c.ok else { return c.errorLine }
+            // The first sync pushes this commit, so it goes through the guard too. When
+            // every file is held the commit is skipped and the repo stays without HEAD.
+            var staged = await repo.stageChanges()
+            if staged { staged = await guardStaged(repo) }
+            if staged {
+                let c = await repo.commit(message: "notes: initial import")
+                guard c.ok else { return c.errorLine }
+            }
         }
         return nil
     }

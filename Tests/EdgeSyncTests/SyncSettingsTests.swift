@@ -18,6 +18,8 @@ final class SyncSettingsTests: XCTestCase {
         XCTAssertTrue(s.pushOnQuit)
         XCTAssertTrue(s.syncGists)
         XCTAssertEqual(s.account, "")
+        XCTAssertTrue(s.guardEnabled)
+        XCTAssertEqual(s.allowedHashes, [])
     }
 
     func testPersistsAcrossInstances() {
@@ -26,7 +28,11 @@ final class SyncSettingsTests: XCTestCase {
         a.debounceSeconds = 45
         a.account = "jonaprieto"
         a.enabled = false
+        a.guardEnabled = false
+        a.allowedHashes = ["abc", "def"]
         let b = SyncSettings(defaults: d)
+        XCTAssertFalse(b.guardEnabled)
+        XCTAssertEqual(b.allowedHashes, ["abc", "def"])
         XCTAssertEqual(b.debounceSeconds, 45)
         XCTAssertEqual(b.account, "jonaprieto")
         XCTAssertFalse(b.enabled)

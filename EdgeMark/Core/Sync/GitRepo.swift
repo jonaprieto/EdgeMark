@@ -42,8 +42,11 @@ struct GitRepo: Equatable, Hashable {
 
     /// `--no-autostash` overrides a user's `rebase.autoStash`: local edits are committed
     /// before pulling, so a clash pauses as a rebase rather than a stash pop.
-    func pull(timeout: TimeInterval = 120) async -> Shell.Result {
-        await git("pull", "--rebase", "--no-autostash", timeout: timeout)
+    /// `autostash` is for repos with held files: they stay modified in the tree, which
+    /// would make the rebase refuse to run. Held files are never committed, so nothing
+    /// else needs stashing; a clash on pop leaves unmerged entries the caller detects.
+    func pull(autostash: Bool = false, timeout: TimeInterval = 120) async -> Shell.Result {
+        await git("pull", "--rebase", autostash ? "--autostash" : "--no-autostash", timeout: timeout)
     }
 
     /// True when the index has unmerged entries, with or without a rebase in progress.

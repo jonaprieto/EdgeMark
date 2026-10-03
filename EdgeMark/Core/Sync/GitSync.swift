@@ -28,6 +28,14 @@ final class GitSync {
     @ObservationIgnored var onPullFinished: ((Bool) -> Void)?
     /// Message from the last Create/Connect attempt in Settings, cleared on success.
     var lastSetupError: String?
+    /// Files the secrets guard kept out of the last commit, keyed by `GitRepo.url`.
+    var heldFiles: [URL: [GuardVerdict]] = [:]
+    /// Outcome of the last guard run, for the settings tab.
+    var guardStatus = ""
+    /// Jev API key source, set by the app (Keychain, then environment).
+    @ObservationIgnored var apiKeyProvider: @Sendable () -> String? = { nil }
+    /// Jev transport; nil means `URLSessionJevTransport` reading `apiKeyProvider`.
+    @ObservationIgnored var guardTransport: JevTransport?
 
     @ObservationIgnored private var debounceTasks: [URL: Task<Void, Never>] = [:]
     @ObservationIgnored private var pulling = false
@@ -42,6 +50,8 @@ final class GitSync {
     @ObservationIgnored private var lastPullAll: Date?
     /// Start of the last gist discovery; it runs at most hourly unless forced.
     @ObservationIgnored private var lastGistDiscovery: Date?
+    /// Held verdicts per repo and path; an unchanged hash reuses the verdict without Jev.
+    @ObservationIgnored private var verdictCache: [URL: [String: GuardVerdict]] = [:]
 
     init(settings: SyncSettings = .shared) {
         self.settings = settings
@@ -102,6 +112,8 @@ final class GitSync {
         debounceTasks.values.forEach { $0.cancel() }
         debounceTasks = [:]
         repoStates = [:]
+        heldFiles = [:]
+        verdictCache = [:]
         lastSync = [:]
         lastPullAll = nil
         lastGistDiscovery = nil
@@ -122,7 +134,7 @@ final class GitSync {
             await serialized(repo) { [self] in
                 if await isPaused(repo) { return }
                 switch repoStates[repo.url] {
-                case .error, .syncing: return
+                case .error, .syncing, .held: return
                 default: break
                 }
                 let dirty = await repo.hasChanges()
@@ -188,18 +200,18 @@ final class GitSync {
                 repoStates[repo.url] = .syncing
                 // Commit local edits first: a clash then pauses as a real rebase instead
                 // of an autostash pop that leaves markers git would happily commit.
-                if await repo.stageChanges() {
+                if await repo.stageChanges(), await guardStaged(repo) {
                     let c = await repo.commit(message: settings.renderCommitMessage())
                     guard c.ok else { return await recordFailure(repo, c, during: "commit") }
                 }
                 let before = await repo.head()
-                let r = await repo.pull()
+                let r = await repo.pull(autostash: heldState(repo) != nil)
                 if r.ok {
                     if await repo.head() != before { changed = true }
                     if await isPaused(repo) { return }
                     let now = Date()
                     lastSync[repo.url] = now
-                    repoStates[repo.url] = await repo.hasUnpushedCommits() ? .pending : .idle(lastSync: now)
+                    repoStates[repo.url] = await repo.hasUnpushedCommits() ? .pending : heldState(repo) ?? .idle(lastSync: now)
                 } else {
                     await recordFailure(repo, r, during: "pull")
                 }
@@ -221,9 +233,10 @@ final class GitSync {
         await serialized(repo) { [self] in
             guard isActive else { return }
             if await isPaused(repo) { return }
-            let staged = await repo.stageChanges()
+            var staged = await repo.stageChanges()
+            if staged { staged = await guardStaged(repo) }
             if !staged, !(await repo.hasUnpushedCommits()) {
-                repoStates[repo.url] = .idle(lastSync: lastSync[repo.url])
+                repoStates[repo.url] = heldState(repo) ?? .idle(lastSync: lastSync[repo.url])
                 return
             }
             repoStates[repo.url] = .syncing
@@ -234,17 +247,18 @@ final class GitSync {
             var p = await repo.push(timeout: timeout)
             if !p.ok, p.stderr.contains("rejected") || p.stderr.contains("fetch first") {
                 let before = await repo.head()
-                let pulled = await repo.pull(timeout: timeout)
+                let pulled = await repo.pull(autostash: heldState(repo) != nil, timeout: timeout)
                 let moved = await repo.head() != before
                 let conflicted = await repo.hasConflicts()
                 if moved || conflicted { pendingReload = true }
                 guard pulled.ok else { return await recordFailure(repo, pulled, during: "pull") }
+                if await isPaused(repo) { return }
                 p = await repo.push(timeout: timeout)
             }
             if p.ok {
                 let now = Date()
                 lastSync[repo.url] = now
-                repoStates[repo.url] = .idle(lastSync: now)
+                repoStates[repo.url] = heldState(repo) ?? .idle(lastSync: now)
                 SyncLog.log.info("[GitSync] pushed \(repo.url.lastPathComponent, privacy: .public)")
             } else {
                 await recordFailure(repo, p, during: "push")
@@ -294,6 +308,110 @@ final class GitSync {
         }
         timer?.cancel()
         work.cancel()
+    }
+
+    // MARK: - Secrets guard
+
+    /// Lets the held version of `path` through: its hash is remembered as allowed and the
+    /// repo is scheduled for the next commit.
+    func allowHeld(path: String, in repo: GitRepo) {
+        guard let verdict = heldFiles[repo.url]?.first(where: { $0.path == path }) else { return }
+        settings.allowedHashes.insert(verdict.contentHash)
+        heldFiles[repo.url]?.removeAll { $0.path == path }
+        verdictCache[repo.url]?[path] = nil
+        if heldFiles[repo.url]?.isEmpty == true {
+            heldFiles[repo.url] = nil
+            repoStates[repo.url] = .pending
+        }
+        noteActivity(at: repo.url.appendingPathComponent(path))
+    }
+
+    /// Held verdicts for `file` before it is published as a gist, judging its whole
+    /// content. Empty when the guard is off or nothing looks sensitive.
+    func checkBeforePublish(file: URL, strict: Bool) async -> [GuardVerdict] {
+        guard settings.guardEnabled, let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
+        let result = await secretGuard().review([(path: file.lastPathComponent, text: text)], strict: strict)
+        updateGuardStatus(jevAvailable: result.jevAvailable)
+        return result.verdicts.filter(\.held)
+    }
+
+    private func secretGuard() -> SecretGuard {
+        SecretGuard(transport: guardTransport ?? URLSessionJevTransport(apiKey: apiKeyProvider))
+    }
+
+    private func updateGuardStatus(jevAvailable: Bool) {
+        if jevAvailable {
+            guardStatus = "Jev ok"
+        } else if guardTransport == nil, (apiKeyProvider() ?? "").trimmingCharacters(in: .whitespaces).isEmpty {
+            guardStatus = "Jev key missing: regex only"
+        } else {
+            guardStatus = "Jev unavailable: regex only"
+        }
+    }
+
+    /// `.held` with the repo's held paths, or nil when nothing is held.
+    private func heldState(_ repo: GitRepo) -> SyncState? {
+        guard let held = heldFiles[repo.url], !held.isEmpty else { return nil }
+        return .held(held.map(\.path))
+    }
+
+    /// Reviews the added lines of every staged file and unstages the ones that must stay
+    /// on this Mac (they remain modified in the working tree). Records `heldFiles`.
+    /// Returns false only when files were held and nothing else is staged, so a failed
+    /// `git add` still reaches `commit` and reports its error.
+    func guardStaged(_ repo: GitRepo) async -> Bool {
+        guard settings.guardEnabled else {
+            heldFiles[repo.url] = nil
+            guardStatus = "Guard off"
+            return true
+        }
+        let names = await repo.git("diff", "--cached", "--name-only", "-z")
+        let paths = names.stdout.split(separator: "\0").map(String.init).filter { !$0.isEmpty }
+        var items: [(path: String, text: String)] = []
+        var held: [GuardVerdict] = []
+        for path in paths {
+            let diff = await repo.git("diff", "--cached", "-U0", "--no-color", "--", path)
+            let text = Self.addedLines(inDiff: diff.stdout)
+            let hash = SecretGuard.contentHash(path: path, text: text)
+            if let cached = verdictCache[repo.url]?[path], cached.contentHash == hash,
+               !settings.allowedHashes.contains(hash) {
+                held.append(cached)
+            } else {
+                items.append((path, text))
+            }
+        }
+        if !items.isEmpty {
+            let result = await secretGuard().review(items, allowedHashes: settings.allowedHashes)
+            updateGuardStatus(jevAvailable: result.jevAvailable)
+            held += result.verdicts.filter(\.held)
+        }
+        verdictCache[repo.url] = Dictionary(held.map { ($0.path, $0) }, uniquingKeysWith: { a, _ in a })
+        for verdict in held {
+            _ = await repo.git("reset", "-q", "HEAD", "--", verdict.path)
+        }
+        heldFiles[repo.url] = held.isEmpty ? nil : held
+        if !held.isEmpty {
+            SyncLog.log.info("[GitSync] held back \(held.count) file(s) in \(repo.url.lastPathComponent, privacy: .public): \(held.map(\.path).joined(separator: ", "), privacy: .public)")
+        }
+        guard !held.isEmpty else { return true }
+        return !(await repo.git("diff", "--cached", "--quiet")).ok
+    }
+
+    /// Lines added by a `git diff -U0` (headers skipped), without the leading `+`.
+    /// Binary files have no added lines and give an empty string.
+    static func addedLines(inDiff diff: String) -> String {
+        var inHunk = false
+        var lines: [Substring] = []
+        for line in diff.split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.hasPrefix("@@") {
+                inHunk = true
+            } else if line.hasPrefix("diff --git") {
+                inHunk = false
+            } else if inHunk, line.hasPrefix("+") {
+                lines.append(line.dropFirst())
+            }
+        }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Private

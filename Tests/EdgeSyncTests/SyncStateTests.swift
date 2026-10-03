@@ -14,6 +14,10 @@ final class SyncStateTests: XCTestCase {
         XCTAssertEqual(SyncState.aggregate([.idle(lastSync: t1), .pending]), .pending)
         XCTAssertEqual(SyncState.aggregate([.pending, .syncing]), .syncing)
         XCTAssertEqual(SyncState.aggregate([.pending, .error("boom")]), .error("boom"))
+        XCTAssertEqual(SyncState.aggregate([.syncing, .held(["a.md"])]), .held(["a.md"]))
+        XCTAssertEqual(SyncState.aggregate([.held(["a.md"]), .pending, .held(["b.md"])]), .held(["a.md", "b.md"]))
+        XCTAssertEqual(SyncState.aggregate([.held(["a.md"]), .error("boom")]), .error("boom"))
+        XCTAssertEqual(SyncState.aggregate([.conflict(["c.md"]), .held(["a.md"])]), .conflict(["c.md"]))
     }
 
     func testSummary() {
@@ -22,6 +26,7 @@ final class SyncStateTests: XCTestCase {
         XCTAssertEqual(SyncState.pending.summary, "Changes not pushed yet")
         XCTAssertEqual(SyncState.conflict(["a.md", "b.md"]).summary, "Conflict: a.md, b.md")
         XCTAssertEqual(SyncState.error("nope").summary, "Error: nope")
+        XCTAssertEqual(SyncState.held(["a.md", "b.md"]).summary, "2 file(s) held back: possible secrets")
         XCTAssertEqual(SyncState.idle(lastSync: nil).summary, "Not synced yet")
         XCTAssertTrue(SyncState.idle(lastSync: Date()).summary.hasPrefix("Synced "))
     }

@@ -11,12 +11,19 @@ enum SyncState: Equatable {
     /// A rebase is paused on these files until the user resolves them in a terminal.
     case conflict([String])
     case error(String)
+    /// The secrets guard kept these files (repo-relative paths) out of the last commit.
+    case held([String])
 
-    /// Worst state wins: conflict, then error, then syncing, then pending, then idle
-    /// (latest sync time).
+    /// Worst state wins: conflict, then error, then held (paths of every held repo),
+    /// then syncing, then pending, then idle (latest sync time).
     static func aggregate(_ states: [SyncState]) -> SyncState {
         if let c = states.first(where: { if case .conflict = $0 { return true }; return false }) { return c }
         if let e = states.first(where: { if case .error = $0 { return true }; return false }) { return e }
+        let held = states.flatMap { state -> [String] in
+            if case let .held(paths) = state { return paths }
+            return []
+        }
+        if states.contains(where: { if case .held = $0 { return true }; return false }) { return .held(held) }
         if states.contains(.syncing) { return .syncing }
         if states.contains(.pending) { return .pending }
         let syncTimes = states.compactMap { state -> Date?? in
@@ -35,6 +42,7 @@ enum SyncState: Equatable {
         case .pending: "Changes not pushed yet"
         case let .conflict(files): "Conflict: \(files.joined(separator: ", "))"
         case let .error(message): "Error: \(message)"
+        case let .held(paths): "\(paths.count) file(s) held back: possible secrets"
         case .idle(nil): "Not synced yet"
         case let .idle(date?): "Synced \(Self.relative.localizedString(for: date, relativeTo: Date()))"
         }
