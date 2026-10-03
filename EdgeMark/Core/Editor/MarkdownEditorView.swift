@@ -47,6 +47,9 @@ struct MarkdownEditorView: View {
 
     @State private var text: String
     @State private var hiddenHeadingLine: String
+    /// Alt text of each EdgeMark image, keyed by path. The `![[path]]` embed shown in the
+    /// editor has no place for it, so it is put back when the text is converted for saving.
+    @State private var imageAlts: [String: String]
     @State private var saveDebouncer = Debouncer(delay: 1.0)
     @State private var slashHandler = SlashCommandHandler()
     @State private var noteNavMonitor: Any?
@@ -82,7 +85,9 @@ struct MarkdownEditorView: View {
         self.onNavigateNext = onNavigateNext
         self.onNavigatePrevious = onNavigatePrevious
         let (heading, body) = Self.splitHeading(initialContent)
-        _text = State(initialValue: Self.imagesToEmbeds(body))
+        let display = Self.imagesToEmbedsKeepingAlts(body)
+        _text = State(initialValue: display.text)
+        _imageAlts = State(initialValue: display.alts)
         _hiddenHeadingLine = State(initialValue: heading)
         _stableNoteID = State(initialValue: noteID)
     }
@@ -155,16 +160,17 @@ struct MarkdownEditorView: View {
             .codeBlockChrome(
                 codeBlocks,
                 metrics: CodeBlockMetrics(configuration: config, bodySize: fontSize),
-                transformCopy: Self.embedsToImages,
+                transformCopy: { [imageAlts] in Self.embedsToImages($0, alts: imageAlts) },
             )
             .onChange(of: text) { _, newText in
                 let cursorPos = (NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().location ?? 0
                 slashHandler.contentDidChange(content: newText, cursorPos: cursorPos)
                 let heading = hiddenHeadingLine
                 let noteIDSnapshot = stableNoteID
+                let alts = imageAlts
                 saveDebouncer.call { [onContentChanged] in
-                    // Convert display-layer ![[path]] embeds back to on-disk ![]( path) before saving.
-                    let storage = Self.embedsToImages(newText)
+                    // Convert display-layer ![[path]] embeds back to on-disk ![alt](path) before saving.
+                    let storage = Self.embedsToImages(newText, alts: alts)
                     let full = heading.isEmpty ? storage : heading + "\n\n" + storage
                     onContentChanged(noteIDSnapshot, full)
                 }
@@ -174,7 +180,9 @@ struct MarkdownEditorView: View {
                 saveDebouncer.cancel()
                 let (heading, body) = Self.splitHeading(newContent)
                 hiddenHeadingLine = heading
-                text = Self.imagesToEmbeds(body)
+                let display = Self.imagesToEmbedsKeepingAlts(body)
+                imageAlts = display.alts
+                text = display.text
                 pendingReload = nil
             }
             .overlay(
@@ -244,7 +252,7 @@ struct MarkdownEditorView: View {
             // always holds the note that was active when this view was first inserted.
             let capturedID = stableNoteID
             saveDebouncer.cancel()
-            let storage = Self.embedsToImages(text)
+            let storage = Self.embedsToImages(text, alts: imageAlts)
             let full = hiddenHeadingLine.isEmpty ? storage : hiddenHeadingLine + "\n\n" + storage
             onContentChanged(capturedID, full)
             slashHandler.dismiss()
@@ -274,21 +282,33 @@ struct MarkdownEditorView: View {
     /// Convert on-disk `![](. STEM/IMG-uuid.ext)` references to editor embed `![[.STEM/IMG-uuid.ext]]`.
     /// Only converts EdgeMark-format images (path starts with `.`, filename starts with `IMG-`).
     static func imagesToEmbeds(_ text: String) -> String {
-        guard text.contains("![") else { return text }
-        let pattern = #"!\[[^\]]*\]\((\.[^/)][^)]+/IMG-[A-Za-z0-9\-]+\.[A-Za-z0-9]+)\)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
+        imagesToEmbedsKeepingAlts(text).text
+    }
+
+    /// `imagesToEmbeds` plus the non-empty alt text of each converted image, keyed by path,
+    /// for `embedsToImages(_:alts:)` to put back.
+    static func imagesToEmbedsKeepingAlts(_ text: String) -> (text: String, alts: [String: String]) {
+        guard text.contains("![") else { return (text, [:]) }
+        let pattern = #"!\[([^\]]*)\]\((\.[^/)][^)]+/IMG-[A-Za-z0-9\-]+\.[A-Za-z0-9]+)\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return (text, [:]) }
         let ns = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed()
         let result = NSMutableString(string: text)
+        var alts: [String: String] = [:]
         for match in matches {
-            let path = ns.substring(with: match.range(at: 1))
+            let alt = ns.substring(with: match.range(at: 1))
+            let path = ns.substring(with: match.range(at: 2))
+            if !alt.isEmpty {
+                alts[path] = alt
+            }
             result.replaceCharacters(in: match.range, with: "![[\(path)]]")
         }
-        return result as String
+        return (result as String, alts)
     }
 
-    /// Convert editor embed `![[.STEM/IMG-uuid.ext]]` back to on-disk `![](path)`.
-    static func embedsToImages(_ text: String) -> String {
+    /// Convert editor embed `![[.STEM/IMG-uuid.ext]]` back to on-disk `![alt](path)`, with the
+    /// alt from `alts` (captured by `imagesToEmbedsKeepingAlts`) or empty for new images.
+    static func embedsToImages(_ text: String, alts: [String: String] = [:]) -> String {
         guard text.contains("![[") else { return text }
         let pattern = #"!\[\[(\.[^/)][^\]]+/IMG-[A-Za-z0-9\-]+\.[A-Za-z0-9]+)\]\]"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
@@ -297,7 +317,7 @@ struct MarkdownEditorView: View {
         let result = NSMutableString(string: text)
         for match in matches {
             let path = ns.substring(with: match.range(at: 1))
-            result.replaceCharacters(in: match.range, with: "![](\(path))")
+            result.replaceCharacters(in: match.range, with: "![\(alts[path] ?? "")](\(path))")
         }
         return result as String
     }
