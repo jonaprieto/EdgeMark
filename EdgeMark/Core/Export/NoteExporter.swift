@@ -6,7 +6,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// "Export as Markdown" and "Export as PDF" for a single note. Writes a copy chosen through
-/// a save panel and never touches the note itself or its asset folder.
+/// a save panel and never touches the note itself or its asset folder. "Export as Gist"
+/// is the exception: it moves the note into the gist's clone (see `exportAsGist`).
 @MainActor
 enum NoteExporter {
     private static let lastDirectoryKey = "export.lastDirectory"
@@ -284,6 +285,79 @@ enum NoteExporter {
             if let found = findTextView(in: subview) { return found }
         }
         return nil
+    }
+
+    // MARK: - Gist
+
+    /// Publish the note as a gist and move it into the gist's clone under `Gists/`, so the
+    /// normal sync keeps the two in step both ways. Asks first (see `confirmPublish`), puts
+    /// the gist link on the clipboard and shows a toast either way. Used by the note
+    /// context menu and the editor's export menu.
+    static func exportAsGist(note: Note, noteStore: NoteStore, isPublic: Bool) {
+        let sync = GitSync.shared
+        let l10n = L10n.shared
+        let url = FileStorage.urlForNote(note)
+        Task { @MainActor in
+            noteStore.saveDirtyNotes()
+            guard await confirmPublish(note: note, file: url, isPublic: isPublic, l10n: l10n) else { return }
+            switch await sync.publishAsGist(file: url, description: note.title, isPublic: isPublic) {
+            case let .success(result):
+                let folder = "Gists/\(result.gistDir.lastPathComponent)"
+                noteStore.moveNote(note, to: folder)
+                // publishAsGist cleared the file in the clone so the move could land
+                // there. If the move failed, restore the uploaded copy and do not
+                // push an empty gist.
+                let filename = url.lastPathComponent
+                let moved = result.gistDir.appendingPathComponent(filename)
+                guard FileManager.default.fileExists(atPath: moved.path) else {
+                    _ = await GitRepo(url: result.gistDir).git("checkout", "--", filename)
+                    sync.lastSetupError = l10n["sync.publishMoveFailed"]
+                    FeedbackToast.shared.show(l10n.t("sync.publishFailed", l10n["sync.publishMoveFailed"]), isError: true)
+                    SyncLog.log.error("[Gist] note move into \(folder, privacy: .public) failed")
+                    return
+                }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(result.webURL.absoluteString, forType: .string)
+                FeedbackToast.shared.show(l10n["sync.publishDone"])
+                await sync.commitAndPush(GitRepo(url: result.gistDir))
+            case let .failure(error):
+                sync.lastSetupError = error.message
+                FeedbackToast.shared.show(l10n.t("sync.publishFailed", shortMessage(error.message)), isError: true)
+                SyncLog.log.error("[Gist] publish failed: \(error.message, privacy: .public)")
+            }
+        }
+    }
+
+    /// First line of `message`, cut to 120 characters, for the publish toast.
+    private static func shortMessage(_ message: String) -> String {
+        let line = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+        return line.count > 120 ? String(line.prefix(117)) + "..." : line
+    }
+
+    /// Asks before publishing. A private gist asks only when the guard flags the note; a
+    /// public gist always asks, with stricter thresholds. Reasons never quote the note.
+    private static func confirmPublish(note: Note, file: URL, isPublic: Bool, l10n: L10n) async -> Bool {
+        let verdicts = await GitSync.shared.checkBeforePublish(file: file, strict: isPublic)
+        var reasons: [String] = []
+        for reason in verdicts.flatMap(\.reasons) where !reasons.contains(reason) {
+            reasons.append(reason)
+        }
+        let reasonLine = l10n.t("sync.secretsReasons", reasons.joined(separator: ", "))
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        if isPublic {
+            alert.messageText = l10n.t("sync.publishPublicTitle", note.title)
+            alert.informativeText = l10n["sync.publishPublicInfo"] + (reasons.isEmpty ? "" : "\n\n" + reasonLine)
+            alert.addButton(withTitle: l10n["common.cancel"])
+            alert.addButton(withTitle: l10n[reasons.isEmpty ? "sync.publishPublic" : "sync.publishPublicAnyway"])
+        } else {
+            guard !reasons.isEmpty else { return true }
+            alert.messageText = l10n["sync.secretsTitle"]
+            alert.informativeText = reasonLine
+            alert.addButton(withTitle: l10n["common.cancel"])
+            alert.addButton(withTitle: l10n["sync.publishPrivateAnyway"])
+        }
+        return alert.runModal() == .alertSecondButtonReturn
     }
 
     // MARK: - Helpers
