@@ -400,7 +400,11 @@ enum FileStorage {
     static func deleteNote(_ note: Note) throws {
         let actualFilename = note.savedFilename ?? note.filename
         let relativePath = note.folder.isEmpty ? actualFilename : "\(note.folder)/\(actualFilename)"
-        try FileManager.default.removeItem(at: rootURL.appendingPathComponent(relativePath))
+        let url = rootURL.appendingPathComponent(relativePath)
+        try FileManager.default.removeItem(at: url)
+        if isGistFolder(note.folder) {
+            Task { @MainActor in GitSync.shared.noteActivity(at: url) }
+        }
         SidecarStore.shared.removeNote(id: note.id)
         try? SidecarStore.shared.save()
     }
@@ -533,6 +537,12 @@ enum FileStorage {
         let actualFilename = note.savedFilename ?? note.filename
         let oldRelative = note.folder.isEmpty ? actualFilename : "\(note.folder)/\(actualFilename)"
         try? FileManager.default.removeItem(at: rootURL.appendingPathComponent(oldRelative))
+        // The copy above lives in the root's `.trash/`, outside the clone, so the gist sees
+        // a deletion; schedule its commit and push now rather than at the next edit.
+        if isGistFolder(note.folder) {
+            let removedURL = rootURL.appendingPathComponent(oldRelative)
+            Task { @MainActor in GitSync.shared.noteActivity(at: removedURL) }
+        }
 
         // Move sidecar entry from notes → trash
         SidecarStore.shared.removeNote(id: note.id)
@@ -589,6 +599,9 @@ enum FileStorage {
 
         // Write body only
         try Data(restored.content.utf8).write(to: destURL, options: .atomic)
+        if restored.isGistFile {
+            Task { @MainActor in GitSync.shared.noteActivity(at: destURL) }
+        }
 
         // Move sidecar entry from trash → notes
         SidecarStore.shared.removeTrash(id: note.id)

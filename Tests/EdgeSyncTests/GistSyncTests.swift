@@ -173,6 +173,25 @@ final class GistSyncTests: XCTestCase {
         XCTAssertTrue(files.contains("b.md"))
     }
 
+    /// Trashing one file of a gist removes it from the clone and reports activity there
+    /// (FileStorage.trashNote); the removal is pushed as a deletion.
+    func testRemovedGistFileIsDeletedFromTheGist() async throws {
+        let root = try await makeRoot()
+        let remote = await makeGist(id: "f7", files: ["a.md": "a\n", "b.md": "b\n"])
+        listed = [gist("f7", "g", ["a.md", "b.md"])]
+        let sync = makeSync(root: root)
+        await sync.pullAll(force: true)
+        let file = root.appendingPathComponent("Gists/g/b.md")
+        try FileManager.default.removeItem(at: file)
+        sync.noteActivity(at: file)
+        for _ in 0 ..< 50 {
+            if await !TestGit.remoteFiles(remote).contains("b.md") { break }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertEqual(files, ["a.md"])
+    }
+
     // MARK: - Gone on GitHub
 
     func testGistDeletedOnGitHubIsNotSyncedButKept() async throws {
