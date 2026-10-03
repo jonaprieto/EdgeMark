@@ -1,156 +1,87 @@
 <img src=".github/assets/EdgeMark.svg" alt="EdgeMark" width="128" align="left" />
 
-<b><font>EdgeMark</font></b>
-
- A native macOS side-panel Markdown notes app. Always one edge away.
+# EdgeMark
 
 <br clear="all" />
 
-> Personal fork with GitHub sync (notes root and gists kept in git through `gh`).
-> See Settings > Sync. Automatic update checks are disabled in this fork.
+EdgeMark is a native macOS side-panel Markdown notes app: a panel that slides in from the screen edge, plain `.md` files on disk, a TextKit 2 editor with no web view. This repository is a personal fork by Jonathan Prieto-Cubides ([jonaprieto](https://github.com/jonaprieto)) with GitHub sync built in. It is a fork of [Ender-Wang/EdgeMark](https://github.com/Ender-Wang/EdgeMark), which is where the app and nearly all of its code come from; the fork is based on upstream v2.12.0 and stays under GPL-3.0.
 
-<p align="center">
-  <b>English</b> · <a href="README-zh-Hans.md">简体中文</a> · <a href="README-hi.md">हिन्दी</a> · <a href="README-ES.md">Español</a> · <a href="README-de.md">Deutsch</a>
-</p>
+The translated READMEs (`README-de.md`, `README-ES.md`, `README-hi.md`, `README-zh-Hans.md`) describe upstream. The differences listed here apply to this fork only.
 
-<p align="center">
-  <a href="https://github.com/Ender-Wang/EdgeMark/releases"><img src="https://img.shields.io/github/v/release/Ender-Wang/EdgeMark?label=Latest%20Release&color=green" alt="Latest Release" /></a>
-  <a href="https://github.com/Ender-Wang/EdgeMark/releases"><img src="https://img.shields.io/github/downloads/Ender-Wang/EdgeMark/total?color=green" alt="Total Downloads" /></a>
-  <br />
-  <img src="https://img.shields.io/badge/Swift-6.2-orange?logo=swift" alt="Swift" />
-  <img src="https://img.shields.io/badge/macOS-15.7+-black?logo=apple" alt="macOS" />
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Ender-Wang/EdgeMark?color=blue" alt="License" /></a>
-</p>
+## Why this fork exists
 
-**Why EdgeMark exists:** [SideNotes](https://www.apptorium.com/sidenotes) nailed the interaction — a notes panel that slides in from the screen edge, always one gesture away. But it's closed-source and paid, with no way to contribute, customize, or verify what it does with your data.
+I wanted my notes kept in git on GitHub without leaving the app, and a handful of editor and export changes I use every day. I want to ship those at my own pace and decide where the app goes, without coordinating with anyone or waiting on someone else's changes or review. That is a preference about workflow, and says nothing against upstream.
 
-EdgeMark is the open-source alternative: **lightweight, Markdown-first**, and yours to inspect, modify, and extend. Your notes are plain `.md` files on disk — open them in any editor, sync with any service, back them up however you want.
+## Why not contribute upstream
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/screenshot-dark.png" />
-    <source media="(prefers-color-scheme: light)" srcset=".github/assets/screenshot-light.png" />
-    <img alt="EdgeMark Screenshots" src=".github/assets/screenshot-light.png" />
-  </picture>
-</p>
+For the same reason: a fast cadence on the features I care about, with full control over direction. The code stays GPL-3.0, so upstream is welcome to take any of it. I make no promise to keep the fork in step with upstream releases. If you hit a bug in one of the original features and it also exists upstream, report it there.
 
-# Install
+## What is different from upstream
+
+| | Upstream | This fork |
+|---|---|---|
+| Sync | none | git and `gh` sync of the notes folder and your gists |
+| Secrets | n/a | regex rules plus the Jev model hold back sensitive files before a push |
+| Export | none | Markdown (with images), PDF, or a gist |
+| Updates | in-app updater | disabled; "Check for Updates" opens this fork's Releases page |
+| Panel width | saved by dragging | default 671 pt, plus a slider in Settings > Behavior |
+| Languages | en, de, es, hi, zh-Hans | same, with an English fallback for the new strings |
+
+Sync. The notes folder is committed and pushed to a GitHub repo through `git` and `gh`. Commits are debounced (120 s after the last save by default, configurable from 30 to 600 s), the repo is pulled when the panel opens (throttled to once a minute), and a pending push is flushed on quit with a 20 second limit. A conflict pauses sync, and the footer button (with a status menu) says what to do. Held-back files are reported the same way.
+
+Gists. Your gists are cloned under `Gists/` in the notes folder and kept in sync like the notes repo. Files are listed by file name, non-Markdown gist files can be opened and edited, and non-Markdown files get an extension badge. Any note can be exported or published as a gist, private by default; making one public asks for confirmation. Publishing shows the result.
+
+Secrets guard. Before each commit, the added lines of changed files are checked against regex rules (private key blocks, AWS, GitHub, Slack and `sk-` style keys, JWTs). If a file passes the regex check and a TypeSafe key is configured, the [Jev](https://typesafe.ai) model judges whether it contains a credential or private personal data. Flagged files are not committed; you can allow a specific one from Settings.
+
+Export. A note can be exported as Markdown (images are copied next to it and links rewritten) or as PDF, from the export menu.
+
+Editor and panel. A single click opens notes and folders. A new note takes focus. Code blocks are compact, with line numbers and a copy button. Image files are removed from disk when you delete the image from the text. The editor header moves a note to Trash instead of deleting it. Very large or pathological notes open in a plain-text mode. A first-run hint and a clearer empty state were added. File type badges mark non-Markdown files.
+
+Data-loss and speed fixes. Existing front matter and horizontal rules are kept when saving, image alt text is kept, titles with brackets get safe image folder names, CRLF titles and non-UTF-8 notes load correctly, and git and `gh` run off the main actor so the panel does not stall.
+
+## Install
 
 ```bash
-brew install --cask ender-wang/tap/edgemark
+brew install --cask jonaprieto/tap/edgemark
 ```
 
-Or download the latest `.dmg` from [Releases](https://github.com/Ender-Wang/EdgeMark/releases), install it, and then run this command in Terminal:
+This conflicts with upstream's cask (`ender-wang/tap/edgemark`); uninstall that one first.
+
+Or download the DMG from the [Releases page](https://github.com/jonaprieto/EdgeMark/releases), drag the app to Applications, and run this once, because the build is ad-hoc signed and not notarized:
 
 ```bash
 xattr -cr /Applications/EdgeMark.app
 ```
 
----
+To build from source you need Xcode 26 and macOS 15.7 or later:
 
-# Features
+```bash
+./scripts/install.sh
+```
 
-🪟 **Side Panel**
+## Set up sync
 
-- 🔲 Borderless floating panel, full-height, always on top
-- 🖥️ Works on every virtual Desktop and alongside fullscreen apps
-- ✨ Smooth slide-in/out or fade animation (configurable) with edge activation — move mouse to screen edge to reveal
-- 🖱️ Click outside, Escape, or auto-hide dismissal
-- 📌 Pin to keep the panel open — survives focus changes, mouse exit, and Space switches (great for copy-pasting back and forth)
-- 🔘 Edge-toggle mode — touch the edge to open and keep the panel open while you copy text back and forth, touch again to close (no ⌘P needed); Auto-hide stays the default
-- 📐 Multi-monitor support with configurable left or right edge — only the outer screen edge triggers, so moving between displays won't pop it by accident
-- ↔️ Adjustable width — drag the inner edge to resize, saved across restarts
-- 🪟 Panel style — toggle between Translucent and Opaque panel backgrounds
-- 🎨 Panel tint — pick from a curated palette (System, Graphite, Slate, Sand, Sage, Rose)
+1. Install `git` and `gh`, then run `gh auth login`.
+2. Open Settings > Sync and pick the GitHub account.
+3. Choose Create private repo, or Connect existing if the notes folder already has a remote.
+4. Optional: add a TypeSafe (Jev) key under Settings > Sync, where it is stored in the Keychain, or export `TYPESAFE_API_KEY` in your shell profile.
+5. Sync runs on its own from then on; the footer button shows the state.
 
-✍️ **Markdown Editing**
+## Known limits
 
-- 👁️ Native TextKit 2 WYSIWYG editor — powered by [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine), no JavaScript or WebKit involved
-- 📝 Full Markdown: headings, bold, italic, code, lists, task lists, blockquotes, links, tables, wiki-links
-- 🖼️ Inline images — paste (`⌘V`) or drag to embed; stored as co-located asset files alongside the note
-- ✅ Checked task items are automatically struck through; uncheck to restore
-- ▫️ Custom task-list checkbox symbols — pick the shape for `- [ ]`/`- [x]` items (Square, Circle, Diamond, Shield, Triangle, Star, Hexagon, Heart); display-only, notes stay standard Markdown
-- 📋 One-click Copy button on fenced code blocks
-- 🔴 Native spell check, grammar check, and autocorrect (macOS system dictionary)
-- ⚡ Slash commands (`/h1`, `/todo`, `/code`, `/quote`, `/table`, `/divider`, and more)
-- ⌨️ Formatting shortcuts: `⌘B` bold, `⌘I` italic, `⌘E` inline code, `⌘K` link, `⇧⌘X` strikethrough
-- 🔗 Click a rendered link to open it in the browser
-- 🔍 Find & Replace (`⌘F`)
-- 🔤 Customizable editor font and size — pick any installed font via the system font panel with live preview
-- 🧮 LaTeX rendering — block (`$$...$$`) and inline (`$...$`) via SwiftMath
+- In the editor, the line numbers and copy button of a code block are not shown for the block the cursor is in; they appear when you move out of it.
+- PDF export loses the line-number gutter and the copy button of code blocks.
+- When an export fails, EdgeMark only beeps and writes a log line. There is no alert.
+- With a Jev key configured, up to 8 KB of the added text of each file that the regex rules did not already flag is sent to api.typesafe.ai before a push. Without a key, only the regex rules run. Settings states this too.
+- `gh` and `git` are hard requirements for sync. There is no merge UI: conflicts are resolved by you in the repo.
+- The build is ad-hoc signed and not notarized.
 
-🗂️ **Notes & Storage**
+## Development
 
-- 📄 Plain `.md` files with no injected headers — open in any editor, sync with any service; metadata lives in a hidden `.edgemark/meta.json` sidecar
-- 📁 Finder-style drag-and-drop organization — drag notes into folders, folders into folders, or notes onto notes to group them; invalid drops are rejected, name conflicts use the existing alerts, and a small preview follows the cursor
-- 🎨 Custom folder colors — tint any folder's icon with a palette color via right-click → Folder Color
-- 📂 Multiple storage locations — switch between separate note folders (e.g. work and personal) from the menu bar (a quick switch that reverts on restart) or Settings; optionally pick one each time the app opens
-- 💾 1-second debounced auto-save
-- 🔍 Search shows all notes sorted by most recently modified when the query is empty — a quick "recent notes" feed
-- 🏷️ Finder-style color tags (Red, Orange, Yellow, Green, Blue, Purple, Gray) with rename-able labels; multi-tag per note
-- 🎯 Tag filter inside search — click tag dots to narrow results, multi-select acts as OR, combines with text search
-- ☑️ Native macOS multi-selection — click / ⇧-click / ⌘-click rows, marquee-drag to box-select, then batch **Move**, **Tag**, or **Trash** from the right-click menu; conflicts in a batch are queued and resolvable
-- 🔄 External file sync — edits from other apps are detected on panel open; prompts when both sides changed
-- 🗑️ Trash with 30-day auto-purge and read-only preview
-- 👁️ Hover-to-peek — hover over a note or folder row to preview its contents in a floating panel alongside the list; note previews render full Markdown with images, folder previews show subfolders and all notes inside
+`swift test` runs the `EdgeSync` package: the sync engine (`EdgeMark/Core/Sync`, tested against a local git remote) plus the storage and export logic (`EdgeStorageLogic`, `EdgeExportLogic`). For the app, open `EdgeMark.xcodeproj` in Xcode and build the `EdgeMark` scheme, or run `./scripts/install.sh`.
 
-⌨️ **Keyboard & Shortcuts**
+Layout: `EdgeMark/` holds the app (`Core/` for sync, storage, export and editor pieces, `UI/` for views and settings), `Tests/` the three test targets. [CONTRIBUTING.md](CONTRIBUTING.md) is upstream's architecture guide and still mostly applies. The default branch `main` is this fork's line of development.
 
-- 🌐 Global shortcut: `Ctrl+Shift+Space` toggles from any app (customizable)
-- 🎹 Fully customizable local shortcuts — new note, new folder, search, pin, prev/next note — all rebindable in Settings with conflict detection
-- ⏱️ Configurable activation delay and corner exclusion zones
-- 🔑 Default panel shortcuts: `⌘N` new note, `⇧⌘N` new folder, `⌘F` search, `⌘P` pin/unpin
-- 📋 `⇧⌘C` Copy Paths — copies absolute paths for selected notes, folders, or mixed selections, one path per line; does nothing when no row is selected
-- 👁️ `Space` to Quick Look — select a note or folder and press `Space` to preview; `↑↓` to browse, `Space`/`ESC` to dismiss
-- 👆 Two-finger trackpad swipe right on the header to navigate back (configurable toggle and sensitivity)
-- 👆 Two-finger swipe left/right on the editor or `⌘←`/`⌘→` to navigate between notes in the current folder
+## Credits and license
 
-🔄 **Auto-Update & CI/CD**
-
-- 🔔 In-app update check (GitHub Releases, 24h throttle)
-- 📦 Download with progress bar, SHA256 verification, install & restart
-- ⚙️ GitHub Actions build pipeline (unsigned Release, DMG, SHA256)
-- 🍺 Homebrew Cask installation
-
-🌟 **Quality of Life**
-
-- 🌗 Appearance override: System, Light, or Dark mode
-- 📌 Menu bar resident (no Dock icon)
-- 🚀 Launch at login
-- 📋 Copy as Plain Text, Markdown, or Rich Text — selection-aware in editor with right-click context menu
-- 🎨 SF Symbol icons throughout all context menus
-- 🔀 Smooth directional page transitions
-- 🌍 English + Simplified Chinese + Hindi + Spanish + German (JSON-based, easy to contribute)
-
----
-
-# Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture overview, source tree, key patterns, localization guide, and development setup.
-
----
-
-# License
-
-EdgeMark is licensed under the [GNU General Public License v3.0](LICENSE).
-
-# Acknowledgments
-
-EdgeMark is built on top of these open-source projects:
-
-| Project | License | Description |
-|---------|---------|-------------|
-| [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine) | Apache 2.0 | TextKit 2 / NSTextView WYSIWYG Markdown editor — powers the editing experience. Bundles [HighlighterSwift](https://github.com/smittytone/HighlighterSwift) for code block syntax highlighting and [SwiftMath](https://github.com/mgriebling/SwiftMath) for LaTeX rendering. |
-| [SwiftFormat](https://github.com/nicklockwood/SwiftFormat) | MIT | Code formatting tool used in the build pipeline |
-
----
-
-# Star History
-
-<a href="https://star-history.com/#Ender-Wang/EdgeMark&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Ender-Wang/EdgeMark&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Ender-Wang/EdgeMark&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Ender-Wang/EdgeMark&type=Date" />
- </picture>
-</a>
+EdgeMark is by [Ender-Wang](https://github.com/Ender-Wang/EdgeMark) and licensed under the [GNU General Public License v3.0](LICENSE); this fork keeps that license. It builds on [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine) (Apache 2.0), which bundles [HighlighterSwift](https://github.com/smittytone/HighlighterSwift) for code highlighting and [SwiftMath](https://github.com/mgriebling/SwiftMath) for LaTeX. Secret checks use [TypeSafe Jev](https://typesafe.ai).

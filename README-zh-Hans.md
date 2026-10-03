@@ -1,3 +1,5 @@
+> 本文件描述的是上游（原项目）。此分支的差异见 [README.md](README.md)（英文）。
+
 <img src=".github/assets/EdgeMark.svg" alt="EdgeMark" width="128" align="left" />
 
 <b><font>EdgeMark</font></b>

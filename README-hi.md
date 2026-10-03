@@ -1,3 +1,5 @@
+> यह फ़ाइल अपस्ट्रीम (मूल प्रोजेक्ट) का विवरण है। इस फ़ोर्क के अंतर [README.md](README.md) (अंग्रेज़ी) में हैं।
+
 <img src=".github/assets/EdgeMark.svg" alt="EdgeMark" width="128" align="left" />
 
 <b><font>EdgeMark</font></b>

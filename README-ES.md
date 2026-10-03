@@ -1,3 +1,5 @@
+> Este archivo describe el proyecto original (upstream). Las diferencias de este fork están en [README.md](README.md) (en inglés).
+
 <img src=".github/assets/EdgeMark.svg" alt="EdgeMark" width="128" align="left" />
 
 <b><font>EdgeMark</font></b>
