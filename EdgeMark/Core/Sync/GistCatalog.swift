@@ -16,30 +16,53 @@ struct Gist: Equatable {
 enum GistCatalog {
     // MARK: - Pure helpers
 
-    /// Logins from `gh auth status` output, in the order printed.
+    /// Logins from `gh auth status` output, in the order printed. ANSI colour codes are
+    /// stripped, any line ending is accepted, and a token that is not a valid GitHub
+    /// login is dropped (logins are embedded in clone URLs).
     static func accounts(fromAuthStatus text: String) -> [String] {
+        let plain = text.replacingOccurrences(of: "\u{1B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression)
         let pattern = #/Logged in to github\.com account (\S+)/#
-        return text.split(separator: "\n").compactMap { line in
-            line.firstMatch(of: pattern).map { String($0.1) }
+        // "\r\n" is one Character in Swift, so splitting on "\n" would miss CRLF text.
+        return plain.components(separatedBy: .newlines).compactMap { line in
+            guard let login = line.firstMatch(of: pattern).map({ String($0.1) }), isValidLogin(login) else { return nil }
+            return login
         }
     }
 
-    /// Folder name for a gist clone: the description made filename-safe, else the id.
+    /// True for a GitHub login: alphanumerics and hyphens, not starting with a hyphen, at most 39 characters.
+    static func isValidLogin(_ login: String) -> Bool {
+        login.wholeMatch(of: #/[A-Za-z0-9][A-Za-z0-9-]{0,38}/#) != nil
+    }
+
+    /// True for a gist id as GitHub issues them: 1 to 64 lowercase hex digits.
+    static func isValidID(_ id: String) -> Bool {
+        id.wholeMatch(of: #/[0-9a-f]{1,64}/#) != nil
+    }
+
+    /// Longest name `directoryName` returns, in UTF-8 bytes. Leaves room for the
+    /// `-<7 hex>` suffix a clash adds while staying within 100 bytes.
+    static let maxDirectoryNameBytes = 92
+
+    /// Folder name for a gist clone: the description made filename-safe, else the id,
+    /// else `gist` when the id is not a valid gist id (it comes from the network).
     static func directoryName(description: String, id: String) -> String {
         var name = description.trimmingCharacters(in: .whitespacesAndNewlines)
         name = name.replacingOccurrences(of: "[^A-Za-z0-9._-]+", with: "-", options: .regularExpression)
         name = name.replacingOccurrences(of: "-{2,}", with: "-", options: .regularExpression)
         name = name.trimmingCharacters(in: CharacterSet(charactersIn: "-."))
-        while name.utf8.count > 100 {
+        while name.utf8.count > maxDirectoryNameBytes {
             name.removeLast()
         }
         name = name.trimmingCharacters(in: CharacterSet(charactersIn: "-."))
-        return name.isEmpty ? id : name
+        if !name.isEmpty { return name }
+        return isValidID(id) ? id : "gist"
     }
 
     /// Gist id from a clone URL such as `https://u@gist.github.com/ID.git` or `git@gist.github.com:ID.git`.
+    /// The whole URL must match, so another host or trailing path segments give nil.
     static func gistID(fromOrigin url: String) -> String? {
-        url.firstMatch(of: #/gist\.github\.com[:\/]([0-9a-f]+)(?:\.git)?$/#).map { String($0.1) }
+        let pattern = #/(?:https:\/\/(?:[^@\/\s]+@)?gist\.github\.com\/|git@gist\.github\.com:)([0-9a-f]{1,64})(?:\.git)?/#
+        return url.wholeMatch(of: pattern).map { String($0.1) }
     }
 
     /// Gist id from `gh gist create` output (the URL is the last line).
@@ -47,7 +70,8 @@ enum GistCatalog {
         text.firstMatch(of: #/gist\.github\.com\/(?:[^\/\s]+\/)?([0-9a-f]+)/#).map { String($0.1) }
     }
 
-    /// Parses the NDJSON produced by `list`'s jq filter.
+    /// Parses the NDJSON produced by `list`'s jq filter. Entries with an invalid id are
+    /// dropped, since the id becomes part of a clone URL and a folder name.
     static func parseGistLines(_ ndjson: String) -> [Gist] {
         struct Line: Decodable {
             let id: String
@@ -57,7 +81,7 @@ enum GistCatalog {
         }
         return ndjson.split(separator: "\n").compactMap { line in
             guard let data = line.data(using: .utf8),
-                  let l = try? JSONDecoder().decode(Line.self, from: data) else { return nil }
+                  let l = try? JSONDecoder().decode(Line.self, from: data), isValidID(l.id) else { return nil }
             return Gist(id: l.id, description: l.description ?? "", htmlURL: l.html_url, files: l.files)
         }
     }
