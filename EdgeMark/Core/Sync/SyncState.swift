@@ -5,16 +5,20 @@ enum SyncState: Equatable {
     /// The active root is not a git repo with an `origin`, or sync is disabled.
     case off
     case idle(lastSync: Date?)
+    /// Local edits or commits are waiting for the next push.
+    case pending
     case syncing
     /// A rebase is paused on these files until the user resolves them in a terminal.
     case conflict([String])
     case error(String)
 
-    /// Worst state wins: conflict, then error, then syncing, then idle (latest sync time).
+    /// Worst state wins: conflict, then error, then syncing, then pending, then idle
+    /// (latest sync time).
     static func aggregate(_ states: [SyncState]) -> SyncState {
         if let c = states.first(where: { if case .conflict = $0 { return true }; return false }) { return c }
         if let e = states.first(where: { if case .error = $0 { return true }; return false }) { return e }
         if states.contains(.syncing) { return .syncing }
+        if states.contains(.pending) { return .pending }
         let syncTimes = states.compactMap { state -> Date?? in
             if case let .idle(lastSync) = state { return .some(lastSync) }
             return nil
@@ -28,6 +32,7 @@ enum SyncState: Equatable {
         switch self {
         case .off: "Sync off"
         case .syncing: "Syncing"
+        case .pending: "Changes not pushed yet"
         case let .conflict(files): "Conflict: \(files.joined(separator: ", "))"
         case let .error(message): "Error: \(message)"
         case .idle(nil): "Not synced yet"

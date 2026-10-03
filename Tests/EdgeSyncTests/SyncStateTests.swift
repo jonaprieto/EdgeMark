@@ -11,11 +11,15 @@ final class SyncStateTests: XCTestCase {
         XCTAssertEqual(SyncState.aggregate([.syncing, .error("boom")]), .error("boom"))
         XCTAssertEqual(SyncState.aggregate([.error("boom"), .conflict(["a.md"])]), .conflict(["a.md"]))
         XCTAssertEqual(SyncState.aggregate([.off, .idle(lastSync: nil)]), .idle(lastSync: nil))
+        XCTAssertEqual(SyncState.aggregate([.idle(lastSync: t1), .pending]), .pending)
+        XCTAssertEqual(SyncState.aggregate([.pending, .syncing]), .syncing)
+        XCTAssertEqual(SyncState.aggregate([.pending, .error("boom")]), .error("boom"))
     }
 
     func testSummary() {
         XCTAssertEqual(SyncState.off.summary, "Sync off")
         XCTAssertEqual(SyncState.syncing.summary, "Syncing")
+        XCTAssertEqual(SyncState.pending.summary, "Changes not pushed yet")
         XCTAssertEqual(SyncState.conflict(["a.md", "b.md"]).summary, "Conflict: a.md, b.md")
         XCTAssertEqual(SyncState.error("nope").summary, "Error: nope")
         XCTAssertEqual(SyncState.idle(lastSync: nil).summary, "Not synced yet")

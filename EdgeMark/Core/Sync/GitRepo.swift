@@ -63,6 +63,19 @@ struct GitRepo: Equatable, Hashable {
         return !status.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// True when the working tree or index differs from HEAD (untracked files count).
+    /// Unlike `stageChanges`, nothing is staged.
+    func hasChanges() async -> Bool {
+        let status = await git("status", "--porcelain")
+        return !status.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Current commit id, or nil when the repo has no commits.
+    func head() async -> String? {
+        let r = await git("rev-parse", "--verify", "HEAD")
+        return r.ok ? r.stdout.trimmingCharacters(in: .whitespacesAndNewlines) : nil
+    }
+
     /// True when local commits are not on the upstream yet, or no upstream is set.
     /// False when the repo has no commits at all.
     func hasUnpushedCommits() async -> Bool {

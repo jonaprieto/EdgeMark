@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// 7 pt status dot: grey off, green idle, pulsing blue syncing, red conflict or error.
+/// 7 pt status dot: grey off, green idle, orange pending, pulsing blue syncing, red
+/// conflict or error.
 struct SyncStatusDot: View {
     let state: SyncState
     @State private var pulse = false
@@ -9,6 +10,7 @@ struct SyncStatusDot: View {
         switch state {
         case .off: .gray.opacity(0.5)
         case .idle: .green
+        case .pending: .orange
         case .syncing: .blue
         case .conflict, .error: .red
         }

@@ -43,7 +43,7 @@ final class GitSyncTests: XCTestCase {
 
         let sync = makeSync(root: work)
         var callbacks = 0
-        sync.onPullFinished = { callbacks += 1 }
+        sync.onPullFinished = { _ in callbacks += 1 }
         await sync.pullAll()
         XCTAssertTrue(FileManager.default.fileExists(atPath: work.appendingPathComponent("other.md").path))
         XCTAssertEqual(callbacks, 1)
@@ -88,6 +88,90 @@ final class GitSyncTests: XCTestCase {
         XCTAssertEqual(sync.state, .conflict(["note.md"]))
         let after = await Shell.run("git", ["--git-dir", remote.path, "rev-parse", "HEAD^{tree}"])
         XCTAssertEqual(after.stdout, remoteHead.stdout)
+    }
+
+    func testPullReportsWhetherAnythingChanged() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        var flags: [Bool] = []
+        sync.onPullFinished = { flags.append($0) }
+        await sync.pullAll()
+
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("from other\n", to: other.appendingPathComponent("other.md"))
+        _ = await TestGit.run(["add", "-A"], in: other)
+        _ = await TestGit.run(["commit", "-q", "-m", "other"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+        await sync.pullAll()
+        XCTAssertEqual(flags, [false, true])
+    }
+
+    func testRejectedPushPullMarksReload() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        var flags: [Bool] = []
+        sync.onPullFinished = { flags.append($0) }
+        await sync.pullAll()
+
+        let other = try await TestGit.clone(remote, name: "other")
+        TestGit.write("from other\n", to: other.appendingPathComponent("other.md"))
+        _ = await TestGit.run(["add", "-A"], in: other)
+        _ = await TestGit.run(["commit", "-q", "-m", "other"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+        TestGit.write("# Mine\n", to: work.appendingPathComponent("mine.md"))
+        await sync.commitAndPush(GitRepo(url: work)) // push rejected, pull, push
+        XCTAssertTrue(FileManager.default.fileExists(atPath: work.appendingPathComponent("other.md").path))
+
+        await sync.pullAll() // reports the pull done by commitAndPush
+        await sync.pullAll()
+        XCTAssertEqual(flags, [false, true, false])
+    }
+
+    func testPullAllCallsBackWhenInactive() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        sync.settings.enabled = false
+        var flags: [Bool] = []
+        sync.onPullFinished = { flags.append($0) }
+        await sync.pullAll()
+        XCTAssertEqual(flags, [false])
+    }
+
+    func testNoteActivityIsPendingUntilPushed() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        let note = work.appendingPathComponent("p.md")
+        TestGit.write("# P\n", to: note)
+        sync.noteActivity(at: note)
+        XCTAssertEqual(sync.state, .pending)
+        try await Task.sleep(for: .seconds(2))
+        guard case .idle(let last) = sync.state, last != nil else {
+            return XCTFail("expected idle with a sync date, got \(sync.state)")
+        }
+    }
+
+    func testRefreshStatesFindsLocalWork() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work)
+        await sync.refreshStates()
+        XCTAssertEqual(sync.state, .idle(lastSync: nil))
+
+        TestGit.write("# Dirty\n", to: work.appendingPathComponent("dirty.md"))
+        await sync.refreshStates()
+        XCTAssertEqual(sync.state, .pending)
+        let staged = await TestGit.run(["diff", "--cached", "--name-only"], in: work)
+        XCTAssertEqual(staged.stdout, "", "refresh must not stage")
+
+        _ = await TestGit.run(["add", "-A"], in: work)
+        _ = await TestGit.run(["commit", "-q", "-m", "local"], in: work)
+        sync.configure(root: work)
+        await sync.refreshStates()
+        XCTAssertEqual(sync.state, .pending, "unpushed commit is pending")
+
+        await sync.commitAndPush(GitRepo(url: work))
+        guard case .idle(let last) = sync.state, last != nil else {
+            return XCTFail("expected idle with a sync date, got \(sync.state)")
+        }
     }
 
     func testDebouncedActivityPushes() async throws {

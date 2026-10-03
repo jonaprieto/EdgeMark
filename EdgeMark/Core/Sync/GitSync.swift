@@ -22,15 +22,21 @@ final class GitSync {
     /// Per-repo status, keyed by working-copy URL.
     /// Writable from `GitSync+GitHub.swift`, which records gist clone failures.
     var repoStates: [URL: SyncState] = [:]
-    /// Runs after every `pullAll`, so the app can re-read notes from disk.
-    @ObservationIgnored var onPullFinished: (() -> Void)?
+    /// Runs after every `pullAll`, so the app can re-read notes from disk. The flag is
+    /// true when a pull moved some repo's HEAD or a gist was newly cloned, including a
+    /// pull that `commitAndPush` ran after a rejected push since the last callback.
+    @ObservationIgnored var onPullFinished: ((Bool) -> Void)?
     /// Message from the last Create/Connect attempt in Settings, cleared on success.
     var lastSetupError: String?
 
     @ObservationIgnored private var debounceTasks: [URL: Task<Void, Never>] = [:]
     @ObservationIgnored private var pulling = false
+    /// Set when `commitAndPush` pulled new commits; reported by the next `pullAll`.
+    @ObservationIgnored private var pendingReload = false
     /// Last queued git operation per repo; the next one waits for it.
     @ObservationIgnored private var inFlight: [URL: Task<Void, Never>] = [:]
+    /// Time of the last successful pull or push per repo, kept while the repo is pending.
+    @ObservationIgnored private var lastSync: [URL: Date] = [:]
 
     init(settings: SyncSettings = .shared) {
         self.settings = settings
@@ -86,8 +92,30 @@ final class GitSync {
         debounceTasks.values.forEach { $0.cancel() }
         debounceTasks = [:]
         repoStates = [:]
+        lastSync = [:]
         self.root = root.map { URL(fileURLWithPath: $0.standardizedFileURL.path, isDirectory: true) }
         SyncLog.log.info("[GitSync] configured root \(self.root?.path ?? "none", privacy: .public), active \(self.isActive)")
+        Task { await refreshStates() }
+    }
+
+    /// Marks repos with uncommitted edits or unpushed commits as `.pending`, and paused
+    /// rebases as `.conflict`. Stages nothing; other states are left alone.
+    func refreshStates() async {
+        guard isActive else { return }
+        for repo in repos() {
+            await serialized(repo) { [self] in
+                if await isPaused(repo) { return }
+                switch repoStates[repo.url] {
+                case .error, .syncing: return
+                default: break
+                }
+                let dirty = await repo.hasChanges()
+                let unpushed = await repo.hasUnpushedCommits()
+                if dirty || unpushed {
+                    repoStates[repo.url] = .pending
+                }
+            }
+        }
     }
 
     // MARK: - Triggers
@@ -98,6 +126,10 @@ final class GitSync {
         guard isActive else { return }
         let targets = url.flatMap(repoContaining).map { [$0] } ?? repos()
         for repo in targets {
+            switch repoStates[repo.url] {
+            case .conflict, .error: break
+            default: repoStates[repo.url] = .pending
+            }
             debounceTasks[repo.url]?.cancel()
             let delay = settings.debounceSeconds
             debounceTasks[repo.url] = Task { [weak self] in
@@ -109,13 +141,15 @@ final class GitSync {
     }
 
     /// Pull every repo in turn, then let the app re-read files from disk.
-    /// A pull already in flight runs the callback immediately and again when it completes.
+    /// The callback runs on every call: with false when sync is inactive, and right away
+    /// when a pull is already in flight; then the flag is true only if an earlier
+    /// `commitAndPush` pulled new commits.
     func pullAll() async {
-        guard isActive else { return }
-        if pulling { onPullFinished?(); return }
+        guard isActive else { onPullFinished?(false); return }
+        if pulling { finishPull(changed: false); return }
         pulling = true
         defer { pulling = false }
-        await refreshGistsIfNeeded()
+        var changed = await refreshGistsIfNeeded() > 0
         for repo in repos() {
             await serialized(repo) { [self] in
                 if await isPaused(repo) { return }
@@ -126,16 +160,27 @@ final class GitSync {
                     let c = await repo.commit(message: settings.renderCommitMessage())
                     guard c.ok else { return await recordFailure(repo, c, during: "commit") }
                 }
+                let before = await repo.head()
                 let r = await repo.pull()
                 if r.ok {
+                    if await repo.head() != before { changed = true }
                     if await isPaused(repo) { return }
-                    repoStates[repo.url] = .idle(lastSync: Date())
+                    let now = Date()
+                    lastSync[repo.url] = now
+                    repoStates[repo.url] = await repo.hasUnpushedCommits() ? .pending : .idle(lastSync: now)
                 } else {
                     await recordFailure(repo, r, during: "pull")
                 }
             }
         }
-        onPullFinished?()
+        finishPull(changed: changed)
+    }
+
+    /// Reports `changed`, or a reload left over from `commitAndPush`, and clears the latter.
+    private func finishPull(changed: Bool) {
+        let reload = changed || pendingReload
+        pendingReload = false
+        onPullFinished?(reload)
     }
 
     func commitAndPush(_ repo: GitRepo) async {
@@ -144,6 +189,7 @@ final class GitSync {
             if await isPaused(repo) { return }
             let staged = await repo.stageChanges()
             if !staged, !(await repo.hasUnpushedCommits()) {
+                repoStates[repo.url] = .idle(lastSync: lastSync[repo.url])
                 return
             }
             repoStates[repo.url] = .syncing
@@ -153,12 +199,18 @@ final class GitSync {
             }
             var p = await repo.push()
             if !p.ok, p.stderr.contains("rejected") || p.stderr.contains("fetch first") {
+                let before = await repo.head()
                 let pulled = await repo.pull()
+                let moved = await repo.head() != before
+                let conflicted = await repo.hasConflicts()
+                if moved || conflicted { pendingReload = true }
                 guard pulled.ok else { return await recordFailure(repo, pulled, during: "pull") }
                 p = await repo.push()
             }
             if p.ok {
-                repoStates[repo.url] = .idle(lastSync: Date())
+                let now = Date()
+                lastSync[repo.url] = now
+                repoStates[repo.url] = .idle(lastSync: now)
                 SyncLog.log.info("[GitSync] pushed \(repo.url.lastPathComponent, privacy: .public)")
             } else {
                 await recordFailure(repo, p, during: "push")
@@ -172,6 +224,7 @@ final class GitSync {
         for repo in repos() {
             await commitAndPush(repo)
         }
+        await refreshStates()
     }
 
     /// Best effort on quit: each repo is attempted while a 20 s budget lasts. A single

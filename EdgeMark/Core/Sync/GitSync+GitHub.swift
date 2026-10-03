@@ -17,23 +17,26 @@ extension GitSync {
     // MARK: - Discovery
 
     /// Clones gists of the chosen account that have no directory under `Gists/` yet.
-    /// Gists deleted on GitHub are left alone.
-    func refreshGistsIfNeeded() async {
-        guard settings.syncGists, !settings.account.isEmpty, let gistsDir else { return }
+    /// Gists deleted on GitHub are left alone. Returns how many gists were cloned.
+    @discardableResult
+    func refreshGistsIfNeeded() async -> Int {
+        guard settings.syncGists, !settings.account.isEmpty, let gistsDir else { return 0 }
         var known = Set<String>()
         for repo in gistRepos() {
             if let origin = await repo.originURL(), let id = GistCatalog.gistID(fromOrigin: origin) {
                 known.insert(id)
             }
         }
+        var cloned = 0
         switch await GistCatalog.list(account: settings.account) {
         case let .failure(error):
             SyncLog.log.error("[GitSync] gist list failed: \(error.message, privacy: .public)")
         case let .success(gists):
             for gist in gists where !known.contains(gist.id) {
-                await clone(gist, into: gistsDir)
+                if await clone(gist, into: gistsDir) != nil { cloned += 1 }
             }
         }
+        return cloned
     }
 
     /// Clones `gist` under `gistsDir`; returns the clone directory, or nil when git failed.
