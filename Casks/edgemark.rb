@@ -9,13 +9,13 @@ cask "edgemark" do
 
   # Same app and bundle identifier as Ender-Wang's EdgeMark, so only one can be installed.
   conflicts_with cask: "ender-wang/tap/edgemark"
-  depends_on macos: ">= :sequoia"
+  depends_on macos: :sequoia
 
   app "EdgeMark.app"
 
-  # The build is ad-hoc signed and not notarized.
-  postflight do
-    system_command "/usr/bin/xattr", args: ["-cr", "#{appdir}/EdgeMark.app"]
+  # The build is ad-hoc signed and not notarized, so clear the quarantine flag.
+  postflight_steps do
+    run "/usr/bin/xattr", args: ["-cr", "{{appdir}}/EdgeMark.app"]
   end
 
   zap trash: [
