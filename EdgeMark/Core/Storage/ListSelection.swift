@@ -44,4 +44,18 @@ nonisolated enum ListSelection {
         else { return nil }
         return Set(order[min(a, b) ... max(a, b)])
     }
+
+    /// Index one row up (negative `direction`) or down from `index`, clamped to the list.
+    /// With no current row it lands on the first row going down, the last going up.
+    /// Nil for an empty list.
+    static func step(from index: Int?, direction: Int, count: Int) -> Int? {
+        guard count > 0 else { return nil }
+        guard let index else { return direction > 0 ? 0 : count - 1 }
+        return max(0, min(count - 1, index + direction))
+    }
+
+    /// Selection for Select All: every visible row.
+    static func all<ID: Hashable>(_ order: [ID]) -> Set<ID> {
+        Set(order)
+    }
 }

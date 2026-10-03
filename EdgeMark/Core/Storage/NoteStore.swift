@@ -860,36 +860,38 @@ final class NoteStore {
         // by one. Falls back to anchor / first selected row when state is missing.
         let cursor = selectionExtensionEnd ?? selectionAnchor ?? selection.first
 
-        // No prior cursor (or it points at a hidden row) — land on first/last.
-        guard let cursor, let idx = order.firstIndex(of: cursor) else {
-            let target = direction > 0 ? order.first! : order.last!
-            selection = [target]
-            selectionAnchor = target
-            selectionExtensionEnd = target
-            return true
-        }
-
-        let next = max(0, min(order.count - 1, idx + direction))
+        // No prior cursor (or it points at a hidden row): `step` lands on first/last.
+        let index = cursor.flatMap { order.firstIndex(of: $0) }
+        guard let next = ListSelection.step(from: index, direction: direction, count: order.count) else { return false }
         let target = order[next]
 
-        if extending {
+        if extending, index != nil {
             // Anchor stays put; only the extension end walks.
-            let anchor = selectionAnchor ?? cursor
-            guard let a = order.firstIndex(of: anchor) else {
+            guard let range = ListSelection.range(from: selectionAnchor ?? cursor, to: target, in: order) else {
                 selection = [target]
                 selectionAnchor = target
                 selectionExtensionEnd = target
                 return true
             }
-            let lo = min(a, next)
-            let hi = max(a, next)
-            selection = Set(order[lo ... hi])
+            selection = range
             selectionExtensionEnd = target
         } else {
             selection = [target]
             selectionAnchor = target
             selectionExtensionEnd = target
         }
+        return true
+    }
+
+    /// Select every row of the visible list (⌘A). Returns false when there is no list
+    /// to select in, so the key falls through.
+    @discardableResult
+    func selectAllRows() -> Bool {
+        let order = keyboardNavOrder
+        guard !order.isEmpty else { return false }
+        selection = ListSelection.all(order)
+        selectionAnchor = order.first
+        selectionExtensionEnd = order.last
         return true
     }
 

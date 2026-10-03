@@ -172,18 +172,34 @@ final class SidePanelController: NSWindowController {
             return event
         }
 
-        // List keyboard navigation: ↑ / ↓ / ⇧↑ / ⇧↓ / Return.
+        // List keyboard navigation: ↑ / ↓ / ⇧↑ / ⇧↓ / Return, ⌘A and ⌘⌫.
         // Runs before any SwiftUI .onKeyPress so it wins over default focus traversal.
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, isShown else { return event }
-            // Skip while editing text or browsing the editor / trash.
+            // Skip while editing text or browsing the editor / trash / storage picker.
             if let fr = window.firstResponder as? NSTextView, fr.isFieldEditor {
                 return event
             }
-            if noteStore.selectedNote != nil || noteStore.showTrash {
+            if noteStore.selectedNote != nil || noteStore.showTrash || noteStore.awaitingRootChoice {
                 return event
             }
             let shift = event.modifierFlags.contains(.shift)
+            let commandOnly = event.modifierFlags.intersection([.command, .shift, .option, .control]) == .command
+            if commandOnly, event.keyCode == 0 || event.keyCode == 51 { // A, Delete
+                // A configurable shortcut on the same keys keeps working.
+                let s = ShortcutSettings.shared
+                let configured = [s.searchShortcut, s.pinShortcut, s.newNoteShortcut, s.newFolderShortcut, s.copySelectedPathsShortcut]
+                if configured.contains(where: { $0?.matches(event) == true }) {
+                    return event
+                }
+                if event.keyCode == 0 {
+                    return noteStore.selectAllRows() ? nil : event
+                }
+                // Move to Trash without asking: it can be restored from Trash.
+                guard !noteStore.selection.isEmpty else { return event }
+                noteStore.trashSelection()
+                return nil
+            }
             switch event.keyCode {
             case 125: // ↓
                 guard noteStore.moveSelection(direction: 1, extending: shift) else { return event }

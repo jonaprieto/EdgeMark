@@ -68,4 +68,36 @@ final class ListSelectionTests: XCTestCase {
         XCTAssertNil(ListSelection.range(from: 9, to: 1, in: [0, 1]))
         XCTAssertNil(ListSelection.range(from: 0, to: 9, in: [0, 1]))
     }
+
+    // MARK: - Extend by one row
+
+    func testStepMovesOneRow() {
+        XCTAssertEqual(ListSelection.step(from: 1, direction: 1, count: 3), 2)
+        XCTAssertEqual(ListSelection.step(from: 1, direction: -1, count: 3), 0)
+    }
+
+    func testStepClampsAtListEnds() {
+        XCTAssertEqual(ListSelection.step(from: 2, direction: 1, count: 3), 2)
+        XCTAssertEqual(ListSelection.step(from: 0, direction: -1, count: 3), 0)
+    }
+
+    func testStepWithoutCurrentRowLandsOnAnEnd() {
+        XCTAssertEqual(ListSelection.step(from: nil, direction: 1, count: 3), 0)
+        XCTAssertEqual(ListSelection.step(from: nil, direction: -1, count: 3), 2)
+    }
+
+    func testStepInEmptyListIsNil() {
+        XCTAssertNil(ListSelection.step(from: nil, direction: 1, count: 0))
+        XCTAssertNil(ListSelection.step(from: 0, direction: -1, count: 0))
+    }
+
+    // MARK: - Select all
+
+    func testSelectAllTakesEveryRow() {
+        XCTAssertEqual(ListSelection.all([3, 1, 2]), [1, 2, 3])
+    }
+
+    func testSelectAllInEmptyListIsEmpty() {
+        XCTAssertEqual(ListSelection.all([Int]()), [])
+    }
 }
