@@ -14,11 +14,13 @@ extension MarkdownEditorConfiguration {
     /// formatting-request `bus`; the read-only view uses the default (no formatting).
     /// `fontSize` is the body size handed to NativeTextViewWrapper; code blocks are
     /// set one point below it, in the user's monospace font (`editorMonoFontName`) when
-    /// set, else the highlighter's default. `pinsLightAppearance` keeps the code colors on their light
-    /// variants whatever the app appearance, for the PDF export.
+    /// set, else the highlighter's default. `pinsLightAppearance` keeps the code colors (and
+    /// Mermaid diagrams) on their light variants whatever the app appearance, for the PDF
+    /// export. `mermaidColumn` is the width diagrams are scaled down to.
     static func makeEdgeMarkConfig(
         noteFolder: String,
         fontSize: CGFloat,
+        mermaidColumn: MermaidColumn = MermaidColumn(),
         bus: MarkdownEditorBus = .default,
         pinsLightAppearance: Bool = false,
     ) -> MarkdownEditorConfiguration {
@@ -52,7 +54,13 @@ extension MarkdownEditorConfiguration {
         config.services = MarkdownEditorServices(
             images: EdgeMarkImageProvider(noteFolder: noteFolder),
             syntaxHighlighter: highlighter,
-            latex: SwiftMathBridge(),
+            // SwiftMath for formulas, Mermaid for the blocks the display layer wraps as formulas.
+            latex: MermaidLatexBridge(
+                column: mermaidColumn,
+                highlighter: highlighter,
+                bodySize: fontSize,
+                lightOnly: pinsLightAppearance,
+            ),
             bus: bus,
         )
         return config

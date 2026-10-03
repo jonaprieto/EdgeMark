@@ -106,6 +106,8 @@
   "editor.copyNote": "复制笔记",
   "editor.exportNote": "导出笔记",
   "editor.copyCode": "复制代码",
+  "mermaid.error": "图表错误：{0}",
+  "mermaid.timeout": "图表渲染超时",
   "editor.deleteNote": "删除笔记",
   "editor.modifiedAt": "修改于 {0}",
   "editor.createdAt": "创建于 {0}",

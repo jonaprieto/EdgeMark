@@ -10,6 +10,7 @@ struct ReadOnlyMarkdownView: View {
     var noteFolder: String = ""
 
     @State private var codeBlocks = CodeBlockOverlayModel()
+    @State private var mermaidColumn = MermaidColumn()
 
     /// NativeTextViewWrapper's default body size, which this view does not override.
     private static let fontSize: CGFloat = 16
@@ -32,16 +33,24 @@ struct ReadOnlyMarkdownView: View {
         // Shared with the live editor so previews match. `.id` rebuilds the view
         // (makeNSView) when a setting in `EditorRebuildKey` changes: updateNSView doesn't
         // sync taskCheckbox or extensions, so only a full re-apply picks them up.
-        let config = MarkdownEditorConfiguration.makeEdgeMarkConfig(noteFolder: noteFolder, fontSize: Self.fontSize)
-        // A leading front matter block renders as a metadata block, as in the editor.
+        let config = MarkdownEditorConfiguration.makeEdgeMarkConfig(
+            noteFolder: noteFolder, fontSize: Self.fontSize, mermaidColumn: mermaidColumn,
+        )
+        // A leading front matter block renders as a metadata block and Mermaid blocks as
+        // diagrams, as in the editor.
+        let frontMatter = NoteText.frontMatterToDisplay(content) ?? content
+        let mermaid = MermaidText.toDisplay(frontMatter)
         return NativeTextViewWrapper(
-            text: .constant(NoteText.frontMatterToDisplay(content) ?? content),
+            text: .constant(mermaid ?? frontMatter),
             configuration: config,
             fontSize: Self.fontSize,
             isEditable: false,
             onCodeBlockSelectionChange: { [codeBlocks] in codeBlocks.update($0) },
         )
         .id(EditorRebuildKey.current)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { [mermaidColumn] width in
+            mermaidColumn.update(viewWidth: width, restyle: mermaid != nil)
+        }
         .codeBlockChrome(codeBlocks, metrics: CodeBlockMetrics(configuration: config, bodySize: Self.fontSize))
     }
 }

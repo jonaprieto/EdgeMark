@@ -119,10 +119,15 @@ enum NoteExporter {
         // page margins take their place.
         let settings = AppSettings.shared
         let fontSize = CGFloat(settings.editorFontSize)
+        // Diagrams render first (light, at most 10 s in all); any still pending export as source.
+        await MermaidRenderer.shared.prepare(for: note.content)
         // The math and code bridges pick colors from the key window's appearance, not the
         // view's, so pin them to their light variants for paper.
         var config = MarkdownEditorConfiguration.makeEdgeMarkConfig(
-            noteFolder: note.folder, fontSize: fontSize, pinsLightAppearance: true,
+            noteFolder: note.folder,
+            fontSize: fontSize,
+            mermaidColumn: MermaidColumn(width: column.width - 10),
+            pinsLightAppearance: true,
         )
         config.textInsets = TextInsets(horizontal: 0, vertical: 0)
         config.theme.latexDarkModeText = config.theme.latexLightModeText

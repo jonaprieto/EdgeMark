@@ -106,6 +106,8 @@
   "editor.copyNote": "Copy Note",
   "editor.exportNote": "Export Note",
   "editor.copyCode": "Copy Code",
+  "mermaid.error": "Diagram error: {0}",
+  "mermaid.timeout": "Diagram took too long to render",
   "editor.deleteNote": "Delete Note",
   "editor.modifiedAt": "Modified at {0}",
   "editor.createdAt": "Created at {0}",

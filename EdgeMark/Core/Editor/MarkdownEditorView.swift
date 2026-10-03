@@ -62,6 +62,10 @@ struct MarkdownEditorView: View {
     /// Whether the text was loaded with a leading front matter block, marked for display
     /// by `NoteText.frontMatterToDisplay`; the marks are then removed again on save.
     @State private var frontMatterMarked: Bool
+    /// Whether Mermaid blocks were wrapped for display by `MermaidText.toDisplay`; the
+    /// wrapping is removed again on save.
+    @State private var mermaidMarked: Bool
+    @State private var mermaidColumn = MermaidColumn()
     @State private var saveDebouncer = Debouncer(delay: 1.0)
     @State private var slashHandler = SlashCommandHandler()
     @State private var noteNavMonitor: Any?
@@ -101,6 +105,7 @@ struct MarkdownEditorView: View {
         _text = State(initialValue: display.text)
         _imageAlts = State(initialValue: display.alts)
         _frontMatterMarked = State(initialValue: display.frontMatterMarked)
+        _mermaidMarked = State(initialValue: display.mermaidMarked)
         _hiddenHeadingLine = State(initialValue: heading)
         _headingSeparator = State(initialValue: separator)
         _stableNoteID = State(initialValue: noteID)
@@ -117,6 +122,7 @@ struct MarkdownEditorView: View {
         var config = MarkdownEditorConfiguration.makeEdgeMarkConfig(
             noteFolder: noteFolder,
             fontSize: fontSize,
+            mermaidColumn: mermaidColumn,
             bus: MarkdownEditorBus(
                 // Formatting-request channels — posting these drives the engine's
                 // didMarkdown* actions (bold/italic/code/link/strikethrough), which in
@@ -169,6 +175,9 @@ struct MarkdownEditorView: View {
             // the font size changes: the engine's updateNSView doesn't sync taskCheckbox or
             // extensions, so only a full config re-application picks up the new values.
             .id(EditorRebuildKey.current)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { [mermaidColumn] width in
+                mermaidColumn.update(viewWidth: width, restyle: mermaidMarked)
+            }
             // Line numbers + hover copy button. Copies what is saved to disk: image
             // embeds inside the block are mapped back to `![](path)` like on save.
             .codeBlockChrome(
@@ -184,9 +193,12 @@ struct MarkdownEditorView: View {
                 let noteIDSnapshot = stableNoteID
                 let alts = imageAlts
                 let marked = frontMatterMarked
+                let mermaid = mermaidMarked
                 saveDebouncer.call { [onContentChanged] in
                     // Convert display-layer ![[path]] embeds back to on-disk ![alt](path) before saving.
-                    let storage = Self.storageText(newText, alts: alts, frontMatterMarked: marked)
+                    let storage = Self.storageText(
+                        newText, alts: alts, frontMatterMarked: marked, mermaidMarked: mermaid,
+                    )
                     let full = NoteText.joinHeading(heading, separator: separator, body: storage)
                     onContentChanged(noteIDSnapshot, full)
                 }
@@ -200,6 +212,7 @@ struct MarkdownEditorView: View {
                 let display = Self.displayText(heading: heading, body: body)
                 imageAlts = display.alts
                 frontMatterMarked = display.frontMatterMarked
+                mermaidMarked = display.mermaidMarked
                 text = display.text
                 pendingReload = nil
             }
@@ -270,7 +283,9 @@ struct MarkdownEditorView: View {
             // always holds the note that was active when this view was first inserted.
             let capturedID = stableNoteID
             saveDebouncer.cancel()
-            let storage = Self.storageText(text, alts: imageAlts, frontMatterMarked: frontMatterMarked)
+            let storage = Self.storageText(
+                text, alts: imageAlts, frontMatterMarked: frontMatterMarked, mermaidMarked: mermaidMarked,
+            )
             let full = NoteText.joinHeading(hiddenHeadingLine, separator: headingSeparator, body: storage)
             onContentChanged(capturedID, full)
             slashHandler.dismiss()
@@ -287,29 +302,39 @@ struct MarkdownEditorView: View {
         return font.familyName
     }
 
-    /// Editor text for a note body: EdgeMark images as `![[path]]` embeds, and a leading
-    /// front matter block marked so the engine renders it as a metadata block. Front
-    /// matter only counts at the very start of the note, so not after a hidden heading.
+    /// Editor text for a note body: EdgeMark images as `![[path]]` embeds, a leading front
+    /// matter block marked so the engine renders it as a metadata block, and Mermaid blocks
+    /// wrapped so it renders them as diagrams. Front matter only counts at the very start
+    /// of the note, so not after a hidden heading.
     private static func displayText(heading: String, body: String)
-        -> (text: String, alts: [String: String], frontMatterMarked: Bool)
+        -> (text: String, alts: [String: String], frontMatterMarked: Bool, mermaidMarked: Bool)
     {
         let display = imagesToEmbedsKeepingAlts(body)
-        if heading.isEmpty, let marked = NoteText.frontMatterToDisplay(display.text) {
-            return (marked, display.alts, true)
+        var text = display.text
+        var frontMatterMarked = false
+        if heading.isEmpty, let marked = NoteText.frontMatterToDisplay(text) {
+            text = marked
+            frontMatterMarked = true
         }
-        return (display.text, display.alts, false)
+        let mermaid = MermaidText.toDisplay(text)
+        return (mermaid ?? text, display.alts, frontMatterMarked, mermaid != nil)
     }
 
     /// Inverse of `displayText` for the body: what is saved to disk.
-    private static func storageText(_ text: String, alts: [String: String], frontMatterMarked: Bool) -> String {
-        let unmarked = frontMatterMarked ? NoteText.frontMatterFromDisplay(text) : text
+    private static func storageText(
+        _ text: String, alts: [String: String], frontMatterMarked: Bool, mermaidMarked: Bool,
+    ) -> String {
+        let diagrams = mermaidMarked ? MermaidText.fromDisplay(text) : text
+        let unmarked = frontMatterMarked ? NoteText.frontMatterFromDisplay(diagrams) : diagrams
         return embedsToImages(unmarked, alts: alts)
     }
 
-    /// Display text for the PDF export, which never saves: embeds plus a marked front matter block.
+    /// Display text for the PDF export, which never saves: embeds, a marked front matter
+    /// block and wrapped Mermaid blocks.
     static func exportDisplayText(_ content: String) -> String {
         let embeds = imagesToEmbeds(content)
-        return NoteText.frontMatterToDisplay(embeds) ?? embeds
+        let frontMatter = NoteText.frontMatterToDisplay(embeds) ?? embeds
+        return MermaidText.toDisplay(frontMatter) ?? frontMatter
     }
 
     /// Convert on-disk `![](. STEM/IMG-uuid.ext)` references to editor embed `![[.STEM/IMG-uuid.ext]]`.

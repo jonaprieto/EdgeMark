@@ -106,6 +106,8 @@
   "editor.copyNote": "नोट कॉपी करें",
   "editor.exportNote": "नोट एक्सपोर्ट करें",
   "editor.copyCode": "कोड कॉपी करें",
+  "mermaid.error": "आरेख त्रुटि: {0}",
+  "mermaid.timeout": "आरेख बनने में बहुत समय लगा",
   "editor.deleteNote": "नोट हटाएं",
   "editor.modifiedAt": "{0} पर बदला गया",
   "editor.createdAt": "{0} पर बनाया गया",

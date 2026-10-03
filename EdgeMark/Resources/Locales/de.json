@@ -106,6 +106,8 @@
   "editor.copyNote": "Notiz kopieren",
   "editor.exportNote": "Notiz exportieren",
   "editor.copyCode": "Code kopieren",
+  "mermaid.error": "Diagrammfehler: {0}",
+  "mermaid.timeout": "Das Diagramm brauchte zu lange zum Zeichnen",
   "editor.deleteNote": "Notiz löschen",
   "editor.modifiedAt": "Geändert am {0}",
   "editor.createdAt": "Erstellt am {0}",
