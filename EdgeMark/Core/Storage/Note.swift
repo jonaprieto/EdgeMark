@@ -25,9 +25,27 @@ struct Note: Identifiable {
     /// Used to detect renames when the title changes.
     var savedFilename: String?
 
-    /// Filename derived from sanitized title: "Title.md"
+    /// Filename derived from sanitized title: "Title.md". A gist file's title is its file
+    /// name (see `isGistFile`), so it is the filename as is.
     var filename: String {
-        "\(FileStorage.sanitizeForFilename(title)).md"
+        isGistFile ? title : "\(FileStorage.sanitizeForFilename(title)).md"
+    }
+
+    /// True for a file inside `Gists/`. Its title is the file name rather than its first
+    /// line, and renaming it renames the file.
+    var isGistFile: Bool {
+        FileStorage.isGistFolder(folder)
+    }
+
+    /// Lowercased extension of a gist file's name; "md" for every other note.
+    var fileExtension: String {
+        isGistFile ? (title as NSString).pathExtension.lowercased() : "md"
+    }
+
+    /// A gist file that is not Markdown (code, JSON, plain text). It opens in the plain-text
+    /// editor and its text is saved back exactly as edited, with no Markdown handling.
+    var isPlainTextFile: Bool {
+        isGistFile && fileExtension != "md"
     }
 
     /// Relative path from storage root: "folder/Title.md" or just "Title.md".
@@ -110,7 +128,12 @@ extension Note {
         }
         // Any newline, so "\r\n" (one Character in Swift) also ends a line.
         let lines = head.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline)
-        let raw = lines.dropFirst().prefix(3).joined(separator: " ")
+        // A gist file's title is its file name, so its first line is part of the preview;
+        // code keeps its `#` and `*` characters.
+        let raw = (isGistFile ? lines.prefix(3) : lines.dropFirst().prefix(3)).joined(separator: " ")
+        if isPlainTextFile {
+            return String(raw.prefix(120))
+        }
         return raw
             .replacingOccurrences(of: "#{1,6}\\s", with: "", options: .regularExpression)
             .replacingOccurrences(of: "\\*{1,2}([^*]+)\\*{1,2}", with: "$1", options: .regularExpression)

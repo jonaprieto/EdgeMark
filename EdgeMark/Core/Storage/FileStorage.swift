@@ -104,12 +104,13 @@ enum FileStorage {
     /// Reloads a note's content + tags from disk after an external change is detected.
     static func reloadContent(for note: Note) -> (content: String, modifiedAt: Date, savedAt: Date, tags: [TagColor])? {
         let url = rootURL.appendingPathComponent(diskRelativePath(for: note))
-        guard let text = readText(at: url) else { return nil }
+        guard let text = readText(at: url, folder: note.folder) else { return nil }
         let diskDate = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date) ?? Date()
 
         // Body may still have EdgeMark's YAML if this note wasn't migrated yet: strip it.
-        // Any other leading `---` block is the user's and stays in the content.
-        let legacy = NoteText.legacyFrontMatter(text)
+        // Any other leading `---` block is the user's and stays in the content. Gist files
+        // are never stripped (see `readNote`).
+        let legacy = isGistFolder(note.folder) ? nil : NoteText.legacyFrontMatter(text)
         let content = legacy?.body ?? text
 
         let tags: [TagColor] = if let entry = SidecarStore.shared.noteEntry(for: note.id) {
@@ -278,8 +279,8 @@ enum FileStorage {
     }
 
     /// Whether `folder` is the `Gists` folder or a gist clone inside it.
-    /// Files there must keep their names: heading anchors in the published gist and the
-    /// `gh gist` file identity are tied to the file name, so title edits never rename them.
+    /// A note there is the file itself: its title is the file name, content edits never
+    /// rename it, and renaming it renames the file (`renameGistFile`).
     static func isGistFolder(_ folder: String) -> Bool {
         folder == "Gists" || folder.hasPrefix("Gists/")
     }
@@ -295,13 +296,16 @@ enum FileStorage {
             try ensureFolderExists(note.folder)
         }
 
-        // Gist clones: write in place under the saved filename, never rename.
-        if isGistFolder(note.folder), let savedFilename = note.savedFilename {
-            let currentURL = rootURL.appendingPathComponent("\(note.folder)/\(savedFilename)")
+        // Gist clones: write the text as is under the file's name (the title for a new file),
+        // never rename.
+        if isGistFolder(note.folder) {
+            let name = note.savedFilename ?? note.filename
+            let currentURL = rootURL.appendingPathComponent("\(note.folder)/\(name)")
             try Data(note.content.utf8).write(to: currentURL, options: .atomic)
             Task { @MainActor in GitSync.shared.noteActivity(at: currentURL) }
-            upsertSidecarEntry(for: note, filename: savedFilename)
-            return (filename: savedFilename, updatedContent: nil, savedAt: modificationDate(for: note) ?? Date())
+            upsertSidecarEntry(for: note, filename: name)
+            let savedAt = (try? FileManager.default.attributesOfItem(atPath: currentURL.path))?[.modificationDate] as? Date
+            return (filename: name, updatedContent: nil, savedAt: savedAt ?? Date())
         }
 
         let newFilename = note.filename
@@ -399,6 +403,45 @@ enum FileStorage {
         try FileManager.default.removeItem(at: rootURL.appendingPathComponent(relativePath))
         SidecarStore.shared.removeNote(id: note.id)
         try? SidecarStore.shared.save()
+    }
+
+    /// Renames a gist file to `newName` in its folder and moves its sidecar entry; the
+    /// clone's next commit stages the rename. A case-only rename goes through a temporary
+    /// name so it also works on a case-insensitive volume. Returns the file's new mtime.
+    static func renameGistFile(_ note: Note, to newName: String) throws -> Date {
+        let dir = rootURL.appendingPathComponent(note.folder, isDirectory: true)
+        let oldName = note.savedFilename ?? note.filename
+        let oldURL = dir.appendingPathComponent(oldName)
+        let newURL = dir.appendingPathComponent(newName)
+        if oldName.caseInsensitiveCompare(newName) == .orderedSame {
+            let temp = dir.appendingPathComponent(".\(UUID().uuidString)")
+            try FileManager.default.moveItem(at: oldURL, to: temp)
+            try FileManager.default.moveItem(at: temp, to: newURL)
+        } else {
+            try FileManager.default.moveItem(at: oldURL, to: newURL)
+        }
+        Task { @MainActor in GitSync.shared.noteActivity(at: newURL) }
+        let mtime = (try? FileManager.default.attributesOfItem(atPath: newURL.path))?[.modificationDate] as? Date ?? Date()
+        if var entry = SidecarStore.shared.noteEntry(for: note.id) {
+            entry.path = "\(note.folder)/\(newName)"
+            entry.savedAt = mtime
+            SidecarStore.shared.upsertNote(entry, for: note.id)
+            try? SidecarStore.shared.save()
+        }
+        return mtime
+    }
+
+    /// `name`, or `name` with " 2", " 3"... before its extension, whichever is not taken in `dir`.
+    static func unusedFileName(_ name: String, in dir: URL) -> String {
+        let stem = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        var candidate = name
+        var counter = 2
+        while FileManager.default.fileExists(atPath: dir.appendingPathComponent(candidate).path) {
+            candidate = ext.isEmpty ? "\(stem) \(counter)" : "\(stem) \(counter).\(ext)"
+            counter += 1
+        }
+        return candidate
     }
 
     /// Returns the full file URL for a note (for Finder reveal).
@@ -537,7 +580,10 @@ enum FileStorage {
         var restored = note
         restored.trashedAt = nil
 
-        let newFilename = restored.filename
+        // A gist file comes back under its own name, unless that name was taken meanwhile.
+        let newFilename = restored.isGistFile
+            ? unusedFileName(restored.filename, in: rootURL.appendingPathComponent(restored.folder, isDirectory: true))
+            : restored.filename
         let destRelative = restored.folder.isEmpty ? newFilename : "\(restored.folder)/\(newFilename)"
         let destURL = rootURL.appendingPathComponent(destRelative)
 
@@ -818,13 +864,28 @@ enum FileStorage {
             options: [.skipsHiddenFiles],
         )
         return contents.compactMap { url -> Note? in
-            guard url.pathExtension == "md" else { return nil }
+            if url.pathExtension == "md" {
+                return readNote(at: url, folder: folder)
+            }
+            // A gist can hold code and data files too; small UTF-8 ones are listed as
+            // plain-text notes.
+            guard isGistFolder(folder), GistTextFile.isEditableText(at: url) else { return nil }
             return readNote(at: url, folder: folder)
         }
     }
 
     /// Text of a note file. A file that is not UTF-8 (or UTF-16 with a BOM) is decoded as
     /// Windows-1252, else Latin-1, so it still shows up; saving it writes UTF-8.
+    /// Text of a file in `folder`. Gist files keep their exact bytes (a byte order mark
+    /// included); a non-Markdown gist file that is not UTF-8 gives nil.
+    static func readText(at url: URL, folder: String) -> String? {
+        guard isGistFolder(folder) else { return readText(at: url) }
+        if let data = try? Data(contentsOf: url), let text = GistTextFile.decode(data) {
+            return text
+        }
+        return url.pathExtension == "md" ? readText(at: url) : nil
+    }
+
     static func readText(at url: URL) -> String? {
         var encoding = String.Encoding.utf8
         if let text = try? String(contentsOf: url, usedEncoding: &encoding) {
@@ -836,12 +897,15 @@ enum FileStorage {
     }
 
     private static func readNote(at url: URL, folder: String) -> Note? {
-        guard let text = readText(at: url) else { return nil }
+        guard let text = readText(at: url, folder: folder) else { return nil }
         let filename = url.lastPathComponent
 
         // Determine relative path for sidecar lookup.
         // Trash files live under trashURL, active notes under rootURL.
         let isTrash = url.path.hasPrefix(trashURL.path)
+        // A gist file is shown as it is: its title is the file name and nothing is stripped,
+        // so saving it writes the same bytes back.
+        let inGist = !isTrash && isGistFolder(folder)
         // Full path relative to its storage root (.trash/ or rootURL) so sidecar
         // lookups work for both bare files ("UUID_Title.md") and folder-nested files
         // ("UUID_Projects/SubFolder/Note.md").
@@ -861,13 +925,15 @@ enum FileStorage {
         // --- Sidecar path (preferred) ---
         if isTrash {
             if let (id, entry) = SidecarStore.shared.trashEntry(forFilename: relativePath) {
-                let content = NoteText.strippingLegacyFrontMatter(text) // strip any residual YAML
-                let tags = entry.tags.compactMap { TagColor(rawValue: $0) }
                 let folder = (entry.originalPath as NSString).deletingLastPathComponent
                 let resolvedFolder = folder == "." || folder.isEmpty ? "" : folder
+                // A trashed gist file keeps its original name as title, so it is restored under it.
+                let fromGist = isGistFolder(resolvedFolder)
+                let content = fromGist ? text : NoteText.strippingLegacyFrontMatter(text) // strip any residual YAML
+                let tags = entry.tags.compactMap { TagColor(rawValue: $0) }
                 return Note(
                     id: id,
-                    title: extractTitle(from: content),
+                    title: fromGist ? (entry.originalPath as NSString).lastPathComponent : extractTitle(from: content),
                     content: content,
                     createdAt: entry.createdAt,
                     modifiedAt: entry.modifiedAt,
@@ -880,11 +946,11 @@ enum FileStorage {
             }
         } else {
             if let (id, entry) = SidecarStore.shared.noteEntry(forPath: relativePath) {
-                let content = NoteText.strippingLegacyFrontMatter(text)
+                let content = inGist ? text : NoteText.strippingLegacyFrontMatter(text)
                 let tags = entry.tags.compactMap { TagColor(rawValue: $0) }
                 return Note(
                     id: id,
-                    title: extractTitle(from: content),
+                    title: inGist ? filename : extractTitle(from: content),
                     content: content,
                     createdAt: entry.createdAt,
                     modifiedAt: entry.modifiedAt,
@@ -898,7 +964,7 @@ enum FileStorage {
 
         // --- YAML fallback (unmigrated EdgeMark file or sidecar entry missing) ---
         // Only EdgeMark's own block (with an `id:` UUID) is metadata; user YAML stays content.
-        if case let (metadata, body)? = NoteText.legacyFrontMatter(text) {
+        if !inGist, case let (metadata, body)? = NoteText.legacyFrontMatter(text) {
             let id = metadata["id"].flatMap { UUID(uuidString: $0) } ?? UUID()
             let title = metadata["title"] ?? extractTitle(from: body)
             let created = metadata["created"].flatMap { dateFormatter.date(from: $0) } ?? Date()
@@ -973,7 +1039,7 @@ enum FileStorage {
 
         return Note(
             id: id,
-            title: extractTitle(from: text),
+            title: inGist ? filename : extractTitle(from: text),
             content: text,
             createdAt: created,
             modifiedAt: modified,

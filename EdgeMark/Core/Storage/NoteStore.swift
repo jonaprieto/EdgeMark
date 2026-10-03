@@ -481,7 +481,16 @@ final class NoteStore {
     // MARK: - Duplicate Detection
 
     /// Whether a note title already exists in the given folder (case-insensitive filename match).
+    /// In a gist the title is the file name: `title` is checked as the name a rename of
+    /// `noteID` would give (`GistTextFile.renamedFileName`), and an invalid name counts as taken.
     func noteTitleExists(_ title: String, in folder: String, excluding noteID: UUID? = nil) -> Bool {
+        if FileStorage.isGistFolder(folder) {
+            guard let note = noteID.flatMap({ id in notes.first { $0.id == id } }) else {
+                return noteFilenameWouldCollide(title, in: folder)
+            }
+            guard let name = gistFileName(forTyped: title, note: note) else { return true }
+            return gistFileNameTaken(name, by: note)
+        }
         let sanitized = FileStorage.sanitizeForFilename(title)
         return notes.contains { note in
             note.id != noteID
@@ -546,20 +555,59 @@ final class NoteStore {
         return candidate
     }
 
+    /// File name a rename of gist file `note` to `typed` gives: its extension is kept.
+    private func gistFileName(forTyped typed: String, note: Note) -> String? {
+        let current = note.savedFilename ?? note.filename
+        return GistTextFile.renamedFileName(typed: typed, keepingExtension: (current as NSString).pathExtension)
+    }
+
+    /// Whether another note or file in `note`'s gist already has `name`. The note's own
+    /// file does not count, so a case-only rename is allowed.
+    private func gistFileNameTaken(_ name: String, by note: Note) -> Bool {
+        if name.caseInsensitiveCompare(note.savedFilename ?? note.filename) == .orderedSame {
+            return false
+        }
+        return noteFilenameWouldCollide(name, in: note.folder, excluding: note.id)
+    }
+
+    /// `name`, or `name` with " 2", " 3"... before its extension, whichever no note or
+    /// file in `folder` has.
+    private func unusedNoteFileName(_ name: String, in folder: String, excluding noteID: UUID? = nil) -> String {
+        let stem = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        var candidate = name
+        var counter = 2
+        while noteFilenameWouldCollide(candidate, in: folder, excluding: noteID) {
+            candidate = ext.isEmpty ? "\(stem) \(counter)" : "\(stem) \(counter).\(ext)"
+            counter += 1
+        }
+        return candidate
+    }
+
     // MARK: - Note CRUD
 
     func createNote(in folder: String = "") -> Note {
+        // A new file in a gist is named like any other gist file, "Untitled.md", and its
+        // title is that name; the clone's next commit adds it to the gist.
+        if FileStorage.isGistFolder(folder) {
+            let name = unusedNoteFileName("Untitled.md", in: folder)
+            return createNote(title: name, content: "# \((name as NSString).deletingPathExtension)\n\n", in: folder)
+        }
         var title = "Untitled"
         var counter = 2
         while noteTitleExists(title, in: folder) {
             title = "Untitled \(counter)"
             counter += 1
         }
+        return createNote(title: title, content: "# \(title)\n\n", in: folder)
+    }
+
+    private func createNote(title: String, content: String, in folder: String) -> Note {
         let now = Date()
         var note = Note(
             id: UUID(),
             title: title,
-            content: "# \(title)\n\n",
+            content: content,
             createdAt: now,
             modifiedAt: now,
             folder: folder,
@@ -585,7 +633,8 @@ final class NoteStore {
         // Without this guard, a rename on a headingless note reverts within ~150ms
         // because the editor fires contentChanged on load and extractTitle returns
         // the raw first line, overwriting the manually-set title.
-        if NoteText.firstLine(content).hasPrefix("#") {
+        // A gist file's title is its file name and never follows the text.
+        if !notes[index].isGistFile, NoteText.firstLine(content).hasPrefix("#") {
             notes[index].title = Self.extractTitle(from: content)
         }
         dirtyNoteIDs.insert(noteID)
@@ -598,6 +647,10 @@ final class NoteStore {
 
     func renameNote(_ note: Note, to newTitle: String) {
         guard let index = notes.firstIndex(where: { $0.id == note.id }) else { return }
+        if notes[index].isGistFile {
+            renameGistFile(at: index, to: newTitle)
+            return
+        }
         let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         guard !noteTitleExists(trimmed, in: note.folder, excluding: note.id) else { return }
@@ -618,6 +671,40 @@ final class NoteStore {
         if selectedNote?.id == note.id {
             selectedNote = notes[index]
         }
+    }
+
+    /// Renames a gist file on disk to `typed`, keeping its extension; refused when the name
+    /// is invalid or taken in the gist. The text is not touched, except that a Markdown file
+    /// whose first line is still `# <old name>` (as a new file starts) gets the new name there.
+    private func renameGistFile(at index: Int, to typed: String) {
+        let note = notes[index]
+        let oldName = note.savedFilename ?? note.filename
+        guard let newName = gistFileName(forTyped: typed, note: note), newName != oldName,
+              !gistFileNameTaken(newName, by: note) else { return }
+        do {
+            notes[index].savedAt = try FileStorage.renameGistFile(note, to: newName)
+        } catch {
+            Log.storage.error("[NoteStore] renameGistFile failed — \(error)")
+            return
+        }
+        notes[index].title = newName
+        notes[index].savedFilename = newName
+        if !notes[index].isPlainTextFile {
+            let oldHeading = "# " + (oldName as NSString).deletingPathExtension
+            let rest = note.content.dropFirst(oldHeading.count)
+            if note.content.hasPrefix(oldHeading), rest.first?.isNewline ?? true {
+                notes[index].content = "# " + (newName as NSString).deletingPathExtension + rest
+                notes[index].modifiedAt = Date()
+                dirtyNoteIDs.insert(note.id)
+                if selectedNote?.id == note.id {
+                    onNeedEditorReload?(notes[index].content)
+                }
+            }
+        }
+        if selectedNote?.id == note.id {
+            selectedNote = notes[index]
+        }
+        refreshFolders()
     }
 
     /// Toggle a single tag on a note. Updates in-memory state and marks the note dirty.
@@ -941,9 +1028,18 @@ final class NoteStore {
         refreshFolders()
     }
 
+    /// Whether `note` may live in `folder`: a non-Markdown gist file only loads inside `Gists/`.
+    private func canHold(_ note: Note, in folder: String) -> Bool {
+        !note.isPlainTextFile || FileStorage.isGistFolder(folder)
+    }
+
     func moveNote(_ note: Note, to folder: String) {
         guard let index = notes.firstIndex(where: { $0.id == note.id }) else { return }
         guard notes[index].folder != folder else { return }
+        guard canHold(notes[index], in: folder) else {
+            Log.storage.info("[NoteStore] not moving \(note.title, privacy: .public) out of Gists: only Markdown notes load there")
+            return
+        }
         let actualFilename = notes[index].savedFilename ?? notes[index].filename
         if noteFilenameWouldCollide(actualFilename, in: folder, excluding: note.id) {
             pendingNoteMoveConflicts.append(PendingNoteMoveConflict(noteID: note.id, targetFolder: folder))
@@ -959,6 +1055,11 @@ final class NoteStore {
         let folder = conflict.targetFolder
         let originalFilename = notes[index].savedFilename ?? notes[index].filename
 
+        if keepBoth, notes[index].isGistFile {
+            // A gist file is renamed as a file ("mod 2.rs"); its text is left alone.
+            performMoveNote(at: index, to: folder, renamingTo: unusedNoteFileName(originalFilename, in: folder, excluding: conflict.noteID))
+            return
+        }
         if keepBoth {
             // Find an unused title whose derived filename also doesn't collide on disk.
             let baseTitle = notes[index].title
@@ -1102,7 +1203,9 @@ final class NoteStore {
     func canDrop(_ item: DragItem, onto target: DropTarget) -> Bool {
         switch (item, target) {
         case let (.note(noteID), .folder(folder)):
-            return notes.first(where: { $0.id == noteID })?.folder != folder
+            guard let note = notes.first(where: { $0.id == noteID }) else { return false }
+            return note.folder != folder
+                && canHold(note, in: folder)
                 && folders.contains(where: { $0.name == folder })
         case let (.folder(source), .folder(targetParent)):
             let currentParent = (source as NSString).deletingLastPathComponent
@@ -1673,7 +1776,8 @@ final class NoteStore {
     /// still be replaced by the disk version.
     private func cleanOrphanedImages(afterSavingNoteAt index: Int) {
         let note = notes[index]
-        guard note.trashedAt == nil, pendingExternalChange?.noteID != note.id else { return }
+        // Gists cannot hold image folders, and their files are never cleaned.
+        guard note.trashedAt == nil, !note.isGistFile, pendingExternalChange?.noteID != note.id else { return }
         let otherBodies = notes.filter { $0.id != note.id }.map(\.content)
         FileStorage.cleanOrphanedImages(forNote: note, body: note.content, otherBodies: otherBodies)
     }
@@ -1681,6 +1785,7 @@ final class NoteStore {
     // MARK: - Private
 
     private func refreshFolders() {
+        alignGistTitles()
         let folderNames = Set(notes.map(\.folder)).filter { !$0.isEmpty }
         let allNames = folderNames.union(diskFolderNames).sorted()
 
@@ -1700,6 +1805,26 @@ final class NoteStore {
         }
         // Folder/note membership changed → tag set may have too.
         recomputeAllUsedTags()
+    }
+
+    /// A gist file's title is its file name. After a note moves into a gist, its title
+    /// becomes the file name; after a gist file moves out, its title (still the file name)
+    /// becomes the first line again. Another note's title equals its file name only when
+    /// its first line is that name, so re-deriving it changes nothing.
+    private func alignGistTitles() {
+        for i in notes.indices {
+            guard let saved = notes[i].savedFilename else { continue }
+            if notes[i].isGistFile, notes[i].title != saved {
+                notes[i].title = saved
+            } else if !notes[i].isGistFile, notes[i].title == saved {
+                notes[i].title = Self.extractTitle(from: notes[i].content)
+            } else {
+                continue
+            }
+            if selectedNote?.id == notes[i].id {
+                selectedNote = notes[i]
+            }
+        }
     }
 
     /// Sync sidecar NoteEntry.path for all notes whose current in-memory path
