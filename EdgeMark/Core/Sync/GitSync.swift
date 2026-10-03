@@ -52,6 +52,15 @@ final class GitSync {
     @ObservationIgnored private var lastGistDiscovery: Date?
     /// Held verdicts per repo and path; an unchanged hash reuses the verdict without Jev.
     @ObservationIgnored private var verdictCache: [URL: [String: GuardVerdict]] = [:]
+    /// Gist clones of the chosen account that the last successful listing no longer had
+    /// (deleted on GitHub). Their files stay on disk but they are not pulled or pushed,
+    /// which would fail on every sync. Written by gist discovery.
+    @ObservationIgnored var detachedGists: Set<URL> = []
+    /// Gist listing and creation; tests swap these for local fakes so `gh` never runs.
+    @ObservationIgnored var listGists: (String) async -> Result<[Gist], GHError> = { await GistCatalog.list(account: $0) }
+    @ObservationIgnored var createGist: (_ account: String, _ file: URL, _ description: String, _ isPublic: Bool) async -> Result<String, GHError> = {
+        await GistCatalog.create(account: $0, file: $1, description: $2, isPublic: $3)
+    }
 
     init(settings: SyncSettings = .shared) {
         self.settings = settings
@@ -74,10 +83,10 @@ final class GitSync {
         return SyncState.aggregate(repos().map { repoStates[$0.url] ?? .idle(lastSync: nil) })
     }
 
-    /// Root first, then gist clones that have an origin.
+    /// Root first, then gist clones that have an origin and were not deleted on GitHub.
     func repos() -> [GitRepo] {
         guard let rootRepo else { return [] }
-        return [rootRepo] + gistRepos().filter(\.hasOrigin)
+        return [rootRepo] + gistRepos().filter { $0.hasOrigin && !detachedGists.contains($0.url) }
     }
 
     /// Every `Gists/<name>/` directory that is a git repo (origin or not).
@@ -118,6 +127,7 @@ final class GitSync {
         lastSync = [:]
         lastPullAll = nil
         lastGistDiscovery = nil
+        detachedGists = []
         // Resolved like `GitRepo.url`, so the root and its repo share one key.
         self.root = root.map { URL(fileURLWithPath: GitRepo.resolvedURL($0).path, isDirectory: true) }
         if let root = self.root, GitRepo(url: root).isRepo {

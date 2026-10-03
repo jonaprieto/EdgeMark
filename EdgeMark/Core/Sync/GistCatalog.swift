@@ -65,6 +65,13 @@ enum GistCatalog {
         return url.wholeMatch(of: pattern).map { String($0.1) }
     }
 
+    /// Login embedded in an HTTPS gist clone URL (`https://<login>@gist.github.com/...`),
+    /// else nil (no login, SSH, or not a gist URL).
+    static func login(fromOrigin url: String) -> String? {
+        guard gistID(fromOrigin: url) != nil else { return nil }
+        return url.firstMatch(of: #/^https:\/\/([^@\/\s]+)@gist\.github\.com\//#).map { String($0.1) }
+    }
+
     /// Gist id from `gh gist create` output (the URL is the last line).
     static func gistID(fromCreateOutput text: String) -> String? {
         text.firstMatch(of: #/gist\.github\.com\/(?:[^\/\s]+\/)?([0-9a-f]+)/#).map { String($0.1) }

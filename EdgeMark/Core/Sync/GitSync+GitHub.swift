@@ -17,21 +17,34 @@ extension GitSync {
     // MARK: - Discovery
 
     /// Clones gists of the chosen account that have no directory under `Gists/` yet.
-    /// Gists deleted on GitHub are left alone. Returns how many gists were cloned.
+    /// A clone of this account whose gist is no longer listed was deleted on GitHub: its
+    /// files stay on disk, but it goes into `detachedGists` so it is not synced. A failed
+    /// listing changes nothing. Returns how many gists were cloned.
     @discardableResult
     func refreshGistsIfNeeded() async -> Int {
         guard settings.syncGists, !settings.account.isEmpty, let gistsDir else { return 0 }
-        var known = Set<String>()
+        var clones: [(repo: GitRepo, id: String, login: String?)] = []
         for repo in gistRepos() {
             if let origin = await repo.originURL(), let id = GistCatalog.gistID(fromOrigin: origin) {
-                known.insert(id)
+                clones.append((repo, id, GistCatalog.login(fromOrigin: origin)))
             }
         }
+        let known = Set(clones.map(\.id))
         var cloned = 0
-        switch await GistCatalog.list(account: settings.account) {
+        switch await listGists(settings.account) {
         case let .failure(error):
             SyncLog.log.error("[GitSync] gist list failed: \(error.message, privacy: .public)")
         case let .success(gists):
+            let listed = Set(gists.map(\.id))
+            // A clone made for another account is not judged by this account's list.
+            let account = settings.account
+            detachedGists = Set(clones.filter { clone in
+                !listed.contains(clone.id) && (clone.login ?? account).caseInsensitiveCompare(account) == .orderedSame
+            }.map(\.repo.url))
+            for url in detachedGists {
+                repoStates[url] = nil
+                SyncLog.log.info("[GitSync] gist in \(url.lastPathComponent, privacy: .public) is gone on GitHub; not syncing it")
+            }
             for gist in gists where !known.contains(gist.id) {
                 if await clone(gist, into: gistsDir) != nil { cloned += 1 }
             }
@@ -43,10 +56,12 @@ extension GitSync {
     @discardableResult
     private func clone(_ gist: Gist, into gistsDir: URL) async -> URL? {
         try? FileManager.default.createDirectory(at: gistsDir, withIntermediateDirectories: true)
-        var name = GistCatalog.directoryName(description: gist.description, id: gist.id)
-        if FileManager.default.fileExists(atPath: gistsDir.appendingPathComponent(name).path) {
-            name += "-" + String(gist.id.prefix(7))
-        }
+        // A clash takes the short id, then the full id, so a third gist with the same
+        // description still gets its own folder.
+        let base = GistCatalog.directoryName(description: gist.description, id: gist.id)
+        let candidates = [base, base + "-" + String(gist.id.prefix(7)), base + "-" + gist.id]
+        let name = candidates.first { !FileManager.default.fileExists(atPath: gistsDir.appendingPathComponent($0).path) }
+            ?? candidates[2]
         let target = gistsDir.appendingPathComponent(name, isDirectory: true)
         let r = await Shell.run(
             "git", ["clone", "-q", GistCatalog.cloneURL(account: settings.account, id: gist.id), target.path],
@@ -90,7 +105,7 @@ extension GitSync {
         guard !settings.account.isEmpty else { return .failure(GHError(message: "Choose a GitHub account in Settings first")) }
         guard let gistsDir else { return .failure(GHError(message: "No storage root")) }
         let id: String
-        switch await GistCatalog.create(account: settings.account, file: file, description: description, isPublic: isPublic) {
+        switch await createGist(settings.account, file, description, isPublic) {
         case let .failure(error): return .failure(error)
         case let .success(created): id = created
         }
