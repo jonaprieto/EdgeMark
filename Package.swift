@@ -24,7 +24,7 @@ let package = Package(
             dependencies: ["EdgeExportLogic"],
             path: "Tests/EdgeExportLogicTests"
         ),
-        .target(name: "EdgeCrypto", path: "EdgeMark/Core/Crypto", sources: ["Bech32.swift", "AgeKeys.swift", "Age.swift"]),
+        .target(name: "EdgeCrypto", path: "EdgeMark/Core/Crypto", sources: ["Bech32.swift", "AgeKeys.swift", "Age.swift", "KeyStore.swift", "EncryptionSettings.swift", "KeySession.swift"]),
         .testTarget(
             name: "EdgeCryptoTests",
             dependencies: ["EdgeCrypto"],
