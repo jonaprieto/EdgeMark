@@ -494,6 +494,8 @@
   "encryption.lockedState": "Locked",
   "encryption.idleMinutes": "Lock when idle for",
   "encryption.lockNow": "Lock Encrypted Notes",
+  "encryption.lockOnLeave": "Lock when I leave an encrypted note",
+  "tooltip.encryption.lockOnLeave": "Going to a plain note or back to the list locks every encrypted note. Moving between encrypted notes does not.",
   "encryption.runSetupAgain": "Run Setup Again",
   "encryption.showRecoveryKey": "Show Recovery Key",
   "encryption.hideRecoveryKey": "Hide Recovery Key",

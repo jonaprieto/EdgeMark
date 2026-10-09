@@ -10,6 +10,9 @@ final class EncryptionSettingsTests: XCTestCase {
         XCTAssertFalse(settings.isSetUp)
         XCTAssertEqual(settings.store, .keychain)
         XCTAssertEqual(settings.idleMinutes, 10)
+        XCTAssertTrue(settings.lockOnLeave, "leaving an encrypted note locks unless turned off")
+        settings.lockOnLeave = false
+        XCTAssertFalse(EncryptionSettings(defaults: defaults).lockOnLeave)
         settings.recipient = TestKeys.recipientString
         settings.store = .protonPass
         settings.keyURI = "pass://abc/EdgeMark encryption key"

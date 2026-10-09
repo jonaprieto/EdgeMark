@@ -56,6 +56,8 @@ struct SecuritySettingsTab: View {
                 .monospacedDigit()
                 .frame(width: 50, alignment: .trailing)
         }
+        Toggle(l10n["encryption.lockOnLeave"], isOn: $settings.lockOnLeave)
+            .help(l10n["tooltip.encryption.lockOnLeave"])
         HStack {
             Button(l10n["encryption.lockNow"]) { session.lock() }
                 .disabled(!session.isUnlocked)

@@ -7,6 +7,9 @@ struct EditorScreen: View {
     @Environment(L10n.self) var l10n
     @State private var pendingEditorReload: String? = nil
     @State private var isFindBarShowing = false
+    /// The note this screen was opened for; `noteStore.selectedNote` has moved on by the
+    /// time the screen disappears.
+    @State private var shownNoteID: UUID?
     /// Gist holding the open note, for the header pill; nil for ordinary notes.
     @State private var gist: GitSync.GistInfo?
 
@@ -73,6 +76,8 @@ struct EditorScreen: View {
                 }
             }
         }
+        .onAppear { shownNoteID = noteStore.selectedNote?.id }
+        .onDisappear { lockAfterLeavingEncryptedNote() }
         .alert(
             l10n["alert.externalChange.title"],
             isPresented: Binding(
@@ -116,6 +121,22 @@ struct EditorScreen: View {
                 break
             }
             focusEditorForTyping(noteID: noteID, attempt: attempt + 1, heldFor: held)
+        }
+    }
+
+    /// Leaving an unlocked encrypted note for a plain note or a list ends the session, so
+    /// its text does not stay readable behind the user's back. Going on to another
+    /// encrypted note keeps it, or every step would ask for the key again. Deferred one
+    /// turn so the editor being removed has handed over its last keystrokes.
+    private func lockAfterLeavingEncryptedNote() {
+        guard EncryptionSettings.shared.lockOnLeave,
+              let left = noteStore.notes.first(where: { $0.id == shownNoteID }),
+              left.isEncrypted, !left.isLocked else { return }
+        let store = noteStore
+        DispatchQueue.main.async {
+            if store.selectedNote?.isEncrypted != true {
+                KeySession.shared.lock()
+            }
         }
     }
 

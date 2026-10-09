@@ -19,6 +19,8 @@ final class EncryptionSettings {
     var keyURI: String { didSet { defaults.set(keyURI, forKey: "encryption.keyURI") } }
     /// Minutes without reading or writing an encrypted note before the session locks.
     var idleMinutes: Double { didSet { defaults.set(idleMinutes, forKey: "encryption.idleMinutes") } }
+    /// Lock the session when the user leaves an encrypted note for a plain note or a list.
+    var lockOnLeave: Bool { didSet { defaults.set(lockOnLeave, forKey: "encryption.lockOnLeave") } }
     /// The one-time warning about plaintext left in git history has been shown.
     var historyWarningShown: Bool { didSet { defaults.set(historyWarningShown, forKey: "encryption.historyWarningShown") } }
 
@@ -30,6 +32,7 @@ final class EncryptionSettings {
         store = defaults.string(forKey: "encryption.store").flatMap(Store.init(rawValue:)) ?? .keychain
         keyURI = defaults.string(forKey: "encryption.keyURI") ?? ""
         idleMinutes = defaults.object(forKey: "encryption.idleMinutes") as? Double ?? 10
+        lockOnLeave = defaults.object(forKey: "encryption.lockOnLeave") as? Bool ?? true
         historyWarningShown = defaults.bool(forKey: "encryption.historyWarningShown")
     }
 
