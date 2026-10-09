@@ -12,7 +12,7 @@ let package = Package(
     targets: [
         .target(name: "EdgeSync", path: "EdgeMark/Core/Sync"),
         .testTarget(name: "EdgeSyncTests", dependencies: ["EdgeSync"], path: "Tests/EdgeSyncTests"),
-        .target(name: "EdgeStorageLogic", path: "EdgeMark/Core/Storage", sources: ["ImageCleanup.swift", "NoteText.swift", "NoteComplexity.swift", "GistTextFile.swift", "FileTypeStyle.swift", "NoteListBackgroundMenu.swift", "MermaidText.swift", "SyntaxLanguage.swift", "ListSelection.swift", "GistTrash.swift"]),
+        .target(name: "EdgeStorageLogic", path: "EdgeMark/Core/Storage", sources: ["ImageCleanup.swift", "NoteText.swift", "NoteComplexity.swift", "GistTextFile.swift", "FileTypeStyle.swift", "NoteListBackgroundMenu.swift", "MermaidText.swift", "SyntaxLanguage.swift", "ListSelection.swift", "GistTrash.swift", "EncryptedFileName.swift"]),
         .testTarget(
             name: "EdgeStorageLogicTests",
             dependencies: ["EdgeStorageLogic"],
@@ -24,7 +24,7 @@ let package = Package(
             dependencies: ["EdgeExportLogic"],
             path: "Tests/EdgeExportLogicTests"
         ),
-        .target(name: "EdgeCrypto", path: "EdgeMark/Core/Crypto", sources: ["Bech32.swift", "AgeKeys.swift", "Age.swift", "KeyStore.swift", "EncryptionSettings.swift", "KeySession.swift"]),
+        .target(name: "EdgeCrypto", path: "EdgeMark/Core/Crypto", sources: ["Bech32.swift", "AgeKeys.swift", "Age.swift", "KeyStore.swift", "EncryptionSettings.swift", "KeySession.swift", "EncryptedFile.swift"]),
         .testTarget(
             name: "EdgeCryptoTests",
             dependencies: ["EdgeCrypto"],
