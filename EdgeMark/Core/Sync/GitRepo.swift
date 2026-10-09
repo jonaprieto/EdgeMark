@@ -139,6 +139,33 @@ struct GitRepo: Equatable, Hashable {
     /// merge it nor write conflict markers into it.
     static let localAttributes = ["*.age binary"]
 
+    /// Gives every tracked file the modification date of the last commit that changed it,
+    /// so a gist file shows when it was last changed on GitHub and not when it was cloned
+    /// or pulled here. A tree with local changes is left alone: an edit keeps the time
+    /// it was made. A date only ever moves back (git writes a file later than its commit):
+    /// moving one forward would make a file saved here look changed on disk since.
+    /// Returns true when a date changed.
+    @discardableResult
+    func stampCommitDates() async -> Bool {
+        let status = await git("status", "--porcelain")
+        guard status.ok, status.stdout.isEmpty else { return false }
+        var changed = false
+        let files = await git("ls-files", "-z")
+        for file in files.stdout.split(separator: "\0").map(String.init) {
+            // ponytail: one `git log` per file; fine for a gist's few files.
+            let log = await git("log", "-1", "--format=%ct", "--", file)
+            guard let seconds = TimeInterval(log.stdout.trimmingCharacters(in: .whitespacesAndNewlines)) else { continue }
+            let path = url.appendingPathComponent(file).path
+            let date = Date(timeIntervalSince1970: seconds)
+            guard let current = (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date,
+                  current.timeIntervalSince(date) >= 1 else { continue }
+            if (try? FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: path)) != nil {
+                changed = true
+            }
+        }
+        return changed
+    }
+
     /// Appends the missing `lines` to `info/attributes` in the git dir. Like `info/exclude`
     /// it stays on this machine, so nothing is added to a gist's file list.
     func ensureLocalAttributes(_ lines: [String] = GitRepo.localAttributes) {

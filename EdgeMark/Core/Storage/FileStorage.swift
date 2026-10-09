@@ -1125,12 +1125,15 @@ enum FileStorage {
             if let (id, entry) = SidecarStore.shared.noteEntry(forPath: relativePath) {
                 let content = inGist ? text : NoteText.strippingLegacyFrontMatter(text)
                 let tags = encrypted ? [] : entry.tags.compactMap { TagColor(rawValue: $0) }
+                // A gist file is dated by the file itself, which sync stamps with the date
+                // of its last commit, so the list shows when it changed on GitHub.
+                let fileDate = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
                 return Note(
                     id: id,
                     title: inGist ? filename : extractTitle(from: content),
                     content: content,
                     createdAt: entry.createdAt,
-                    modifiedAt: entry.modifiedAt,
+                    modifiedAt: inGist ? fileDate ?? entry.modifiedAt : entry.modifiedAt,
                     savedAt: entry.savedAt,
                     folder: folder,
                     tags: tags,

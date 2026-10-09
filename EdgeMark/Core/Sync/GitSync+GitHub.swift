@@ -73,6 +73,7 @@ extension GitSync {
         if r.ok {
             GitRepo(url: target).ensureLocalExcludes(Self.gistExcludes)
             GitRepo(url: target).ensureLocalAttributes()
+            await GitRepo(url: target).stampCommitDates()
             SyncLog.log.info("[GitSync] cloned gist \(gist.id, privacy: .public) into \(name, privacy: .public)")
             return target
         } else {

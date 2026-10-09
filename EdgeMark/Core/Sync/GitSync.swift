@@ -50,6 +50,8 @@ final class GitSync {
     @ObservationIgnored private var lastPullAll: Date?
     /// Start of the last gist discovery; it runs at most hourly unless forced.
     @ObservationIgnored private var lastGistDiscovery: Date?
+    /// Gist clones whose files already carry their commit dates in this run.
+    @ObservationIgnored private var datedGists: Set<URL> = []
     /// Held verdicts per repo and path; an unchanged hash reuses the verdict without Jev.
     @ObservationIgnored private var verdictCache: [URL: [String: GuardVerdict]] = [:]
     /// Gist clones of the chosen account that the last successful listing no longer had
@@ -237,7 +239,14 @@ final class GitSync {
                 let before = await repo.head()
                 let r = await repo.pull(autostash: heldState(repo) != nil)
                 if r.ok {
-                    if await repo.head() != before { changed = true }
+                    let moved = await repo.head() != before
+                    if moved { changed = true }
+                    // A gist file shows the date of its last commit, so date the files a
+                    // pull brought, and once per run the ones cloned by an older version.
+                    if repo.url != rootRepo?.url, moved || !datedGists.contains(repo.url) {
+                        datedGists.insert(repo.url)
+                        if await repo.stampCommitDates() { changed = true }
+                    }
                     if await isPaused(repo) { return }
                     let now = Date()
                     lastSync[repo.url] = now

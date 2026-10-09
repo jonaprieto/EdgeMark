@@ -109,4 +109,48 @@ final class GitRepoTests: XCTestCase {
         let unpushed = await GitRepo(url: dir).hasUnpushedCommits()
         XCTAssertFalse(unpushed)
     }
+
+    func testStampCommitDatesUsesTheLastCommitOfEachFile() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let repo = GitRepo(url: work)
+        let old = Date(timeIntervalSince1970: 1_600_000_000)
+        TestGit.write("second\n", to: work.appendingPathComponent("second.md"))
+        _ = await TestGit.run(["add", "-A"], in: work)
+        setenv("GIT_COMMITTER_DATE", "1600000000 +0000", 1)
+        _ = await TestGit.run(["commit", "-q", "-m", "second"], in: work)
+        unsetenv("GIT_COMMITTER_DATE")
+
+        let changed = await repo.stampCommitDates()
+        XCTAssertTrue(changed)
+        XCTAssertEqual(mtime(work.appendingPathComponent("second.md")), old)
+        XCTAssertNotEqual(mtime(work.appendingPathComponent("note.md")), old, "each file gets its own commit")
+        let again = await repo.stampCommitDates()
+        XCTAssertFalse(again, "nothing left to change")
+    }
+
+    func testStampCommitDatesLeavesAModifiedTreeAlone() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let note = work.appendingPathComponent("note.md")
+        TestGit.write("# Note\n\nedited here\n", to: note)
+        let before = mtime(note)
+        let changed = await GitRepo(url: work).stampCommitDates()
+        XCTAssertFalse(changed)
+        XCTAssertEqual(mtime(note), before, "a local edit keeps the time it was made")
+    }
+
+    /// A file saved here and committed a moment later is older than its commit. Moving its
+    /// date forward would make it look changed on disk since the app last saved it.
+    func testStampCommitDatesNeverMovesADateForward() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let note = work.appendingPathComponent("note.md")
+        let earlier = Date(timeIntervalSince1970: 946_684_800)
+        try FileManager.default.setAttributes([.modificationDate: earlier], ofItemAtPath: note.path)
+        let changed = await GitRepo(url: work).stampCommitDates()
+        XCTAssertFalse(changed)
+        XCTAssertEqual(mtime(note), earlier)
+    }
+
+    private func mtime(_ url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+    }
 }
