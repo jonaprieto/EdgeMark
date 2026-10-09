@@ -143,8 +143,8 @@ final class AppSettings {
         case dark
     }
 
-    /// Appearance mode: system, light, or dark.
-    var appearanceMode: AppearanceMode = .system {
+    /// Appearance mode: system, light, or dark. Light until the user picks another.
+    var appearanceMode: AppearanceMode = .light {
         didSet {
             UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode")
             applyAppearance()
