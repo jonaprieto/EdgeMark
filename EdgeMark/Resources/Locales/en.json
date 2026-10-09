@@ -450,6 +450,7 @@
   "tooltip.sync.showRepo": "Shows the notes repository in Finder",
   "tooltip.sync.syncNow": "Pulls remote changes, then commits and pushes yours",
   "tooltip.updateGists": "Update gists from GitHub now",
+  "tooltip.encryptNote": "Encrypt this note",
   "tooltip.sync.unhideGist": "Clone and sync this gist again",
   "tooltip.sync.openOnGitHub": "Opens the notes repository on GitHub",
   "tooltip.sync.copyStatus": "Copies the git status of the notes repository",

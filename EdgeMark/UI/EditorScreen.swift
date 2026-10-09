@@ -162,6 +162,18 @@ struct EditorScreen: View {
 
                     PinButton()
 
+                    // The visible way to encrypt the open note; the row menu has it too.
+                    // An encrypted note shows a closed lock that ends the session.
+                    if !note.isEncrypted {
+                        HeaderIconButton(systemName: "lock.open", help: l10n["tooltip.encryptNote"]) {
+                            noteStore.requestEncrypt(note)
+                        }
+                    } else if !note.isLocked {
+                        HeaderIconButton(systemName: "lock.fill", help: l10n["encryption.lockNow"]) {
+                            KeySession.shared.lock()
+                        }
+                    }
+
                     // A locked note has no text to copy or export.
                     if !note.isLocked {
                         CopyMenuButton(note: note)
