@@ -104,7 +104,18 @@ enum FileStorage {
     /// Reloads a note's content + tags from disk after an external change is detected.
     static func reloadContent(for note: Note) -> (content: String, modifiedAt: Date, savedAt: Date, tags: [TagColor])? {
         let url = rootURL.appendingPathComponent(diskRelativePath(for: note))
-        guard let text = readText(at: url, folder: note.folder) else { return nil }
+        // A locked note has nothing to compare or reload; it is read when it is unlocked.
+        let text: String
+        var payloadTags: [TagColor] = []
+        if note.isEncrypted {
+            let body = decryptedText(at: url)
+            guard !note.isLocked, let plain = body.text else { return nil }
+            text = plain
+            payloadTags = body.tags
+        } else {
+            guard let plain = readText(at: url, folder: note.folder) else { return nil }
+            text = plain
+        }
         let diskDate = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date) ?? Date()
 
         // Body may still have EdgeMark's YAML if this note wasn't migrated yet: strip it.
@@ -113,7 +124,9 @@ enum FileStorage {
         let legacy = isGistFolder(note.folder) ? nil : NoteText.legacyFrontMatter(text)
         let content = legacy?.body ?? text
 
-        let tags: [TagColor] = if let entry = SidecarStore.shared.noteEntry(for: note.id) {
+        let tags: [TagColor] = if note.isEncrypted {
+            payloadTags
+        } else if let entry = SidecarStore.shared.noteEntry(for: note.id) {
             entry.tags.compactMap { TagColor(rawValue: $0) }
         } else {
             parseTagList(legacy?.metadata["tags"] ?? "")
@@ -154,7 +167,7 @@ enum FileStorage {
     }
 
     private static func fileStem(for note: Note) -> String {
-        ((note.savedFilename ?? note.filename) as NSString).deletingPathExtension
+        EncryptedFileName.stem(note.savedFilename ?? note.filename)
     }
 
     /// Asset dirs to rename when a note's file stem changes from `oldStem` to `newStem`:
@@ -301,7 +314,7 @@ enum FileStorage {
         if isGistFolder(note.folder) {
             let name = note.savedFilename ?? note.filename
             let currentURL = rootURL.appendingPathComponent("\(note.folder)/\(name)")
-            try Data(note.content.utf8).write(to: currentURL, options: .atomic)
+            try writeBody(note.content, of: note, to: currentURL)
             Task { @MainActor in GitSync.shared.noteActivity(at: currentURL) }
             upsertSidecarEntry(for: note, filename: name)
             let savedAt = (try? FileManager.default.attributesOfItem(atPath: currentURL.path))?[.modificationDate] as? Date
@@ -319,7 +332,7 @@ enum FileStorage {
             Log.storage.info("[FileStorage] filename conflict: \(newFilename, privacy: .public), keeping \(savedFilename, privacy: .public)")
             let currentRelative = note.folder.isEmpty ? savedFilename : "\(note.folder)/\(savedFilename)"
             let currentURL = rootURL.appendingPathComponent(currentRelative)
-            try Data(note.content.utf8).write(to: currentURL, options: .atomic)
+            try writeBody(note.content, of: note, to: currentURL)
             Task { @MainActor in GitSync.shared.noteActivity(at: currentURL) }
             upsertSidecarEntry(for: note, filename: savedFilename)
             return (filename: savedFilename, updatedContent: nil, savedAt: modificationDate(for: note) ?? Date())
@@ -336,8 +349,8 @@ enum FileStorage {
             }
 
             // Rename asset dir and rewrite image paths in body
-            let oldStem = (oldFilename as NSString).deletingPathExtension
-            let newStem = (newFilename as NSString).deletingPathExtension
+            let oldStem = EncryptedFileName.stem(oldFilename)
+            let newStem = EncryptedFileName.stem(newFilename)
             for pair in assetStemRenames(from: oldStem, to: newStem) {
                 let oldAsset = assetDirURL(stem: pair.old, folder: note.folder)
                 let newAsset = assetDirURL(stem: pair.new, folder: note.folder)
@@ -362,7 +375,7 @@ enum FileStorage {
 
         // Write body only — no YAML header
         let bodyToWrite = updatedContent ?? note.content
-        try Data(bodyToWrite.utf8).write(to: newURL, options: .atomic)
+        try writeBody(bodyToWrite, of: note, to: newURL)
         Task { @MainActor in GitSync.shared.noteActivity(at: newURL) }
 
         // Sync sidecar — use actual disk mtime as savedAt so the external-change
@@ -375,6 +388,113 @@ enum FileStorage {
 
         let savedAt = modificationDate(for: noteForSidecar) ?? Date()
         return (filename: newFilename, updatedContent: updatedContent, savedAt: savedAt)
+    }
+
+    // MARK: - Encrypted notes
+
+    /// True for a Markdown note file, plain (`x.md`) or encrypted (`x.md.age`).
+    private static func isMarkdownNote(_ url: URL) -> Bool {
+        url.pathExtension == "md" || EncryptedFileName.isEncryptedMarkdown(url.lastPathComponent)
+    }
+
+    /// Writes a note's body to `url`: plain UTF-8, or an age file for an encrypted note,
+    /// whose payload is the body with the note's tag line in front. A locked note has no
+    /// text in memory, so its file is left exactly as it is.
+    private static func writeBody(_ body: String, of note: Note, to url: URL) throws {
+        guard note.isEncrypted else {
+            try Data(body.utf8).write(to: url, options: .atomic)
+            return
+        }
+        guard !note.isLocked else { return }
+        guard let recipient = EncryptionSettings.shared.ageRecipient else { throw KeySessionError.notConfigured }
+        let payload = EncryptedTags.embed(note.tags.map(\.rawValue), in: body)
+        // No identity right after a lock: the edit is sealed anyway, see `EncryptedFile.write`.
+        if try EncryptedFile.write(payload, to: url, recipient: recipient, identity: KeySession.shared.identity) {
+            KeySession.shared.touch()
+        }
+    }
+
+    /// Text and tags of the encrypted file at `url`. No text while the session is locked;
+    /// no text and a reason when the file does not decrypt.
+    private static func decryptedText(at url: URL) -> (text: String?, tags: [TagColor], error: String?) {
+        guard let identity = KeySession.shared.identity else { return (nil, [], nil) }
+        do {
+            let payload = try EncryptedFile.read(at: url, identity: identity)
+            let parts = EncryptedTags.extract(from: payload)
+            return (parts.text, parts.tags.compactMap { TagColor(rawValue: $0) }, nil)
+        } catch let error as AgeError {
+            return (nil, [], String(describing: error))
+        } catch {
+            return (nil, [], "unreadable")
+        }
+    }
+
+    /// `note` with its text and tags loaded, for a session that was just unlocked. It stays
+    /// locked, with `lockError` set, when its file does not decrypt.
+    static func unlocked(_ note: Note) -> Note {
+        var note = note
+        // A note in the trash is a file of `.trash/`, not of its original folder.
+        let url = note.trashedAt != nil
+            ? trashURL.appendingPathComponent(note.savedFilename ?? note.filename)
+            : urlForNote(note)
+        let body = decryptedText(at: url)
+        note.isLocked = body.text == nil
+        note.lockError = body.error
+        guard let text = body.text else { return note }
+        note.content = note.isGistFile ? text : NoteText.strippingLegacyFrontMatter(text)
+        note.tags = body.tags
+        if !note.isGistFile {
+            note.title = extractTitle(from: note.content)
+        }
+        // A file that arrived by pull while the note was locked is newer than `savedAt`;
+        // the text just read is that file's, so it is not an external change.
+        if let mtime = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date {
+            note.savedAt = mtime
+        }
+        return note
+    }
+
+    /// Turns the plaintext note into `<name>.age`, its tags going into the ciphertext and
+    /// out of the sidecar. The plaintext file is removed only after the new file decrypted
+    /// back to the same payload with `identity`.
+    static func encryptNote(_ note: Note, recipient: AgeRecipient, identity: AgeIdentity) throws -> (filename: String, savedAt: Date) {
+        // Sealing an encrypted note again would replace its file with what is in memory,
+        // which is nothing for a locked one.
+        guard !note.isEncrypted else { throw CocoaError(.fileWriteFileExists) }
+        let payload = EncryptedTags.embed(note.tags.map(\.rawValue), in: note.content)
+        let url = try EncryptedFile.seal(payload, at: urlForNote(note), recipient: recipient, identity: identity)
+        return (url.lastPathComponent, noteFileReplaced(note, by: url, tags: []))
+    }
+
+    /// The reverse: an unlocked encrypted note becomes a plaintext file again, and its
+    /// tags go back into the sidecar.
+    static func decryptNote(_ note: Note) throws -> (filename: String, savedAt: Date) {
+        // A locked note has no text in memory: unsealing it would write an empty file
+        // and delete the real one.
+        guard note.isEncrypted, !note.isLocked else { throw KeySessionError.notConfigured }
+        let url = try EncryptedFile.unseal(note.content, at: urlForNote(note))
+        return (url.lastPathComponent, noteFileReplaced(note, by: url, tags: note.tags.map(\.rawValue)))
+    }
+
+    /// Points the note's sidecar entry at its new file, with `tags`, and schedules the
+    /// sync. Returns the new file's modification date.
+    private static func noteFileReplaced(_ note: Note, by url: URL, tags: [String]) -> Date {
+        let mtime = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date ?? Date()
+        if var entry = SidecarStore.shared.noteEntry(for: note.id) {
+            entry.path = note.folder.isEmpty ? url.lastPathComponent : "\(note.folder)/\(url.lastPathComponent)"
+            entry.savedAt = mtime
+            entry.tags = tags
+            SidecarStore.shared.upsertNote(entry, for: note.id)
+            try? SidecarStore.shared.save()
+        }
+        Task { @MainActor in GitSync.shared.noteActivity(at: url) }
+        return mtime
+    }
+
+    /// Name of a note's file in `.trash/`: `<UUID>_<Title>.md`, plus `.age` when encrypted.
+    static func trashFilename(for note: Note) -> String {
+        let name = "\(note.id.uuidString)_\(sanitizeForFilename(note.title)).md"
+        return note.isEncrypted ? name + EncryptedFileName.suffix : name
     }
 
     /// Update (or insert) the sidecar entry for a note after writing its file.
@@ -390,7 +510,7 @@ enum FileStorage {
                 createdAt: note.createdAt,
                 modifiedAt: note.modifiedAt,
                 savedAt: savedAt,
-                tags: note.tags.map(\.rawValue),
+                tags: note.isEncrypted ? [] : note.tags.map(\.rawValue),
             ),
             for: note.id,
         )
@@ -437,12 +557,15 @@ enum FileStorage {
 
     /// `name`, or `name` with " 2", " 3"... before its extension, whichever is not taken in `dir`.
     static func unusedFileName(_ name: String, in dir: URL) -> String {
-        let stem = (name as NSString).deletingPathExtension
-        let ext = (name as NSString).pathExtension
+        let encrypted = EncryptedFileName.isEncrypted(name)
+        let plain = EncryptedFileName.plainName(name)
+        let stem = (plain as NSString).deletingPathExtension
+        let ext = (plain as NSString).pathExtension
         var candidate = name
         var counter = 2
         while FileManager.default.fileExists(atPath: dir.appendingPathComponent(candidate).path) {
             candidate = ext.isEmpty ? "\(stem) \(counter)" : "\(stem) \(counter).\(ext)"
+            if encrypted { candidate += EncryptedFileName.suffix }
             counter += 1
         }
         return candidate
@@ -494,8 +617,8 @@ enum FileStorage {
         try FileManager.default.moveItem(at: oldURL, to: newURL)
 
         // Move asset dir alongside note — rename stem too if filename changed.
-        let oldStem = (actualFilename as NSString).deletingPathExtension
-        let newStem = (destFilename as NSString).deletingPathExtension
+        let oldStem = EncryptedFileName.stem(actualFilename)
+        let newStem = EncryptedFileName.stem(destFilename)
         var stemPairs = [(old: NoteText.safeAssetStem(oldStem), new: NoteText.safeAssetStem(newStem))]
         if oldStem != stemPairs[0].old {
             stemPairs.append((old: oldStem, new: newStem))
@@ -527,16 +650,22 @@ enum FileStorage {
     /// Also moves the co-located asset directory to `.trash/.<UUID>_<Title>/`.
     static func trashNote(_ note: Note) throws {
         try ensureTrashExists()
-        let trashFilename = "\(note.id.uuidString)_\(sanitizeForFilename(note.title)).md"
+        let trashFilename = Self.trashFilename(for: note)
         let destURL = trashURL.appendingPathComponent(trashFilename)
-
-        // Write body only to .trash/
-        try Data(note.content.utf8).write(to: destURL, options: .atomic)
-
-        // Remove original file
         let actualFilename = note.savedFilename ?? note.filename
         let oldRelative = note.folder.isEmpty ? actualFilename : "\(note.folder)/\(actualFilename)"
-        try? FileManager.default.removeItem(at: rootURL.appendingPathComponent(oldRelative))
+        let originalURL = rootURL.appendingPathComponent(oldRelative)
+
+        if note.isEncrypted {
+            // The ciphertext moves as it is, so no key is needed. Edits of an unlocked
+            // note that are not on disk yet are sealed first.
+            try writeBody(note.content, of: note, to: originalURL)
+            try FileManager.default.moveItem(at: originalURL, to: destURL)
+        } else {
+            // Write body only to .trash/
+            try Data(note.content.utf8).write(to: destURL, options: .atomic)
+            try? FileManager.default.removeItem(at: originalURL)
+        }
         // The copy above lives in the root's `.trash/`, outside the clone, so the gist sees
         // a deletion; schedule its commit and push now rather than at the next edit.
         if isGistFolder(note.folder) {
@@ -554,7 +683,7 @@ enum FileStorage {
                 trashedAt: note.trashedAt ?? Date(),
                 createdAt: note.createdAt,
                 modifiedAt: note.modifiedAt,
-                tags: note.tags.map(\.rawValue),
+                tags: note.isEncrypted ? [] : note.tags.map(\.rawValue),
             ),
             for: note.id,
         )
@@ -562,7 +691,7 @@ enum FileStorage {
 
         // Move asset dir to trash: .My-Note/ → .trash/.<UUID>_My-Note/. A note may have
         // both a safe-stem dir and one from before stems were safe; both go to the same place.
-        let trashStem = (trashFilename as NSString).deletingPathExtension
+        let trashStem = EncryptedFileName.stem(trashFilename)
         let dstAsset = assetDirURL(stem: trashStem, folder: "", inTrash: true)
         var stems = assetStems(for: note)
         let titleStem = sanitizeForFilename(note.title)
@@ -598,7 +727,14 @@ enum FileStorage {
         let destURL = rootURL.appendingPathComponent(destRelative)
 
         // Write body only
-        try Data(restored.content.utf8).write(to: destURL, options: .atomic)
+        if restored.isEncrypted, let savedFilename = note.savedFilename {
+            // The ciphertext moves back as it is; a locked note has no text to write.
+            try FileManager.default.moveItem(at: trashURL.appendingPathComponent(savedFilename), to: destURL)
+        } else if restored.isEncrypted {
+            try writeBody(restored.content, of: restored, to: destURL)
+        } else {
+            try Data(restored.content.utf8).write(to: destURL, options: .atomic)
+        }
         if restored.isGistFile {
             Task { @MainActor in GitSync.shared.noteActivity(at: destURL) }
         }
@@ -612,7 +748,7 @@ enum FileStorage {
                 createdAt: note.createdAt,
                 modifiedAt: note.modifiedAt,
                 savedAt: savedAt,
-                tags: note.tags.map(\.rawValue),
+                tags: note.isEncrypted ? [] : note.tags.map(\.rawValue),
             ),
             for: note.id,
         )
@@ -625,7 +761,7 @@ enum FileStorage {
             try? FileManager.default.removeItem(at: trashURL.appendingPathComponent(savedFilename))
 
             // Restore asset dir: .trash/.<UUID>_Title/ → <folder>/.Title/
-            let trashStem = (savedFilename as NSString).deletingPathExtension
+            let trashStem = EncryptedFileName.stem(savedFilename)
             let restoredStem = NoteText.safeAssetStem(sanitizeForFilename(note.title))
             let srcAsset = assetDirURL(stem: trashStem, folder: "", inTrash: true)
             let dstAsset = assetDirURL(stem: restoredStem, folder: note.folder)
@@ -644,7 +780,7 @@ enum FileStorage {
             try FileManager.default.removeItem(at: trashURL.appendingPathComponent(savedFilename))
 
             // Delete asset dir: .trash/.<UUID>_Title/
-            let trashStem = (savedFilename as NSString).deletingPathExtension
+            let trashStem = EncryptedFileName.stem(savedFilename)
             let assetDir = assetDirURL(stem: trashStem, folder: "", inTrash: true)
             if FileManager.default.fileExists(atPath: assetDir.path) {
                 try? FileManager.default.removeItem(at: assetDir)
@@ -664,7 +800,7 @@ enum FileStorage {
             options: [.skipsHiddenFiles],
         )
         let notes = contents.compactMap { url -> Note? in
-            guard url.pathExtension == "md", !url.hasDirectoryPath else { return nil }
+            guard isMarkdownNote(url), !url.hasDirectoryPath else { return nil }
             return readNote(at: url, folder: "")
         }
         let count = notes.count
@@ -851,7 +987,7 @@ enum FileStorage {
         let basePath = directoryURL.path
         for case let url as URL in enumerator {
             let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
-            if !isDir, url.pathExtension == "md" {
+            if !isDir, isMarkdownNote(url) {
                 // Compute the folder relative to the trashed folder root
                 let parentDir = url.deletingLastPathComponent().path
                 let relativePart = if parentDir.count > basePath.count {
@@ -877,12 +1013,14 @@ enum FileStorage {
             options: [.skipsHiddenFiles],
         )
         return contents.compactMap { url -> Note? in
-            if url.pathExtension == "md" {
+            if isMarkdownNote(url) {
                 return readNote(at: url, folder: folder)
             }
             // A gist can hold code and data files too; small UTF-8 ones are listed as
-            // plain-text notes.
-            guard isGistFolder(folder), GistTextFile.isEditableText(at: url) else { return nil }
+            // plain-text notes, and encrypted ones whatever their size.
+            guard isGistFolder(folder),
+                  EncryptedFileName.isEncrypted(url.lastPathComponent) || GistTextFile.isEditableText(at: url)
+            else { return nil }
             return readNote(at: url, folder: folder)
         }
     }
@@ -910,8 +1048,34 @@ enum FileStorage {
     }
 
     private static func readNote(at url: URL, folder: String) -> Note? {
-        guard let text = readText(at: url, folder: folder) else { return nil }
         let filename = url.lastPathComponent
+        guard EncryptedFileName.isEncrypted(filename) else {
+            guard let text = readText(at: url, folder: folder) else { return nil }
+            return makeNote(at: url, folder: folder, text: text)
+        }
+        // An encrypted file loads without its text while the session is locked, or when
+        // it does not decrypt. Its title then comes from the file name, and it has no
+        // tags: those are inside the ciphertext, never in the sidecar.
+        let body = decryptedText(at: url)
+        var note = makeNote(at: url, folder: folder, text: body.text ?? "")
+        note.isEncrypted = true
+        note.isLocked = body.text == nil
+        note.lockError = body.error
+        note.tags = body.tags
+        if note.isGistFile {
+            note.title = EncryptedFileName.plainName(note.title)
+        } else if note.isLocked {
+            note.title = EncryptedFileName.lockedTitle(fileName: filename, inTrash: url.path.hasPrefix(trashURL.path))
+        }
+        return note
+    }
+
+    /// Builds the note for the file at `url` whose text is `text`, taking id, dates and
+    /// tags from the sidecar, from legacy front matter, or from the file itself. The tags
+    /// of an encrypted file are not read here: `readNote` takes them from the ciphertext.
+    private static func makeNote(at url: URL, folder: String, text: String) -> Note {
+        let filename = url.lastPathComponent
+        let encrypted = EncryptedFileName.isEncrypted(filename)
 
         // Determine relative path for sidecar lookup.
         // Trash files live under trashURL, active notes under rootURL.
@@ -943,7 +1107,7 @@ enum FileStorage {
                 // A trashed gist file keeps its original name as title, so it is restored under it.
                 let fromGist = isGistFolder(resolvedFolder)
                 let content = fromGist ? text : NoteText.strippingLegacyFrontMatter(text) // strip any residual YAML
-                let tags = entry.tags.compactMap { TagColor(rawValue: $0) }
+                let tags = encrypted ? [] : entry.tags.compactMap { TagColor(rawValue: $0) }
                 return Note(
                     id: id,
                     title: fromGist ? (entry.originalPath as NSString).lastPathComponent : extractTitle(from: content),
@@ -960,7 +1124,7 @@ enum FileStorage {
         } else {
             if let (id, entry) = SidecarStore.shared.noteEntry(forPath: relativePath) {
                 let content = inGist ? text : NoteText.strippingLegacyFrontMatter(text)
-                let tags = entry.tags.compactMap { TagColor(rawValue: $0) }
+                let tags = encrypted ? [] : entry.tags.compactMap { TagColor(rawValue: $0) }
                 return Note(
                     id: id,
                     title: inGist ? filename : extractTitle(from: content),
@@ -983,7 +1147,7 @@ enum FileStorage {
             let created = metadata["created"].flatMap { dateFormatter.date(from: $0) } ?? Date()
             let modified = metadata["modified"].flatMap { dateFormatter.date(from: $0) } ?? Date()
             let trashed = metadata["trashed"].flatMap { dateFormatter.date(from: $0) }
-            let tags = parseTagList(metadata["tags"] ?? "")
+            let tags = encrypted ? [] : parseTagList(metadata["tags"] ?? "")
             // `folder:` is the return address EdgeMark wrote for trashed notes only; an
             // active note stays in the folder its file is in.
             let resolvedFolder = isTrash ? (metadata["folder"] ?? folder) : folder
@@ -1109,7 +1273,7 @@ enum FileStorage {
     private static func resolveDuplicateFilenames(_ notes: [Note]) throws -> [Note] {
         var groups: [String: [Int]] = [:]
         // Gist files keep their names (see `isGistFolder`), so they are never renamed here.
-        for (i, note) in notes.enumerated() where !isGistFolder(note.folder) {
+        for (i, note) in notes.enumerated() where !isGistFolder(note.folder) && !note.isEncrypted {
             let key = "\(note.folder)/\(note.filename.lowercased())"
             groups[key, default: []].append(i)
         }

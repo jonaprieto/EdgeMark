@@ -25,10 +25,21 @@ struct Note: Identifiable {
     /// Used to detect renames when the title changes.
     var savedFilename: String?
 
+    /// True for a note stored as an age file (`<name>.age`).
+    var isEncrypted: Bool
+
+    /// True for an encrypted note whose text is not in memory: the key session is locked,
+    /// or the file did not decrypt (`lockError` then says why). `content` is empty.
+    var isLocked: Bool
+
+    /// Why the file did not decrypt: an `AgeError` case name, or `unreadable`.
+    var lockError: String?
+
     /// Filename derived from sanitized title: "Title.md". A gist file's title is its file
-    /// name (see `isGistFile`), so it is the filename as is.
+    /// name (see `isGistFile`), so it is the filename as is. An encrypted note adds `.age`.
     var filename: String {
-        isGistFile ? title : "\(FileStorage.sanitizeForFilename(title)).md"
+        let name = isGistFile ? title : "\(FileStorage.sanitizeForFilename(title)).md"
+        return isEncrypted ? name + EncryptedFileName.suffix : name
     }
 
     /// True for a file inside `Gists/`. Its title is the file name rather than its first
@@ -74,6 +85,8 @@ struct Note: Identifiable {
         tags: [TagColor] = [],
         trashedAt: Date? = nil,
         savedFilename: String? = nil,
+        isEncrypted: Bool = false,
+        isLocked: Bool = false,
     ) {
         self.id = id
         self.title = title
@@ -85,6 +98,8 @@ struct Note: Identifiable {
         self.tags = tags
         self.trashedAt = trashedAt
         self.savedFilename = savedFilename
+        self.isEncrypted = isEncrypted
+        self.isLocked = isLocked
     }
 
     /// Compare all UI-visible properties. Exclude savedFilename (transient storage metadata).
@@ -97,6 +112,8 @@ struct Note: Identifiable {
             && lhs.folder == rhs.folder
             && lhs.tags == rhs.tags
             && lhs.trashedAt == rhs.trashedAt
+            && lhs.isEncrypted == rhs.isEncrypted
+            && lhs.isLocked == rhs.isLocked
     }
 }
 
