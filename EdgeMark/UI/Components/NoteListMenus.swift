@@ -307,29 +307,50 @@ enum NoteListMenus {
         tagsItem.submenu = tagsSubmenu(for: note, noteStore: noteStore, appSettings: AppSettings.shared)
         menu.addItem(tagsItem)
 
-        menu.addItem(.separator())
-
-        menu.addActionItem(title: l10n["common.copyPlainText"], icon: "doc.on.doc") {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(note.plainText, forType: .string)
-        }
-
-        menu.addActionItem(title: l10n["common.copyMarkdown"], icon: "doc.richtext") {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(note.content, forType: .string)
-        }
-
-        menu.addActionItem(title: l10n["common.copyRTF"], icon: "textformat") {
-            let pb = NSPasteboard.general
-            pb.clearContents()
-            if let rtf = note.rtfData {
-                pb.setData(rtf, forType: .rtf)
-            } else {
-                pb.setString(note.plainText, forType: .string)
+        if note.isEncrypted {
+            menu.addActionItem(title: l10n["encryption.decryptPermanently"], icon: "lock.open") {
+                noteStore.decryptPermanently(note)
+            }
+        } else {
+            menu.addActionItem(title: l10n["encryption.encrypt"], icon: "lock") {
+                noteStore.requestEncrypt(note)
             }
         }
 
         menu.addItem(.separator())
+
+        // A locked note has no text in memory to copy. The actions look the note up when
+        // clicked, since the note may have locked after the menu was built.
+        let noteID = note.id
+        let liveNote = { () -> Note? in
+            noteStore.notes.first(where: { $0.id == noteID && !$0.isLocked })
+        }
+        if !note.isLocked {
+            menu.addActionItem(title: l10n["common.copyPlainText"], icon: "doc.on.doc") {
+                guard let note = liveNote() else { return }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(note.plainText, forType: .string)
+            }
+
+            menu.addActionItem(title: l10n["common.copyMarkdown"], icon: "doc.richtext") {
+                guard let note = liveNote() else { return }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(note.content, forType: .string)
+            }
+
+            menu.addActionItem(title: l10n["common.copyRTF"], icon: "textformat") {
+                guard let note = liveNote() else { return }
+                let pb = NSPasteboard.general
+                pb.clearContents()
+                if let rtf = note.rtfData {
+                    pb.setData(rtf, forType: .rtf)
+                } else {
+                    pb.setString(note.plainText, forType: .string)
+                }
+            }
+
+            menu.addItem(.separator())
+        }
 
         menu.addActionItem(title: l10n["common.showInFinder"], icon: "folder") {
             NSWorkspace.shared.activateFileViewerSelecting([
@@ -337,12 +358,14 @@ enum NoteListMenus {
             ])
         }
 
-        menu.addActionItem(title: l10n["export.markdown"], icon: "square.and.arrow.up") {
-            NoteExporter.exportMarkdown(note: note, noteStore: noteStore)
-        }
+        if !note.isLocked {
+            menu.addActionItem(title: l10n["export.markdown"], icon: "square.and.arrow.up") {
+                NoteExporter.exportMarkdown(note: note, noteStore: noteStore)
+            }
 
-        menu.addActionItem(title: l10n["export.pdf"], icon: "doc.richtext") {
-            NoteExporter.exportPDF(note: note, noteStore: noteStore)
+            menu.addActionItem(title: l10n["export.pdf"], icon: "doc.richtext") {
+                NoteExporter.exportPDF(note: note, noteStore: noteStore)
+            }
         }
 
         addGistItems(to: menu, note: note, noteStore: noteStore, l10n: l10n)

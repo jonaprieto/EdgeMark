@@ -56,6 +56,15 @@ final class PeekCoordinator {
             self?.dismissNow()
         }
 
+        // The peek shows a copy of the note, so a lock must close it.
+        NotificationCenter.default.addObserver(
+            forName: .keySessionDidLock,
+            object: nil,
+            queue: .main,
+        ) { [weak self] _ in
+            self?.dismissNow()
+        }
+
         // Dismiss when a preview-related toggle is flipped off in Settings.
         // Only dismiss the preview that the just-disabled trigger owns:
         // hover off → dismiss hover-driven; space off → dismiss keyboard-driven.

@@ -460,6 +460,23 @@ final class SidePanelController: NSWindowController {
         cancelHideTimer()
     }
 
+    /// Reloads notes and sidecar from disk after a pull changed files.
+    private func reloadNotesAfterPull() {
+        try? SidecarStore.shared.load()
+        noteStore.loadFromDisk()
+        // loadFromDisk replaces `notes` but leaves `selectedNote` as the old copy.
+        // Re-select the open note by id so the editor tracks the pulled version.
+        if let open = noteStore.selectedNote,
+           let fresh = noteStore.notes.first(where: { $0.id == open.id })
+        {
+            noteStore.selectedNote = fresh
+            if !fresh.isLocked, fresh.content != open.content {
+                noteStore.onNeedEditorReload?(fresh.content)
+            }
+        }
+        noteStore.checkForExternalChanges()
+    }
+
     // MARK: - Show / Hide
 
     func showPanel(on screen: NSScreen? = nil) {
@@ -482,24 +499,15 @@ final class SidePanelController: NSWindowController {
             GitSync.shared.onPullFinished = { [weak self] changed in
                 guard changed, let self else { return }
                 // Edits typed during the pull are not on disk; a full reload would drop
-                // them. Only check per note, which prompts if the open note changed too.
+                // them. Only check per note, which prompts if the open note changed too,
+                // and owe the reload to the store: it runs once nothing is dirty, so a
+                // note another Mac encrypted does not stay plain here and get rewritten.
                 guard !noteStore.hasDirtyNotes else {
+                    noteStore.owedReload = { [weak self] in self?.reloadNotesAfterPull() }
                     noteStore.checkForExternalChanges()
                     return
                 }
-                try? SidecarStore.shared.load()
-                noteStore.loadFromDisk()
-                // loadFromDisk replaces `notes` but leaves `selectedNote` as the old copy.
-                // Re-select the open note by id so the editor tracks the pulled version.
-                if let open = noteStore.selectedNote,
-                   let fresh = noteStore.notes.first(where: { $0.id == open.id })
-                {
-                    noteStore.selectedNote = fresh
-                    if fresh.content != open.content {
-                        noteStore.onNeedEditorReload?(fresh.content)
-                    }
-                }
-                noteStore.checkForExternalChanges()
+                reloadNotesAfterPull()
             }
             Task { await GitSync.shared.pullAll(force: false) }
         }

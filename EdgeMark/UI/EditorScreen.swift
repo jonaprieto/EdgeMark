@@ -24,7 +24,10 @@ struct EditorScreen: View {
         ) {
             headerContent
         } content: {
-            if let note = noteStore.selectedNote {
+            if let note = noteStore.selectedNote, note.isLocked {
+                // No editor while the text is not in memory: it would save emptiness.
+                LockedNoteView(note: note)
+            } else if let note = noteStore.selectedNote {
                 EditorModeChooser(content: note.content, isPlainTextFile: note.isPlainTextFile) {
                     MarkdownEditorView(
                         noteID: note.id,
@@ -38,6 +41,7 @@ struct EditorScreen: View {
                         showFindBar: $isFindBarShowing,
                         onNavigateNext: { noteStore.navigateToNextNote(sortedBy: appSettings) },
                         onNavigatePrevious: { noteStore.navigateToPreviousNote(sortedBy: appSettings) },
+                        isEncrypted: note.isEncrypted,
                     )
                 } plain: {
                     PlainTextNoteEditor(
@@ -50,6 +54,7 @@ struct EditorScreen: View {
                         showsBanner: !note.isPlainTextFile,
                         language: note.isPlainTextFile
                             ? SyntaxLanguage.language(forFileName: note.title, content: note.content) : nil,
+                        isEncrypted: note.isEncrypted,
                     )
                 }
                 .onAppear {
@@ -157,9 +162,12 @@ struct EditorScreen: View {
 
                     PinButton()
 
-                    CopyMenuButton(note: note)
+                    // A locked note has no text to copy or export.
+                    if !note.isLocked {
+                        CopyMenuButton(note: note)
 
-                    ExportMenuButton(note: note)
+                        ExportMenuButton(note: note)
+                    }
 
                     // Moves to Trash like the note list's Delete, so no confirmation, unless
                     // it is the last file of a gist (see `trashItems`).

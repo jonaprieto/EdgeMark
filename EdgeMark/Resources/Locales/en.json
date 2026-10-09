@@ -506,5 +506,10 @@
   "encryption.wizard.verified": "The key works",
   "encryption.wizard.facts.keychain": "The key lives in the login Keychain of this Mac. If both it and the recovery key are lost, the encrypted notes cannot be opened.",
   "encryption.wizard.facts.format": "Encrypted notes are standard age files. With the key they open anywhere: age -d -i key.txt Note.md.age",
-  "encryption.wizard.done": "Done"
+  "encryption.wizard.done": "Done",
+  "encryption.decryptPermanently": "Decrypt Permanently",
+  "encryption.unlock": "Unlock",
+  "encryption.locked.title": "This note is encrypted",
+  "encryption.tooltip.locked": "Encrypted, locked",
+  "encryption.tooltip.unlocked": "Encrypted, unlocked"
 }

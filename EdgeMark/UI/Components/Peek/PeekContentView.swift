@@ -20,7 +20,9 @@ struct PeekContentView: View {
 
     @ViewBuilder
     private func notePreview(_ note: Note) -> some View {
-        if note.isPlainTextFile {
+        if note.isLocked {
+            LockedNotePlaceholder()
+        } else if note.isPlainTextFile {
             // Code and data files are shown as they are, coloured like in their editor.
             PlainTextView(
                 model: PlainTextEditorModel(noteID: note.id),
@@ -130,7 +132,9 @@ struct PeekContentView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    TagDotsView(tags: note.tags)
+                    if !note.isLocked {
+                        TagDotsView(tags: note.tags)
+                    }
                     Text(note.title.isEmpty ? l10n["common.untitled"] : note.title)
                         .font(.body)
                         .foregroundStyle(.primary)

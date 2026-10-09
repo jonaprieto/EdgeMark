@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var localeObserver: Any?
     private var storageSubmenu: NSMenu?
     private var storageMenuItem: NSMenuItem?
+    private var lockMenuItem: NSMenuItem?
 
     // MARK: - Updates
 
@@ -167,6 +168,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         storageMenuItem = storageItem
         populateStorageSubmenu()
         menu.addItem(storageItem)
+
+        // Shown once encryption is set up; enabled while the session is unlocked.
+        let lockItem = NSMenuItem(
+            title: l10n["encryption.lockNow"],
+            action: #selector(lockEncryptedNotes),
+            keyEquivalent: "",
+        )
+        lockItem.isHidden = !EncryptionSettings.shared.isSetUp
+        lockMenuItem = lockItem
+        menu.addItem(lockItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -348,6 +359,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.terminate(nil)
     }
 
+    @objc func lockEncryptedNotes() {
+        KeySession.shared.lock()
+    }
+
     // MARK: - Auto-Update
 
     func performUpdateCheck(source: UpdateState.Source) async {
@@ -463,11 +478,20 @@ extension AppDelegate: NSMenuDelegate {
     func menuWillOpen(_: NSMenu) {
         Log.app.debug("[MenuBar] menu opened — pausing edge detector")
         populateStorageSubmenu()
+        lockMenuItem?.isHidden = !EncryptionSettings.shared.isSetUp
         panelController?.edgeDetector.menuWillOpen()
     }
 
     func menuDidClose(_: NSMenu) {
         Log.app.debug("[MenuBar] menu closed — resuming edge detector")
         panelController?.edgeDetector.menuDidClose()
+    }
+}
+
+// MARK: - Menu Validation
+
+extension AppDelegate: NSMenuItemValidation {
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        item.action == #selector(lockEncryptedNotes) ? KeySession.shared.isUnlocked : true
     }
 }

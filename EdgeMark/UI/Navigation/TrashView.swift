@@ -95,6 +95,11 @@ struct TrashView: View {
             }
         }
         .clipped()
+        .onReceive(NotificationCenter.default.publisher(for: .keySessionDidLock)) { _ in
+            if previewingNote?.isEncrypted == true {
+                closeNotePreview()
+            }
+        }
     }
 
     // MARK: - Trash List
@@ -257,7 +262,11 @@ struct TrashView: View {
             }
         } content: {
             if let note = previewingNote {
-                ReadOnlyMarkdownView(content: note.content)
+                if note.isLocked {
+                    LockedNotePlaceholder()
+                } else {
+                    ReadOnlyMarkdownView(content: note.content)
+                }
             }
         }
     }

@@ -17,6 +17,9 @@ struct PlainTextNoteEditor: View {
     /// Latched at init, like `MarkdownEditorView.stableNoteID`: an animating-out editor
     /// may be re-rendered with the next note's data, but must keep saving its own note.
     @State private var model: PlainTextEditorModel
+    /// Identity for `NoteStore.setFlushEditor`, so an outgoing editor leaves the incoming one's closure alone.
+    @State private var flushToken = UUID()
+    @Environment(NoteStore.self) private var noteStore
 
     init(
         noteID: UUID,
@@ -25,13 +28,14 @@ struct PlainTextNoteEditor: View {
         pendingReload: Binding<String?>,
         showsBanner: Bool = true,
         language: String? = nil,
+        isEncrypted: Bool = false,
     ) {
         self.initialContent = initialContent
         self.showsBanner = showsBanner
         self.language = language
         self.onContentChanged = onContentChanged
         _pendingReload = pendingReload
-        _model = State(initialValue: PlainTextEditorModel(noteID: noteID))
+        _model = State(initialValue: PlainTextEditorModel(noteID: noteID, isEncrypted: isEncrypted))
     }
 
     var body: some View {
@@ -54,6 +58,8 @@ struct PlainTextNoteEditor: View {
         }
         .onAppear {
             model.onSave = onContentChanged
+            let model = model
+            noteStore.setFlushEditor(owner: flushToken) { model.flush() }
         }
         .onChange(of: pendingReload) { _, newContent in
             guard let newContent else { return }
@@ -61,6 +67,7 @@ struct PlainTextNoteEditor: View {
             pendingReload = nil
         }
         .onDisappear {
+            noteStore.clearFlushEditor(owner: flushToken)
             model.flush()
         }
     }
@@ -82,13 +89,20 @@ final class PlainTextEditorModel: NSObject, NSTextViewDelegate {
     /// Whether the text currently carries syntax colours.
     private var isHighlighted = false
 
-    init(noteID: UUID) {
+    /// Whether the note is encrypted, so typing keeps the key session from idling out.
+    let isEncrypted: Bool
+
+    init(noteID: UUID, isEncrypted: Bool = false) {
         self.noteID = noteID
+        self.isEncrypted = isEncrypted
     }
 
     func textDidChange(_: Notification) {
         hasEdits = true
         textVersion += 1
+        if isEncrypted {
+            KeySession.shared.touch()
+        }
         saveDebouncer.call { [weak self] in self?.flush() }
         if language != nil {
             highlightDebouncer.call { [weak self] in self?.highlight() }

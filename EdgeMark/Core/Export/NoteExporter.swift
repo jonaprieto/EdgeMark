@@ -19,6 +19,7 @@ enum NoteExporter {
     /// copied next to it into `<exported stem>-images/` and the links rewritten to match.
     static func exportMarkdown(note: Note, noteStore: NoteStore) {
         let current = currentNote(note, noteStore: noteStore)
+        guard !current.isLocked else { return NSSound.beep() }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
         panel.nameFieldStringValue = savedFilename(of: current)
@@ -80,6 +81,7 @@ enum NoteExporter {
     /// blocks, tables, math and images match what the user sees, in light colors.
     static func exportPDF(note: Note, noteStore: NoteStore) {
         let current = currentNote(note, noteStore: noteStore)
+        guard !current.isLocked else { return NSSound.beep() }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.nameFieldStringValue = (savedFilename(of: current) as NSString).deletingPathExtension + ".pdf"
@@ -416,9 +418,10 @@ enum NoteExporter {
         return noteStore.notes.first { $0.id == note.id } ?? note
     }
 
-    /// File name on disk ("Title.md"); the asset folder is named after it, not the title.
+    /// File name on disk without the `.age` of an encrypted note ("Title.md"), for the
+    /// save panel: an export is plaintext. The asset folder is named after it, not the title.
     private static func savedFilename(of note: Note) -> String {
-        note.savedFilename ?? note.filename
+        EncryptedFileName.plainName(note.savedFilename ?? note.filename)
     }
 
     private static var lastDirectory: URL {

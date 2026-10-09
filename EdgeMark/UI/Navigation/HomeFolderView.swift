@@ -1034,12 +1034,21 @@ struct NoteRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    TagDotsView(tags: note.tags)
+                    if !note.isLocked {
+                        TagDotsView(tags: note.tags)
+                    }
 
                     Text(note.title.isEmpty ? L10n.shared["common.untitled"] : note.title)
                         .font(.body)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
+
+                    if note.isEncrypted {
+                        Image(systemName: note.isLocked ? "lock.fill" : "lock.open.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .help(L10n.shared[note.isLocked ? "encryption.tooltip.locked" : "encryption.tooltip.unlocked"])
+                    }
 
                     Spacer()
 

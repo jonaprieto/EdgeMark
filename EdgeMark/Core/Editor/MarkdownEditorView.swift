@@ -43,6 +43,8 @@ struct MarkdownEditorView: View {
     let noteFolder: String
     let initialContent: String
     let onContentChanged: (UUID, String) -> Void
+    /// Whether the note is encrypted, so typing keeps the key session from idling out.
+    var isEncrypted = false
     /// Set to new full note content to reload the editor (e.g. from file watcher).
     /// Cleared automatically after the view applies it.
     @Binding var pendingReload: String?
@@ -79,6 +81,9 @@ struct MarkdownEditorView: View {
     /// a new selectedNote into the animating-out EditorScreen, which would overwrite
     /// onContentChanged's captured note ID while @State text still holds the old note's content.
     @State private var stableNoteID: UUID
+    /// Identity for `NoteStore.setFlushEditor`, so an outgoing editor leaves the incoming one's closure alone.
+    @State private var flushToken = UUID()
+    @Environment(NoteStore.self) private var noteStore
 
     init(
         noteID: UUID,
@@ -90,7 +95,9 @@ struct MarkdownEditorView: View {
         showFindBar: Binding<Bool> = .constant(false),
         onNavigateNext: (() -> Void)? = nil,
         onNavigatePrevious: (() -> Void)? = nil,
+        isEncrypted: Bool = false,
     ) {
+        self.isEncrypted = isEncrypted
         self.noteID = noteID
         self.noteTitle = noteTitle
         self.noteFolder = noteFolder
@@ -186,6 +193,9 @@ struct MarkdownEditorView: View {
                 transformCopy: { [imageAlts] in Self.embedsToImages($0, alts: imageAlts) },
             )
             .onChange(of: text) { _, newText in
+                if isEncrypted {
+                    KeySession.shared.touch()
+                }
                 let cursorPos = (NSApp.keyWindow?.firstResponder as? NSTextView)?.selectedRange().location ?? 0
                 slashHandler.contentDidChange(content: newText, cursorPos: cursorPos)
                 let heading = hiddenHeadingLine
@@ -241,6 +251,8 @@ struct MarkdownEditorView: View {
         }
         .animation(.easeInOut(duration: 0.18), value: showFindBar.wrappedValue)
         .onAppear {
+            let token = flushToken
+            noteStore.setFlushEditor(owner: token) { [self] in flushPendingSave() }
             noteNavMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [self] event in
                 // Markdown formatting shortcuts — route through the engine's bus so the
                 // didMarkdown* actions run (with word-boundary auto-wrap when no selection).
@@ -276,6 +288,7 @@ struct MarkdownEditorView: View {
             }
         }
         .onDisappear {
+            noteStore.clearFlushEditor(owner: flushToken)
             // Flush debounced save immediately on note switch or panel hide.
             // Use stableNoteID (latched @State) — not noteID (let) — because @Observable
             // may re-render this view with a new note's data while it's animating out,
@@ -296,6 +309,17 @@ struct MarkdownEditorView: View {
     }
 
     // MARK: - Helpers
+
+    /// Runs the pending debounced save now, on the caller's stack.
+    private func flushPendingSave() {
+        guard saveDebouncer.isPending else { return }
+        saveDebouncer.cancel()
+        let storage = Self.storageText(
+            text, alts: imageAlts, frontMatterMarked: frontMatterMarked, mermaidMarked: mermaidMarked,
+        )
+        let full = NoteText.joinHeading(hiddenHeadingLine, separator: headingSeparator, body: storage)
+        onContentChanged(stableNoteID, full)
+    }
 
     private static func resolvedFontFamily(from postscriptName: String?) -> String? {
         guard let name = postscriptName, let font = NSFont(name: name, size: 16) else { return nil }
