@@ -74,6 +74,34 @@ final class GitRepoTests: XCTestCase {
         XCTAssertTrue(files.contains("x.md"))
     }
 
+    func testAgeFilesGetNoConflictMarkers() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        let other = try await TestGit.clone(remote, name: "other")
+        GitRepo(url: work).ensureLocalAttributes()
+        let attributes = work.appendingPathComponent(".git/info/attributes")
+        XCTAssertEqual(try String(contentsOf: attributes, encoding: .utf8), "*.age binary\n")
+        GitRepo(url: work).ensureLocalAttributes()
+        XCTAssertEqual(try String(contentsOf: attributes, encoding: .utf8), "*.age binary\n", "the line is added once")
+
+        let file = "n.md.age"
+        TestGit.write("base\n", to: work.appendingPathComponent(file))
+        _ = await TestGit.run(["add", "-A"], in: work)
+        _ = await TestGit.run(["commit", "-q", "-m", "base"], in: work)
+        _ = await TestGit.run(["push", "-q"], in: work)
+        _ = await TestGit.run(["pull", "-q", "--rebase"], in: other)
+        TestGit.write("from other\n", to: other.appendingPathComponent(file))
+        _ = await TestGit.run(["commit", "-q", "-am", "other"], in: other)
+        _ = await TestGit.run(["push", "-q"], in: other)
+        TestGit.write("from work\n", to: work.appendingPathComponent(file))
+        _ = await TestGit.run(["commit", "-q", "-am", "work"], in: work)
+
+        _ = await GitRepo(url: work).pull()
+        let conflicted = await GitRepo(url: work).conflictedFiles()
+        XCTAssertEqual(conflicted, [file], "the conflict is still reported")
+        let text = try String(contentsOf: work.appendingPathComponent(file), encoding: .utf8)
+        XCTAssertEqual(text, "from other\n", "one side, whole, with no conflict markers")
+    }
+
     func testNoUnpushedCommitsWithoutHead() async throws {
         TestGit.setUpEnvironment()
         let dir = TestGit.tempDir()

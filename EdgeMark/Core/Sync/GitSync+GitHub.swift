@@ -72,6 +72,7 @@ extension GitSync {
         )
         if r.ok {
             GitRepo(url: target).ensureLocalExcludes(Self.gistExcludes)
+            GitRepo(url: target).ensureLocalAttributes()
             SyncLog.log.info("[GitSync] cloned gist \(gist.id, privacy: .public) into \(name, privacy: .public)")
             return target
         } else {
@@ -186,6 +187,7 @@ extension GitSync {
             guard r.ok else { return r.errorLine }
         }
         repo.ensureLocalExcludes(Self.rootExcludes)
+        repo.ensureLocalAttributes()
         let ignore = root.appendingPathComponent(".gitignore")
         if writeIgnore, !FileManager.default.fileExists(atPath: ignore.path) {
             _ = try? GitRepo.appendMissingLines(Self.rootExcludes, to: ignore)

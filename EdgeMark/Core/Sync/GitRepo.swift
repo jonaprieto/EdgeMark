@@ -135,6 +135,19 @@ struct GitRepo: Equatable, Hashable {
         _ = try? Self.appendMissingLines(lines, to: info.appendingPathComponent("exclude"))
     }
 
+    /// Attribute lines every synced repo gets. An age file is opaque: git must neither
+    /// merge it nor write conflict markers into it.
+    static let localAttributes = ["*.age binary"]
+
+    /// Appends the missing `lines` to `info/attributes` in the git dir. Like `info/exclude`
+    /// it stays on this machine, so nothing is added to a gist's file list.
+    func ensureLocalAttributes(_ lines: [String] = GitRepo.localAttributes) {
+        guard let commonDir else { return }
+        let info = commonDir.appendingPathComponent("info", isDirectory: true)
+        try? FileManager.default.createDirectory(at: info, withIntermediateDirectories: true)
+        _ = try? Self.appendMissingLines(lines, to: info.appendingPathComponent("attributes"))
+    }
+
     /// Appends the `lines` that `file` does not contain yet (creating it if needed).
     /// Returns true when the file changed.
     static func appendMissingLines(_ lines: [String], to file: URL) throws -> Bool {

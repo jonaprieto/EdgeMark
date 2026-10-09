@@ -146,8 +146,12 @@ final class GitSync {
         self.root = root.map { URL(fileURLWithPath: GitRepo.resolvedURL($0).path, isDirectory: true) }
         if let root = self.root, GitRepo(url: root).isRepo {
             GitRepo(url: root).ensureLocalExcludes(Self.rootExcludes)
+            GitRepo(url: root).ensureLocalAttributes()
         }
-        gistRepos().forEach { $0.ensureLocalExcludes(Self.gistExcludes) }
+        for gist in gistRepos() {
+            gist.ensureLocalExcludes(Self.gistExcludes)
+            gist.ensureLocalAttributes()
+        }
         SyncLog.log.info("[GitSync] configured root \(self.root?.path ?? "none", privacy: .public), active \(self.isActive)")
         Task { await refreshStates() }
     }
@@ -355,7 +359,9 @@ final class GitSync {
     /// Held verdicts for `file` before it is published as a gist, judging its whole
     /// content. Empty when the guard is off or nothing looks sensitive.
     func checkBeforePublish(file: URL, strict: Bool) async -> [GuardVerdict] {
-        guard settings.guardEnabled, let text = try? String(contentsOf: file, encoding: .utf8) else { return [] }
+        guard settings.guardEnabled,
+              let text = try? String(contentsOf: file, encoding: .utf8),
+              !SecretGuard.isEncrypted(path: file.lastPathComponent, text: text) else { return [] }
         let result = await secretGuard().review([(path: file.lastPathComponent, text: text)], strict: strict)
         updateGuardStatus(jevAvailable: result.jevAvailable)
         return result.verdicts.filter(\.held)
@@ -392,7 +398,8 @@ final class GitSync {
             return true
         }
         let names = await repo.git("diff", "--cached", "--name-only", "-z")
-        let paths = names.stdout.split(separator: "\0").map(String.init).filter { !$0.isEmpty }
+        let paths = names.stdout.split(separator: "\0").map(String.init)
+            .filter { !$0.isEmpty && !SecretGuard.isEncrypted(path: $0) }
         var items: [(path: String, text: String)] = []
         var held: [GuardVerdict] = []
         for path in paths {

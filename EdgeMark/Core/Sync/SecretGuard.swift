@@ -134,6 +134,23 @@ struct SecretGuard {
         self.maxChars = maxChars
     }
 
+    /// First line of an armored age file.
+    static let ageArmorLine = "-----BEGIN AGE ENCRYPTED FILE-----"
+
+    /// True for an encrypted note judged by its name alone (`<name>.age`). Use it only
+    /// where the file's text is not available (staged paths); where the text is at hand,
+    /// use `isEncrypted(path:text:)`, which a plaintext file named `x.age` cannot fool.
+    static func isEncrypted(path: String) -> Bool {
+        path.hasSuffix(".age")
+    }
+
+    /// True for an encrypted note: the name ends in `.age` and the text starts with the
+    /// age armor line. There is nothing readable in one, so it is never matched against
+    /// the rules or sent to Jev.
+    static func isEncrypted(path: String, text: String) -> Bool {
+        isEncrypted(path: path) && text.hasPrefix(ageArmorLine)
+    }
+
     /// SHA-256 hex of `path + "\n" + text`; the key for allowed and cached verdicts.
     static func contentHash(path: String, text: String) -> String {
         SHA256.hash(data: Data((path + "\n" + text).utf8)).map { String(format: "%02x", $0) }.joined()

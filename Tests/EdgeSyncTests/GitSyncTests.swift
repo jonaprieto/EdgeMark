@@ -432,6 +432,41 @@ final class GitSyncTests: XCTestCase {
         XCTAssertEqual(sync.guardStatus, "Jev ok")
     }
 
+    func testEncryptedFilesAreNotReviewed() async throws {
+        let (remote, work) = try await TestGit.makeRemoteAndClone()
+        // In a plain file this text is held twice over: a key block, and a Jev score of 0.9.
+        let stub = StubTransport(credentials: 0.9)
+        let sync = makeSync(root: work, transport: stub)
+        TestGit.write(Self.pem, to: work.appendingPathComponent("sealed.md.age"))
+        await sync.commitAndPush(GitRepo(url: work))
+
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("sealed.md.age"))
+        XCTAssertNil(sync.heldFiles[GitRepo(url: work).url])
+        let calls = await stub.calls
+        XCTAssertEqual(calls, 0, "nothing of an encrypted file goes to Jev")
+        XCTAssertTrue(SecretGuard.isEncrypted(path: "Gists/g/data.json.age"))
+        XCTAssertFalse(SecretGuard.isEncrypted(path: "page.md"))
+    }
+
+    func testPublishCheckSkipsRealArmoredAgeFile() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work, transport: StubTransport(credentials: 0.9))
+        let file = work.appendingPathComponent("x.md.age")
+        TestGit.write("-----BEGIN AGE ENCRYPTED FILE-----\n" + Self.pem, to: file)
+        let held = await sync.checkBeforePublish(file: file, strict: false)
+        XCTAssertTrue(held.isEmpty)
+    }
+
+    func testPublishCheckScansPlaintextNamedAge() async throws {
+        let (_, work) = try await TestGit.makeRemoteAndClone()
+        let sync = makeSync(root: work, transport: StubTransport())
+        let file = work.appendingPathComponent("creds.age")
+        TestGit.write(Self.pem, to: file)
+        let held = await sync.checkBeforePublish(file: file, strict: false)
+        XCTAssertEqual(held.count, 1)
+    }
+
     func testAllowHeldThenNextSyncPushes() async throws {
         let (remote, work) = try await TestGit.makeRemoteAndClone()
         let sync = makeSync(root: work, transport: StubTransport(credentials: 0.9))
