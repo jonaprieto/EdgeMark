@@ -59,6 +59,12 @@ struct SettingsView: View {
                 }
                 .tag(SettingsTab.sync)
 
+            SecuritySettingsTab()
+                .tabItem {
+                    Label(l10n["settings.tab.security"], systemImage: "lock")
+                }
+                .tag(SettingsTab.security)
+
             AboutSettingsTab()
                 .tabItem {
                     Label(l10n["settings.tab.about"], systemImage: "info.circle")
