@@ -3,7 +3,8 @@ import SwiftUI
 struct BehaviorSettingsTab: View {
     @Environment(L10n.self) var l10n
 
-    @State private var edgeSide: EdgeSide
+    @State private var edgeChoice: EdgeChoice
+    @State private var seamEdgesEnabled: Bool
     @State private var dismissalMode: DismissalMode
     @State private var edgeActivationEnabled: Bool
     @State private var openOnSingleClick: Bool
@@ -21,7 +22,8 @@ struct BehaviorSettingsTab: View {
 
     init() {
         let s = PanelSettings.shared
-        _edgeSide = State(initialValue: s.edgeSide)
+        _edgeChoice = State(initialValue: s.edgeChoice)
+        _seamEdgesEnabled = State(initialValue: s.seamEdgesEnabled)
         _dismissalMode = State(initialValue: s.dismissalMode)
         _edgeActivationEnabled = State(initialValue: s.edgeActivationEnabled)
         _openOnSingleClick = State(initialValue: s.openOnSingleClick)
@@ -59,14 +61,15 @@ struct BehaviorSettingsTab: View {
             }
 
             Section {
-                Picker(l10n["settings.general.edge"], selection: $edgeSide) {
-                    Text(l10n["settings.general.left"]).tag(EdgeSide.left)
-                    Text(l10n["settings.general.right"]).tag(EdgeSide.right)
+                Picker(l10n["settings.general.edge"], selection: $edgeChoice) {
+                    Text(l10n["settings.general.left"]).tag(EdgeChoice.left)
+                    Text(l10n["settings.general.right"]).tag(EdgeChoice.right)
+                    Text(l10n["settings.general.both"]).tag(EdgeChoice.both)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .onChange(of: edgeSide) { _, newValue in
-                    PanelSettings.shared.edgeSide = newValue
+                .onChange(of: edgeChoice) { _, newValue in
+                    PanelSettings.shared.edgeChoice = newValue
                 }
 
                 // 400 pt matches the drag handle's minimum width.
@@ -137,19 +140,25 @@ struct BehaviorSettingsTab: View {
                 if edgeActivationEnabled {
                     HStack {
                         Text(l10n["settings.general.activationDelay"])
-                        Slider(value: $activationDelay, in: 0 ... 1, step: 0.1)
+                        Slider(value: $activationDelay, in: 0 ... 1, step: 0.05)
                             .help(l10n["tooltip.settings.activationDelay"])
                             .onChange(of: activationDelay) { _, v in
                                 PanelSettings.shared.activationDelay = v
                             }
-                        Text(String(format: "%.1fs", activationDelay))
+                        Text(String(format: "%.2fs", activationDelay))
                             .monospacedDigit()
-                            .frame(width: 36, alignment: .trailing)
+                            .frame(width: 44, alignment: .trailing)
                     }
 
                     Toggle(l10n["settings.general.excludeCorners"], isOn: $excludeCorners)
                         .onChange(of: excludeCorners) { _, v in
                             PanelSettings.shared.excludeCorners = v
+                        }
+
+                    Toggle(l10n["settings.general.seamEdges"], isOn: $seamEdgesEnabled)
+                        .help(l10n["tooltip.settings.seamEdges"])
+                        .onChange(of: seamEdgesEnabled) { _, v in
+                            PanelSettings.shared.seamEdgesEnabled = v
                         }
                 }
             } header: {

@@ -117,7 +117,7 @@ final class SidePanelController: NSWindowController {
         setupDummyWindow()
         setupTrackingArea()
 
-        edgeDetector.onEdgeActivated = { [weak self] screen in
+        edgeDetector.onEdgeActivated = { [weak self] screen, side in
             guard let self else { return }
             // Edge-toggle: a re-touch while shown dismisses. The activation-delay
             // dwell already elapsed before we get here (EdgeDetector fires
@@ -127,9 +127,14 @@ final class SidePanelController: NSWindowController {
             if PanelSettings.shared.dismissalMode == .toggle, isShown {
                 hidePanel()
             } else {
+                // With both edges armed the panel opens on the side just touched.
+                if !isShown {
+                    PanelSettings.shared.noteTouchedSide(side)
+                }
                 showPanel(on: screen)
             }
         }
+        edgeDetector.isPanelShown = { [weak self] in self?.isShown ?? false }
         edgeDetector.startMonitoring()
 
         // In Edge-toggle mode, a re-touch while shown is a dismiss — use the

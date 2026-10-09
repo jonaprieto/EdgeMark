@@ -3,8 +3,9 @@ import OSLog
 
 /// Detects when the mouse reaches the screen edge and triggers panel activation.
 final class EdgeDetector {
-    /// Called when the user dwells at the configured edge long enough. Passes the screen.
-    var onEdgeActivated: ((NSScreen) -> Void)?
+    /// Called when the user dwells at an armed edge long enough. Passes the screen and
+    /// which of its edges was touched.
+    var onEdgeActivated: ((NSScreen, EdgeSide) -> Void)?
 
     /// Dwell (seconds) to apply before firing `onEdgeActivated`. Defaults to
     /// `activationDelay`; `SidePanelController` overrides this to use the
@@ -14,6 +15,11 @@ final class EdgeDetector {
     var activationDelayProvider: () -> Double = {
         PanelSettings.shared.activationDelay
     }
+
+    /// True while the panel is shown. A seam then uses the narrow `edgeThreshold` band,
+    /// so resting on the panel's own scroll bar next to the seam does not count as a
+    /// re-touch that dismisses it.
+    var isPanelShown: () -> Bool = { false }
 
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
@@ -29,6 +35,13 @@ final class EdgeDetector {
     /// (touching or near-touching) vs. a real gap. Two side-by-side displays
     /// placed with no gap share an exact edge; this absorbs sub-pixel rounding.
     private let seamTolerance: CGFloat = 2
+
+    /// Width (in points) of the trigger band at a seam between two displays. Wider than
+    /// `edgeThreshold` because the pointer is not stopped there and has to be parked.
+    private let seamBand: CGFloat = 8
+
+    /// Shortest dwell (seconds) at a seam, so crossing to the next display never triggers.
+    private let seamDwell: Double = 0.3
 
     /// Height (in points) of corner exclusion zones to avoid macOS hot-corner conflicts.
     private let cornerExclusion: CGFloat = 50
@@ -110,17 +123,17 @@ final class EdgeDetector {
         guard let screen = screenForPoint(mouseLocation) else { return }
         let hit = edgeHit(mouseLocation: mouseLocation, screen: screen)
 
-        if hit == .exterior, lastHit != .exterior {
+        if case let .trigger(side, seam) = hit, hit != lastHit {
             // Just arrived at a trigger edge — start activation delay
-            let delay = activationDelayProvider()
+            let delay = seam ? max(activationDelayProvider(), seamDwell) : activationDelayProvider()
             if delay <= 0 {
                 Log.window.debug("[EdgeDetector] edge hit — immediate activation")
-                onEdgeActivated?(screen)
+                onEdgeActivated?(screen, side)
             } else {
                 Log.window.debug("[EdgeDetector] edge hit — activation timer (\(delay)s)")
-                startActivation(delay: delay, screen: screen)
+                startActivation(delay: delay, screen: screen, side: side)
             }
-        } else if hit != .exterior, lastHit == .exterior {
+        } else if !hit.isTrigger, lastHit.isTrigger {
             Log.window.debug("[EdgeDetector] left edge — cancelled")
             cancelActivation()
         }
@@ -151,63 +164,67 @@ final class EdgeDetector {
         }
     }
 
-    /// Three-state result of an edge check:
-    /// - `none`: cursor not at the configured side's edge (or corner-excluded).
-    /// - `interior`: at the side's edge, but it lies *between* two displays —
-    ///   not a desktop boundary, so it must not trigger.
-    /// - `exterior`: at a trigger edge on the global desktop boundary.
+    /// Result of an edge check:
+    /// - `none`: cursor not at an armed edge (or corner-excluded).
+    /// - `interior`: at an armed side's edge, but it lies *between* two displays and
+    ///   seam edges are off, so it must not trigger.
+    /// - `trigger`: at an edge that opens the panel, with its side. `seam` is true for
+    ///   an edge between two displays, which needs a longer dwell.
     enum EdgeHit: Equatable {
         case none
         case interior
-        case exterior
+        case trigger(EdgeSide, seam: Bool)
+
+        var isTrigger: Bool {
+            if case .trigger = self {
+                return true
+            }
+            return false
+        }
     }
 
-    /// Returns the edge state for the cursor. Interior edges (the seam between
-    /// two side-by-side displays) never trigger — moving the mouse from one
-    /// display to another shouldn't pop the panel on the display you're
-    /// leaving. A display's edge is "interior" only when another display sits
-    /// on the other side of it at an overlapping y-range; offset /
-    /// vertically-stacked layouts are handled, since an edge with no neighbor
-    /// beside it is exterior even if it isn't the global x-extreme.
-    ///
-    /// Single-display behavior is unchanged: the one screen has no neighbor,
-    /// so its edge returns `.exterior` as before.
+    /// Returns the edge state for the cursor, checking each armed side. A display's
+    /// edge is a seam when another display sits on the other side of it at an
+    /// overlapping y-range; offset and vertically-stacked layouts are handled, since
+    /// an edge with no neighbor beside it is a desktop boundary even if it isn't the
+    /// global x-extreme. A seam triggers only when `seamEdgesEnabled` is on, in a wider
+    /// band, because moving the mouse from one display to another shouldn't pop the
+    /// panel on the display you're leaving.
     private func edgeHit(mouseLocation: NSPoint, screen: NSScreen) -> EdgeHit {
         let settings = PanelSettings.shared
         guard settings.edgeActivationEnabled else { return .none }
 
         let visibleFrame = screen.visibleFrame
-
-        // An edge is a *seam* (interior) if another display sits on the other
-        // side of it with an overlapping y-range — i.e. the user crosses from
-        // this screen onto that one. Otherwise it's a real desktop boundary
-        // (exterior). This handles aligned side-by-side layouts *and* offset /
-        // vertically-stacked arrangements where a screen's edge isn't the
-        // global x-extreme but still has nothing beside it at its y-range.
-        let atSideEdge: Bool
-        let onExterior: Bool
-        switch settings.edgeSide {
-        case .right:
-            atSideEdge = mouseLocation.x >= visibleFrame.maxX - edgeThreshold
-            onExterior = !rightEdgeIsInterior(screen)
-        case .left:
-            atSideEdge = mouseLocation.x <= visibleFrame.minX + edgeThreshold
-            onExterior = !leftEdgeIsInterior(screen)
+        let sides: [EdgeSide] = switch settings.edgeChoice {
+        case .left: [.left]
+        case .right: [.right]
+        case .both: [.left, .right]
         }
 
-        guard atSideEdge else { return .none }
-        guard onExterior else { return .interior }
-
-        // Corner exclusion: skip if cursor is within cornerExclusion of screen corners
-        if settings.excludeCorners {
-            let distFromBottom = mouseLocation.y - visibleFrame.minY
-            let distFromTop = visibleFrame.maxY - mouseLocation.y
-            if distFromBottom < cornerExclusion || distFromTop < cornerExclusion {
-                return .none
+        var sawInterior = false
+        for side in sides {
+            let seam = side == .right ? rightEdgeIsInterior(screen) : leftEdgeIsInterior(screen)
+            let band = seam && !isPanelShown() ? seamBand : edgeThreshold
+            let atSideEdge = side == .right
+                ? mouseLocation.x >= visibleFrame.maxX - band
+                : mouseLocation.x <= visibleFrame.minX + band
+            guard atSideEdge else { continue }
+            if seam, !settings.seamEdgesEnabled {
+                sawInterior = true
+                continue
             }
-        }
 
-        return .exterior
+            // Corner exclusion: skip if cursor is within cornerExclusion of screen corners
+            if settings.excludeCorners {
+                let distFromBottom = mouseLocation.y - visibleFrame.minY
+                let distFromTop = visibleFrame.maxY - mouseLocation.y
+                if distFromBottom < cornerExclusion || distFromTop < cornerExclusion {
+                    return .none
+                }
+            }
+            return .trigger(side, seam: seam)
+        }
+        return sawInterior ? .interior : .none
     }
 
     /// True if another screen's left edge sits at this screen's right edge
@@ -238,10 +255,10 @@ final class EdgeDetector {
 
     // MARK: - Activation Timer
 
-    private func startActivation(delay: Double, screen: NSScreen) {
+    private func startActivation(delay: Double, screen: NSScreen, side: EdgeSide) {
         cancelActivation()
         activationTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            self?.onEdgeActivated?(screen)
+            self?.onEdgeActivated?(screen, side)
         }
     }
 

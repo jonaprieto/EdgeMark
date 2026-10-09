@@ -8,6 +8,14 @@ enum EdgeSide: String {
     case right
 }
 
+/// Which screen edges open the panel. `both` arms the left and the right edge; the
+/// panel then opens on the side that was touched.
+enum EdgeChoice: String {
+    case left
+    case right
+    case both
+}
+
 // MARK: - DismissalMode
 
 /// How the panel dismisses.
@@ -52,7 +60,8 @@ final class PanelSettings {
         didSet { UserDefaults.standard.set(hideDelay, forKey: hideDelayKey) }
     }
 
-    /// Delay (in seconds) before edge activation triggers. 0 = immediate.
+    /// Delay (in seconds) before edge activation triggers. 0 = immediate. Defaults to
+    /// 0.15 so an overshoot toward a scroll bar does not open the panel.
     var activationDelay: Double {
         didSet { UserDefaults.standard.set(activationDelay, forKey: activationDelayKey) }
     }
@@ -64,14 +73,39 @@ final class PanelSettings {
         didSet { UserDefaults.standard.set(toggleDismissDelay, forKey: toggleDismissDelayKey) }
     }
 
-    /// Which screen edge the panel appears from.
-    var edgeSide: EdgeSide {
+    /// Which screen edges open the panel.
+    var edgeChoice: EdgeChoice {
         didSet {
-            UserDefaults.standard.set(edgeSide.rawValue, forKey: edgeSideKey)
+            UserDefaults.standard.set(edgeChoice.rawValue, forKey: edgeSideKey)
             // Cross-post `shortcutSettingsChanged` so SidePanelController/PinButton
             // observers (which key off that name) reconfigure. Name cleanup deferred.
             NotificationCenter.default.post(name: .shortcutSettingsChanged, object: nil)
         }
+    }
+
+    /// Side the panel sits on: the chosen edge, or with `both` the edge touched last
+    /// (right until one is touched; session-only).
+    var edgeSide: EdgeSide {
+        switch edgeChoice {
+        case .left: .left
+        case .right: .right
+        case .both: lastTouchedSide
+        }
+    }
+
+    private var lastTouchedSide: EdgeSide = .right
+
+    /// Records the edge that was just touched, so with `both` the panel opens there.
+    func noteTouchedSide(_ side: EdgeSide) {
+        guard edgeChoice == .both, lastTouchedSide != side else { return }
+        lastTouchedSide = side
+        NotificationCenter.default.post(name: .shortcutSettingsChanged, object: nil)
+    }
+
+    /// Whether an edge shared by two displays also opens the panel. Off by default:
+    /// the pointer does not stop there, so it takes a deliberate pause to trigger.
+    var seamEdgesEnabled: Bool {
+        didSet { UserDefaults.standard.set(seamEdgesEnabled, forKey: seamEdgesEnabledKey) }
     }
 
     /// How the panel dismisses — auto-hide or edge-toggle. See `DismissalMode`.
@@ -146,6 +180,7 @@ final class PanelSettings {
     private let activationDelayKey = "activationDelay"
     private let toggleDismissDelayKey = "toggleDismissDelay"
     private let edgeSideKey = "edgeSide"
+    private let seamEdgesEnabledKey = "seamEdgesEnabled"
     private let dismissalModeKey = "dismissalMode"
     private let edgeActivationEnabledKey = "edgeActivationEnabled"
     private let openOnSingleClickKey = "openOnSingleClick"
@@ -162,17 +197,18 @@ final class PanelSettings {
     private init() {
         autoHideOnMouseExit = UserDefaults.standard.object(forKey: autoHideKey) as? Bool ?? true
         hideDelay = UserDefaults.standard.object(forKey: hideDelayKey) as? Double ?? 0.5
-        activationDelay = UserDefaults.standard.object(forKey: activationDelayKey) as? Double ?? 0.0
+        activationDelay = UserDefaults.standard.object(forKey: activationDelayKey) as? Double ?? 0.15
         toggleDismissDelay = UserDefaults.standard.object(forKey: toggleDismissDelayKey) as? Double ?? 0.3
         openOnSingleClick = UserDefaults.standard.object(forKey: openOnSingleClickKey) as? Bool ?? true
 
         if let raw = UserDefaults.standard.string(forKey: edgeSideKey),
-           let side = EdgeSide(rawValue: raw)
+           let choice = EdgeChoice(rawValue: raw)
         {
-            edgeSide = side
+            edgeChoice = choice
         } else {
-            edgeSide = .right
+            edgeChoice = .right
         }
+        seamEdgesEnabled = UserDefaults.standard.object(forKey: seamEdgesEnabledKey) as? Bool ?? false
         if let raw = UserDefaults.standard.string(forKey: dismissalModeKey),
            let mode = DismissalMode(rawValue: raw)
         {
