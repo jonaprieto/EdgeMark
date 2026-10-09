@@ -206,7 +206,9 @@ final class PanelSettings {
         {
             edgeChoice = choice
         } else {
-            edgeChoice = .right
+            // Both, so every display has an edge that opens the panel: with one side
+            // only, a display whose edge on that side borders another display has none.
+            edgeChoice = .both
         }
         seamEdgesEnabled = UserDefaults.standard.object(forKey: seamEdgesEnabledKey) as? Bool ?? false
         if let raw = UserDefaults.standard.string(forKey: dismissalModeKey),
