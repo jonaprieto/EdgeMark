@@ -33,12 +33,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Key sources, first hit wins: Keychain, this process's environment, then the login shell
         // (a Finder launch has no shell variables, so the shell is asked once in the background).
         GitSync.shared.apiKeyProvider = {
-            KeychainStore.read()
+            KeychainStore.typeSafe.read()
                 ?? ProcessInfo.processInfo.environment["TYPESAFE_API_KEY"]
                 ?? ShellEnvironmentKey.cached("TYPESAFE_API_KEY")
         }
         Task { await ShellEnvironmentKey.load("TYPESAFE_API_KEY") }
         GitSync.shared.configure(root: StorageSettings.shared.resolvedStorageDirectory)
+        configureEncryption()
         ShortcutManager.shared.setup(panelController: panelController!)
 
         // "Choose on launch": if the toggle is on and ≥2 roots are configured, show the
@@ -75,11 +76,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_: Notification) {
         Log.app.info("[AppDelegate] terminating")
         panelController?.noteStore.saveDirtyNotes()
+        KeySession.shared.lock()
     }
 
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
         panelController?.togglePanel()
         return true
+    }
+
+    // MARK: - Encryption
+
+    /// Points the key session at the settings, and locks it when the Mac sleeps, the
+    /// screen locks or the user switches to another account.
+    private func configureEncryption() {
+        let session = KeySession.shared
+        session.store = {
+            switch EncryptionSettings.shared.store {
+            case .keychain: return KeychainKeyStore(reason: L10n.shared["encryption.unlockReason"])
+            case .protonPass: return nil
+            }
+        }
+        session.expectedRecipient = { EncryptionSettings.shared.ageRecipient }
+        session.idleSeconds = { EncryptionSettings.shared.idleMinutes * 60 }
+
+        let workspace = NSWorkspace.shared.notificationCenter
+        for name in [
+            NSWorkspace.willSleepNotification,
+            NSWorkspace.screensDidSleepNotification,
+            NSWorkspace.sessionDidResignActiveNotification,
+        ] {
+            workspace.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { KeySession.shared.lock() }
+            }
+        }
+        // Posted by loginwindow when the screen locks; NSWorkspace has no notification for it.
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main,
+        ) { _ in
+            MainActor.assumeIsolated { KeySession.shared.lock() }
+        }
     }
 
     // MARK: - Menu Bar

@@ -28,7 +28,7 @@ struct SyncSettingsTab: View {
         }
         .formStyle(.grouped)
         .task {
-            keyStored = KeychainStore.read() != nil
+            keyStored = KeychainStore.typeSafe.read() != nil
             await refreshAccounts()
             await refreshRemote()
         }
@@ -187,14 +187,14 @@ struct SyncSettingsTab: View {
                     HStack {
                         SecureField("", text: $apiKey).frame(width: 200)
                         Button(l10n["sync.guard.saveKey"]) {
-                            keyStored = KeychainStore.write(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
+                            keyStored = KeychainStore.typeSafe.write(apiKey.trimmingCharacters(in: .whitespacesAndNewlines))
                             apiKey = ""
                         }
                         .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .help(l10n["tooltip.guard.saveKey"])
                         Button(l10n["sync.guard.removeKey"]) {
-                            KeychainStore.delete()
-                            keyStored = KeychainStore.read() != nil
+                            KeychainStore.typeSafe.delete()
+                            keyStored = KeychainStore.typeSafe.read() != nil
                         }
                         .disabled(!keyStored)
                         .help(l10n["tooltip.guard.removeKey"])

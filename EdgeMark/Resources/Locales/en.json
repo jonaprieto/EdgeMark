@@ -456,5 +456,6 @@
   "tooltip.guard.allow": "Lets this version of the file sync despite the warning",
   "tooltip.guard.showFile": "Shows the held file in Finder",
   "tooltip.shortcut.reset": "Restores the default shortcut",
-  "tooltip.shortcut.record": "Click, then press the new shortcut"
+  "tooltip.shortcut.record": "Click, then press the new shortcut",
+  "encryption.unlockReason": "unlock your encrypted notes"
 }
