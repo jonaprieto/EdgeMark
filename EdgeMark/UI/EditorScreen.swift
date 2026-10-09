@@ -91,14 +91,26 @@ struct EditorScreen: View {
     }
 
     /// Gives the editor keyboard focus with the cursor at the end, so a freshly created
-    /// note can be typed into right away. Waits for the push transition to finish.
-    private func focusEditorForTyping() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let window = NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible && $0.canBecomeKey }
-            guard let window, let tv = findEditorTextView(in: window.contentView) else { return }
-            window.makeKey()
-            window.makeFirstResponder(tv)
-            tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
+    /// note can be typed into right away. The text view may not exist yet, and the title
+    /// field being torn down can take focus back, so this retries every 50 ms until the
+    /// editor has held focus for 0.4 s, giving up after 2 s or when another note opens.
+    private func focusEditorForTyping(noteID: UUID? = nil, attempt: Int = 0, heldFor: Int = 0) {
+        let noteID = noteID ?? noteStore.selectedNote?.id
+        guard attempt < 40, heldFor < 8, noteID == noteStore.selectedNote?.id else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            var held = 0
+            for window in NSApp.windows where window.isVisible && window.canBecomeKey {
+                guard let tv = findEditorTextView(in: window.contentView) else { continue }
+                if window.firstResponder === tv {
+                    held = heldFor + 1
+                } else {
+                    window.makeKey()
+                    window.makeFirstResponder(tv)
+                    tv.setSelectedRange(NSRange(location: (tv.string as NSString).length, length: 0))
+                }
+                break
+            }
+            focusEditorForTyping(noteID: noteID, attempt: attempt + 1, heldFor: held)
         }
     }
 
