@@ -111,6 +111,26 @@ struct NoteListView: View {
 
                 PinButton()
 
+                // In Gists: pull every gist now, and clone the ones created since, without
+                // waiting for the next automatic pull.
+                if FileStorage.isGistFolder(noteStore.selectedFolder?.name ?? ""), GitSync.shared.isActive {
+                    HeaderIconButton(
+                        systemName: "arrow.triangle.2.circlepath",
+                        help: l10n["tooltip.updateGists"],
+                    ) {
+                        Task {
+                            await GitSync.shared.pullAll(force: true)
+                            // A failed pull shows in the footer's sync status instead.
+                            let failed = GitSync.shared.repoStates.values.contains {
+                                if case .error = $0 { true } else { false }
+                            }
+                            if !failed {
+                                FeedbackToast.shared.show(l10n["sync.gistsUpdated"])
+                            }
+                        }
+                    }
+                }
+
                 HeaderIconButton(
                     systemName: "magnifyingglass",
                     help: l10n.tooltip("tooltip.search", shortcut: ShortcutSettings.shared.searchShortcut),
