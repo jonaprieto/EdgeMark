@@ -361,6 +361,9 @@
 
   "settings.about.version": "Version {0} (Build {1})",
   "settings.about.viewOnGitHub": "View on GitHub",
+  "settings.about.fork": "Personal fork by Jonathan Prieto-Cubides",
+  "settings.about.releases": "Releases",
+  "settings.about.upstream": "Original Project by Ender Wang",
   "settings.about.reportBug": "Report a Bug",
   "settings.about.requestFeature": "Request a Feature",
   "settings.about.copyright": "\u00a9 {0} Ender Wang. Licensed under GPLv3.",

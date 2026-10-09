@@ -18,23 +18,27 @@ struct AboutSettingsTab: View {
 
                 Text(l10n.t("settings.about.version", appVersion, buildNumber))
                     .foregroundStyle(.secondary)
+
+                Text(l10n["settings.about.fork"])
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             Divider()
                 .padding(.horizontal, 40)
 
-            // Links
+            // Links. This fork has no issue tracker, so there is no bug or feature link.
             VStack(spacing: 10) {
-                Link(destination: URL(string: "https://github.com/Ender-Wang/EdgeMark")!) {
+                Link(destination: URL(string: "https://github.com/jonaprieto/EdgeMark")!) {
                     Label(l10n["settings.about.viewOnGitHub"], systemImage: "arrow.up.right.square")
                 }
 
-                Link(destination: URL(string: "https://github.com/Ender-Wang/EdgeMark/issues/new?template=bug_report.md")!) {
-                    Label(l10n["settings.about.reportBug"], systemImage: "ladybug")
+                Link(destination: URL(string: "https://github.com/jonaprieto/EdgeMark/releases")!) {
+                    Label(l10n["settings.about.releases"], systemImage: "shippingbox")
                 }
 
-                Link(destination: URL(string: "https://github.com/Ender-Wang/EdgeMark/issues/new?template=feature_request.md")!) {
-                    Label(l10n["settings.about.requestFeature"], systemImage: "lightbulb")
+                Link(destination: URL(string: "https://github.com/Ender-Wang/EdgeMark")!) {
+                    Label(l10n["settings.about.upstream"], systemImage: "arrow.triangle.branch")
                 }
             }
 
