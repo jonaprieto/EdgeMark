@@ -457,5 +457,19 @@
   "tooltip.guard.showFile": "Shows the held file in Finder",
   "tooltip.shortcut.reset": "Restores the default shortcut",
   "tooltip.shortcut.record": "Click, then press the new shortcut",
-  "encryption.unlockReason": "unlock your encrypted notes"
+  "encryption.unlockReason": "unlock your encrypted notes",
+  "encryption.encrypt": "Encrypt",
+  "encryption.failed": "Encryption: {0}",
+  "encryption.historyWarning.title": "Earlier versions stay readable",
+  "encryption.historyWarning.message": "If this note was already synced, the text it had until now stays in the git history, and in the revision list of its gist. Encrypting protects it from here on. This is shown once.",
+  "encryption.error.keyMissing": "The encryption key was not found in its store. Run setup again and choose \"I already have a key\".",
+  "encryption.error.keyInvalid": "The stored key is not an age identity.",
+  "encryption.error.notSetUp": "Encryption is not set up.",
+  "encryption.error.recipientMismatch": "The stored key is not the one these notes are encrypted to.",
+  "encryption.error.notAgeFile": "This file is not an age file.",
+  "encryption.error.unsupportedVersion": "This file uses an age version EdgeMark cannot read.",
+  "encryption.error.noMatchingRecipient": "This note is encrypted to a different key.",
+  "encryption.error.badHeaderMAC": "This file was changed after it was encrypted.",
+  "encryption.error.corruptPayload": "This file is damaged or was cut short.",
+  "encryption.error.unreadable": "This file could not be read."
 }

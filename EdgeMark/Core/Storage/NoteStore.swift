@@ -115,6 +115,25 @@ final class NoteStore {
     /// Called when an open note is auto-synced from disk — pushes new content directly to the editor.
     var onNeedEditorReload: ((String) -> Void)?
 
+    /// Set by the mounted editor: hands its pending buffer to `updateContent` synchronously.
+    /// Run before encrypted notes lock, so text typed in the last second is not refused.
+    var onFlushEditor: (() -> Void)?
+    private var flushEditorOwner: UUID?
+
+    /// Registers an editor's flush closure under its identity token.
+    func setFlushEditor(owner: UUID, _ flush: @escaping () -> Void) {
+        flushEditorOwner = owner
+        onFlushEditor = flush
+    }
+
+    /// Clears the flush closure only if `owner` still holds it, so an outgoing editor does
+    /// not remove the one of the editor that replaced it.
+    func clearFlushEditor(owner: UUID) {
+        guard flushEditorOwner == owner else { return }
+        flushEditorOwner = nil
+        onFlushEditor = nil
+    }
+
     /// Cached set of folder paths that exist on disk (including empty folders).
     /// Updated only by disk-mutating folder operations — avoids a full filesystem
     /// enumeration on every `refreshFolders()` call.
@@ -144,7 +163,7 @@ final class NoteStore {
     /// mutators that touch tags.
     private(set) var allUsedTags: Set<TagColor> = []
 
-    private func recomputeAllUsedTags() {
+    func recomputeAllUsedTags() {
         allUsedTags = Set(notes.flatMap(\.tags))
     }
 
@@ -255,6 +274,7 @@ final class NoteStore {
     var focusEditorOnOpen = false
 
     func openNote(_ note: Note) {
+        if note.isEncrypted { KeySession.shared.touch() }
         let title = note.title
         Log.navigation.debug("[NoteStore] openNote — \(title, privacy: .public)")
         navigationDirection = .forward
@@ -265,6 +285,7 @@ final class NoteStore {
     }
 
     func openNoteFromSearch(_ note: Note) {
+        if note.isEncrypted { KeySession.shared.touch() }
         let title = note.title
         let folder = note.folder
         Log.navigation.debug("[NoteStore] openNoteFromSearch — \(title, privacy: .public) in \(folder, privacy: .public)")
@@ -348,12 +369,17 @@ final class NoteStore {
 
     // MARK: - Dirty Tracking
 
-    private var dirtyNoteIDs: Set<UUID> = []
+    private(set) var dirtyNoteIDs: Set<UUID> = []
 
     /// True while some note has edits that are not on disk yet.
     var hasDirtyNotes: Bool {
         !dirtyNoteIDs.isEmpty
     }
+
+    /// A full reload from disk that was skipped because notes were dirty. It runs once,
+    /// when a save leaves nothing dirty, and never in the middle of `lockEncryptedNotes()`.
+    @ObservationIgnored var owedReload: (() -> Void)?
+    @ObservationIgnored var isLockingEncryptedNotes = false
 
     // MARK: - Lifecycle
 
@@ -375,13 +401,19 @@ final class NoteStore {
                         modifiedAt: note.modifiedAt,
                         savedAt: note.savedAt,
                         folder: note.folder,
+                        tags: note.tags,
                         trashedAt: note.trashedAt,
                         savedFilename: note.savedFilename,
+                        isEncrypted: note.isEncrypted,
+                        isLocked: note.isLocked,
                     )
-                    do {
-                        try FileStorage.writeNote(fixed) // return value intentionally discarded (dedup path)
-                    } catch {
-                        Log.storage.error("[NoteStore] failed to re-save deduped note — \(error)")
+                    // A locked note has no text in memory; writing it would replace the file with nothing.
+                    if !fixed.isLocked {
+                        do {
+                            try FileStorage.writeNote(fixed) // return value intentionally discarded (dedup path)
+                        } catch {
+                            Log.storage.error("[NoteStore] failed to re-save deduped note — \(error)")
+                        }
                     }
                     return fixed
                 }
@@ -447,7 +479,7 @@ final class NoteStore {
                 if var entry = SidecarStore.shared.noteEntry(for: noteID) {
                     entry.savedAt = diskSavedAt
                     entry.modifiedAt = diskModifiedAt
-                    entry.tags = diskTags.map(\.rawValue)
+                    entry.tags = notes[i].isEncrypted ? [] : diskTags.map(\.rawValue)
                     SidecarStore.shared.upsertNote(entry, for: noteID)
                     try? SidecarStore.shared.save()
                 }
@@ -476,7 +508,7 @@ final class NoteStore {
             if var entry = SidecarStore.shared.noteEntry(for: conflict.noteID) {
                 entry.savedAt = conflict.diskDate
                 entry.modifiedAt = conflict.diskDate
-                entry.tags = conflict.diskTags.map(\.rawValue)
+                entry.tags = notes[i].isEncrypted ? [] : conflict.diskTags.map(\.rawValue)
                 SidecarStore.shared.upsertNote(entry, for: conflict.noteID)
                 try? SidecarStore.shared.save()
             }
@@ -565,10 +597,14 @@ final class NoteStore {
         return candidate
     }
 
-    /// File name a rename of gist file `note` to `typed` gives: its extension is kept.
+    /// File name a rename of gist file `note` to `typed` gives: its extension is kept, and
+    /// so is the `.age` of an encrypted file.
     private func gistFileName(forTyped typed: String, note: Note) -> String? {
-        let current = note.savedFilename ?? note.filename
-        return GistTextFile.renamedFileName(typed: typed, keepingExtension: (current as NSString).pathExtension)
+        let current = EncryptedFileName.plainName(note.savedFilename ?? note.filename)
+        guard let name = GistTextFile.renamedFileName(typed: typed, keepingExtension: (current as NSString).pathExtension) else {
+            return nil
+        }
+        return note.isEncrypted ? name + EncryptedFileName.suffix : name
     }
 
     /// Whether another note or file in `note`'s gist already has `name`. The note's own
@@ -583,12 +619,15 @@ final class NoteStore {
     /// `name`, or `name` with " 2", " 3"... before its extension, whichever no note or
     /// file in `folder` has.
     private func unusedNoteFileName(_ name: String, in folder: String, excluding noteID: UUID? = nil) -> String {
-        let stem = (name as NSString).deletingPathExtension
-        let ext = (name as NSString).pathExtension
+        let encrypted = EncryptedFileName.isEncrypted(name)
+        let plain = EncryptedFileName.plainName(name)
+        let stem = (plain as NSString).deletingPathExtension
+        let ext = (plain as NSString).pathExtension
         var candidate = name
         var counter = 2
         while noteFilenameWouldCollide(candidate, in: folder, excluding: noteID) {
             candidate = ext.isEmpty ? "\(stem) \(counter)" : "\(stem) \(counter).\(ext)"
+            if encrypted { candidate += EncryptedFileName.suffix }
             counter += 1
         }
         return candidate
@@ -654,6 +693,8 @@ final class NoteStore {
 
     func updateContent(for noteID: UUID, content: String) {
         guard let index = notes.firstIndex(where: { $0.id == noteID }) else { return }
+        // A locked note has no text in memory; nothing may be saved over its file.
+        guard !notes[index].isLocked else { return }
         guard notes[index].content != content else { return }
         notes[index].content = content
         notes[index].modifiedAt = Date()
@@ -666,6 +707,7 @@ final class NoteStore {
             notes[index].title = Self.extractTitle(from: content)
         }
         dirtyNoteIDs.insert(noteID)
+        if notes[index].isEncrypted { KeySession.shared.touch() }
 
         // Also update selectedNote if it matches
         if selectedNote?.id == noteID {
@@ -679,6 +721,8 @@ final class NoteStore {
             renameGistFile(at: index, to: newTitle)
             return
         }
+        // The heading of a locked note cannot be rewritten to match the new name.
+        guard !notes[index].isLocked else { return }
         let trimmed = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         guard !noteTitleExists(trimmed, in: note.folder, excluding: note.id) else { return }
@@ -715,13 +759,13 @@ final class NoteStore {
             Log.storage.error("[NoteStore] renameGistFile failed — \(error)")
             return
         }
-        notes[index].title = newName
+        notes[index].title = EncryptedFileName.plainName(newName)
         notes[index].savedFilename = newName
         if !notes[index].isPlainTextFile {
-            let oldHeading = "# " + (oldName as NSString).deletingPathExtension
+            let oldHeading = "# " + EncryptedFileName.stem(oldName)
             let rest = note.content.dropFirst(oldHeading.count)
             if note.content.hasPrefix(oldHeading), rest.first?.isNewline ?? true {
-                notes[index].content = "# " + (newName as NSString).deletingPathExtension + rest
+                notes[index].content = "# " + EncryptedFileName.stem(newName) + rest
                 notes[index].modifiedAt = Date()
                 dirtyNoteIDs.insert(note.id)
                 if selectedNote?.id == note.id {
@@ -737,7 +781,7 @@ final class NoteStore {
 
     /// Toggle a single tag on a note. Updates in-memory state and marks the note dirty.
     func toggleTag(_ tag: TagColor, on note: Note) {
-        guard let index = notes.firstIndex(where: { $0.id == note.id }) else { return }
+        guard let index = notes.firstIndex(where: { $0.id == note.id }), !notes[index].isLocked else { return }
         if let i = notes[index].tags.firstIndex(of: tag) {
             notes[index].tags.remove(at: i)
         } else {
@@ -749,6 +793,11 @@ final class NoteStore {
             selectedNote = notes[index]
         }
         recomputeAllUsedTags()
+        // Its tags live inside the encrypted file, so they are written now, not at the
+        // next save.
+        if notes[index].isEncrypted {
+            saveDirtyNotes()
+        }
     }
 
     /// Toggle a tag in the active sidebar filter. Multi-select acts as OR.
@@ -1070,7 +1119,7 @@ final class NoteStore {
     /// Returns `.on` when every selected note has it, `.off` when none do, `.mixed` otherwise.
     enum SelectionTagState { case on, off, mixed }
     func tagState(_ tag: TagColor) -> SelectionTagState {
-        let notes = selectedNotes
+        let notes = selectedNotes.filter { !$0.isLocked }
         guard !notes.isEmpty else { return .off }
         let withTag = notes.count(where: { $0.tags.contains(tag) })
         if withTag == 0 {
@@ -1085,7 +1134,8 @@ final class NoteStore {
     /// Finder/Mail-style batch tag toggle: if every selected note already has the tag,
     /// remove it from all of them; otherwise add the tag to every note that lacks it.
     func toggleTagOnSelection(_ tag: TagColor) {
-        let notes = selectedNotes
+        // Locked notes have no tags in memory and cannot be tagged; they do not vote.
+        let notes = selectedNotes.filter { !$0.isLocked }
         guard !notes.isEmpty else { return }
         let allHave = notes.allSatisfy { $0.tags.contains(tag) }
         Log.storage.info("[NoteStore] toggleTagOnSelection \(allHave ? "remove" : "add", privacy: .public) '\(tag.rawValue, privacy: .public)' on \(notes.count) notes")
@@ -1147,11 +1197,12 @@ final class NoteStore {
             let baseTitle = notes[index].title
             var counter = 2
             var newTitle = "\(baseTitle) \(counter)"
-            var newFilename = "\(FileStorage.sanitizeForFilename(newTitle)).md"
+            let suffix = notes[index].isEncrypted ? EncryptedFileName.suffix : ""
+            var newFilename = "\(FileStorage.sanitizeForFilename(newTitle)).md\(suffix)"
             while noteFilenameWouldCollide(newFilename, in: folder, excluding: conflict.noteID) {
                 counter += 1
                 newTitle = "\(baseTitle) \(counter)"
-                newFilename = "\(FileStorage.sanitizeForFilename(newTitle)).md"
+                newFilename = "\(FileStorage.sanitizeForFilename(newTitle)).md\(suffix)"
             }
             notes[index].title = newTitle
             notes[index].modifiedAt = Date()
@@ -1388,7 +1439,7 @@ final class NoteStore {
         // Move file to .trash/<UUID>_<Title>.md
         do {
             try FileStorage.trashNote(notes[index])
-            let trashFilename = "\(notes[index].id.uuidString)_\(FileStorage.sanitizeForFilename(notes[index].title)).md"
+            let trashFilename = FileStorage.trashFilename(for: notes[index])
             notes[index].savedFilename = trashFilename
         } catch {
             Log.storage.error("[NoteStore] trashNote failed — \(error)")
@@ -1472,8 +1523,12 @@ final class NoteStore {
             Log.storage.error("[NoteStore] restoreNote failed — \(error)")
         }
 
-        let restoredNote = trashedNotes.remove(at: index)
+        var restoredNote = trashedNotes.remove(at: index)
+        if KeySession.shared.isUnlocked, restoredNote.isEncrypted, restoredNote.isLocked {
+            restoredNote = FileStorage.unlocked(restoredNote)
+        }
         notes.append(restoredNote)
+        recomputeAllUsedTags()
         refreshFolders()
     }
 
@@ -1493,7 +1548,15 @@ final class NoteStore {
                 restoredNotes[i].savedAt = entry.savedAt
             }
         }
+        if KeySession.shared.isUnlocked {
+            for i in restoredNotes.indices where restoredNotes[i].isEncrypted && restoredNotes[i].isLocked {
+                // Out of the trash now, like `restoreNote`: `unlocked` reads the restored file.
+                restoredNotes[i].trashedAt = nil
+                restoredNotes[i] = FileStorage.unlocked(restoredNotes[i])
+            }
+        }
         notes.append(contentsOf: restoredNotes)
+        recomputeAllUsedTags()
         trashedFolders.removeAll { $0.id == folder.id }
         refreshFolders()
     }
@@ -1824,6 +1887,9 @@ final class NoteStore {
             let count = dirtyNoteIDs.count
             Log.storage.debug("[NoteStore] saving \(count) dirty notes")
         }
+        // An encrypted note whose save failed (no key configured, disk error) stays dirty,
+        // so locking the session does not drop its unsaved text.
+        var unsaved: Set<UUID> = []
         for noteID in dirtyNoteIDs {
             guard let index = notes.firstIndex(where: { $0.id == noteID }) else { continue }
             do {
@@ -1846,9 +1912,14 @@ final class NoteStore {
                 cleanOrphanedImages(afterSavingNoteAt: index)
             } catch {
                 Log.storage.error("[NoteStore] saveDirtyNotes failed for \(noteID) — \(error)")
+                if notes[index].isEncrypted { unsaved.insert(noteID) }
             }
         }
-        dirtyNoteIDs.removeAll()
+        dirtyNoteIDs = unsaved
+        if unsaved.isEmpty, !isLockingEncryptedNotes, let reload = owedReload {
+            owedReload = nil
+            reload()
+        }
     }
 
     /// Delete image files the note no longer references, once its body is on disk.
@@ -1859,7 +1930,10 @@ final class NoteStore {
     private func cleanOrphanedImages(afterSavingNoteAt index: Int) {
         let note = notes[index]
         // Gists cannot hold image folders, and their files are never cleaned.
-        guard note.trashedAt == nil, !note.isGistFile, pendingExternalChange?.noteID != note.id else { return }
+        guard note.trashedAt == nil, !note.isGistFile, !note.isLocked,
+              pendingExternalChange?.noteID != note.id else { return }
+        // A locked note's body is empty, so it may hold references this cleanup cannot see.
+        guard !notes.contains(where: { $0.isLocked }) else { return }
         let otherBodies = notes.filter { $0.id != note.id }.map(\.content)
         FileStorage.cleanOrphanedImages(forNote: note, body: note.content, otherBodies: otherBodies)
     }
@@ -1895,11 +1969,14 @@ final class NoteStore {
     /// its first line is that name, so re-deriving it changes nothing.
     private func alignGistTitles() {
         for i in notes.indices {
-            guard let saved = notes[i].savedFilename else { continue }
+            guard let saved = notes[i].savedFilename.map(EncryptedFileName.plainName) else { continue }
             if notes[i].isGistFile, notes[i].title != saved {
                 notes[i].title = saved
             } else if !notes[i].isGistFile, notes[i].title == saved {
-                notes[i].title = Self.extractTitle(from: notes[i].content)
+                // A locked note has no first line to read; its title is the file's stem.
+                notes[i].title = notes[i].isLocked
+                    ? EncryptedFileName.stem(saved)
+                    : Self.extractTitle(from: notes[i].content)
             } else {
                 continue
             }

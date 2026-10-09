@@ -99,6 +99,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         session.expectedRecipient = { EncryptionSettings.shared.ageRecipient }
         session.idleSeconds = { EncryptionSettings.shared.idleMinutes * 60 }
 
+        NotificationCenter.default.addObserver(forName: .keySessionDidLock, object: nil, queue: .main) { [weak self] _ in
+            self?.panelController?.noteStore.lockEncryptedNotes()
+        }
+        // The setup wizard starts a session without going through NoteStore.unlock().
+        // unlock() posts this only on a real locked-to-unlocked transition, so it cannot loop.
+        NotificationCenter.default.addObserver(forName: .keySessionDidUnlock, object: nil, queue: .main) { [weak self] _ in
+            guard let store = self?.panelController?.noteStore else { return }
+            Task { _ = await store.unlock() }
+        }
+
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [
             NSWorkspace.willSleepNotification,

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SettingsTab: Hashable {
-    case general, behavior, tags, keyboard, sync, about
+    case general, behavior, tags, keyboard, sync, security, about
 }
 
 /// Lets other UI (the footer dot) ask the Settings window to open on a given tab.
@@ -9,6 +9,18 @@ enum SettingsTab: Hashable {
 final class SettingsRouter {
     static let shared = SettingsRouter()
     var tab: SettingsTab = .general
+    /// True while the encryption setup wizard is presented on the Security tab.
+    var showEncryptionWizard = false
+    /// Note to encrypt when the wizard finishes, set when an Encrypt action opened it.
+    var encryptAfterSetup: UUID?
+
+    /// Opens Settings on the Security tab with the setup wizard presented.
+    func openEncryptionWizard(thenEncrypt noteID: UUID? = nil) {
+        tab = .security
+        encryptAfterSetup = noteID
+        showEncryptionWizard = true
+        AppDelegate.shared?.openSettings()
+    }
 }
 
 struct SettingsView: View {
