@@ -1848,12 +1848,11 @@ final class NoteStore {
         folders.filter { $0.parentPath == parent }
     }
 
-    /// All notes in a folder (and its subfolders), sorted by most recently
-    /// modified. Used by the hover-peek preview to show the folder's contents.
+    /// The notes directly in a folder, sorted by most recently modified. Used by the
+    /// hover-peek preview, which lists what opening the folder shows: its subfolders and
+    /// its own notes, not the notes inside those subfolders.
     func recentNotes(in folder: Folder) -> [Note] {
-        let prefix = folder.name + "/"
-        let folderNotes = notes.filter { $0.folder == folder.name || $0.folder.hasPrefix(prefix) }
-        return folderNotes.sorted { $0.modifiedAt > $1.modifiedAt }
+        notes.filter { $0.folder == folder.name }.sorted { $0.modifiedAt > $1.modifiedAt }
     }
 
     /// Immediate child folders of the given folder. Used by the hover-peek
