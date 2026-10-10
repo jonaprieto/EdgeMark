@@ -36,6 +36,14 @@ final class PeekWindow: NSWindow {
 
 // MARK: - PeekWindowController
 
+/// The preview window never becomes key, so a click on one of its rows is always a
+/// click in an inactive window: accept it instead of swallowing it.
+final class FirstMouseHostingView: NSHostingView<AnyView> {
+    override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
+        true
+    }
+}
+
 final class PeekWindowController: NSWindowController {
     /// Gap between the panel's inner edge and the preview window.
     static let gap: CGFloat = 4
@@ -43,12 +51,14 @@ final class PeekWindowController: NSWindowController {
     private var animationGeneration = 0
     private var isAnimating = false
     private var contentHostingView: NSView?
-    private var hostingView: NSHostingView<AnyView>?
+    private var hostingView: FirstMouseHostingView?
 
     /// Closure the window calls on mouseEntered over its content view.
     var onMouseEntered: (() -> Void)?
     /// Closure the window calls on mouseExited over its content view.
     var onMouseExited: (() -> Void)?
+    /// Called when a row of a folder preview is clicked.
+    var onOpen: ((NoteStore.SelectableID) -> Void)?
 
     // MARK: - Lifecycle
 
@@ -177,14 +187,14 @@ final class PeekWindowController: NSWindowController {
     private func installOrUpdateContent(content: PeekContent, tint: NSColor?) {
         let rootView = AnyView(
             PeekChrome(tint: tint) {
-                PeekContentView(content: content)
+                PeekContentView(content: content, onOpen: { [weak self] id in self?.onOpen?(id) })
             }
             .environment(L10n.shared),
         )
         if let existing = hostingView {
             existing.rootView = rootView
         } else {
-            let host = NSHostingView(rootView: rootView)
+            let host = FirstMouseHostingView(rootView: rootView)
             host.wantsLayer = true
             host.layer?.cornerRadius = 10
             host.layer?.masksToBounds = true

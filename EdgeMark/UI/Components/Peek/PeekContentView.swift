@@ -6,6 +6,8 @@ import SwiftUI
 struct PeekContentView: View {
     @Environment(L10n.self) var l10n
     let content: PeekContent
+    /// Opens a row of a folder preview in the panel. Nil leaves the rows inert.
+    var onOpen: ((NoteStore.SelectableID) -> Void)?
 
     var body: some View {
         switch content {
@@ -67,13 +69,17 @@ struct PeekContentView: View {
                     LazyVStack(spacing: 0) {
                         // Subfolders
                         ForEach(subfolders) { subfolder in
-                            subfolderRow(subfolder)
+                            PeekRowButton(action: { onOpen?(.folder(subfolder.name)) }) {
+                                subfolderRow(subfolder)
+                            }
                             Divider()
                                 .padding(.horizontal, 16)
                         }
                         // Notes
                         ForEach(notes) { note in
-                            folderNoteRow(note)
+                            PeekRowButton(action: { onOpen?(.note(note.id)) }) {
+                                folderNoteRow(note)
+                            }
                             if note.id != notes.last?.id {
                                 Divider()
                                     .padding(.horizontal, 16)
@@ -123,9 +129,8 @@ struct PeekContentView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// Compact row for a child note inside a folder preview. Read-only — no
-    /// click handler, no hover highlight — but matches the NoteRowView look
-    /// so the preview reads as the same list the user would see on open.
+    /// Compact row for a child note inside a folder preview. Matches the NoteRowView
+    /// look so the preview reads as the same list the user would see on open.
     private func folderNoteRow(_ note: Note) -> some View {
         HStack(spacing: 10) {
             NoteTypeIcon(note: note, width: 22)
@@ -155,5 +160,22 @@ struct PeekContentView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// A row of a folder preview: highlights under the pointer and opens on click.
+private struct PeekRowButton<Label: View>: View {
+    let action: () -> Void
+    @ViewBuilder let label: () -> Label
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            label()
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .background(.primary.opacity(isHovered ? 0.08 : 0))
+        .onHover { isHovered = $0 }
     }
 }

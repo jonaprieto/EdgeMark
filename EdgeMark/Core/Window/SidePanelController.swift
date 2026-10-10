@@ -117,6 +117,21 @@ final class SidePanelController: NSWindowController {
         setupDummyWindow()
         setupTrackingArea()
 
+        // A row clicked in a folder preview opens in the panel, like the same row there.
+        peekCoordinator.onOpen = { [weak self] id in
+            guard let self else { return }
+            switch id {
+            case let .folder(name):
+                if let folder = noteStore.folders.first(where: { $0.name == name }) {
+                    noteStore.navigateToFolder(folder)
+                }
+            case let .note(noteID):
+                if let note = noteStore.notes.first(where: { $0.id == noteID }) {
+                    noteStore.openNoteFromSearch(note)
+                }
+            }
+        }
+
         edgeDetector.onEdgeActivated = { [weak self] screen, side in
             guard let self else { return }
             // Edge-toggle: a re-touch while shown dismisses. The activation-delay

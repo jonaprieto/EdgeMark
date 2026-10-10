@@ -38,8 +38,14 @@ final class PeekCoordinator {
     /// (keyboard Quick Look). Used by `updateForSelectionChange` to
     /// keep the preview in sync with arrow-key navigation.
     private(set) var isKeyboardTriggered: Bool = false
+    /// Opens the folder or note whose row was clicked in a folder preview.
+    var onOpen: ((NoteStore.SelectableID) -> Void)?
 
     init() {
+        controller.onOpen = { [weak self] id in
+            self?.dismissNow()
+            self?.onOpen?(id)
+        }
         controller.onMouseEntered = { [weak self] in
             self?.cancelDismiss()
         }
