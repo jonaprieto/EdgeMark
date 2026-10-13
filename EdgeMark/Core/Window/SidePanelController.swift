@@ -602,6 +602,10 @@ final class SidePanelController: NSWindowController {
         Log.window.info("[SidePanelController] hidePanel")
         noteStore.saveDirtyNotes()
         peekCoordinator.dismissNow()
+        // Rows still get mouseEntered while the panel animates out under the cursor,
+        // which would bring the preview back with no panel left to dismiss it.
+        // showPanel lifts this once the panel is in place.
+        peekCoordinator.suppressPeek = true
         isShown = false
         let gen = animationGeneration &+ 1
         animationGeneration = gen
