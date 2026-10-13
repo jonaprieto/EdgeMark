@@ -205,5 +205,6 @@ No code, project, or build-phase changes are needed. The Xcode project uses Xcod
 # Submitting a Pull Request
 
 - Target the `main` branch.
+- Add a line to `CHANGELOG.md` under Unreleased for any user-visible change.
 - Run `swiftformat EdgeMark/` before pushing — CI fails on lint errors.
 - **Do not modify** `MARKETING_VERSION` or `CURRENT_PROJECT_VERSION` in `EdgeMark.xcodeproj/project.pbxproj`. Releases are cut by the maintainer from `main`/`develop`; PRs that bump these values will fail the `check-version` CI step.
