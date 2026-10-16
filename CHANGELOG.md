@@ -5,6 +5,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+## 2.14.0 (2026-10-15)
+
 ### Added
 
 - Encrypted notes (age, X25519): encrypt, decrypt, lock and unlock from the list or the
