@@ -5,6 +5,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+## 2.15.0 (2026-10-15)
+
 ### Added
 
 - Drag the hover preview's outer edge to change its width; the width is remembered.
