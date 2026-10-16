@@ -146,7 +146,7 @@ final class SidePanelController: NSWindowController {
                 if !isShown {
                     PanelSettings.shared.noteTouchedSide(side)
                 }
-                showPanel(on: screen)
+                showPanel(on: screen, fromEdge: true)
             }
         }
         edgeDetector.isPanelShown = { [weak self] in self?.isShown ?? false }
@@ -458,10 +458,7 @@ final class SidePanelController: NSWindowController {
     }
 
     override func mouseExited(with _: NSEvent) {
-        guard isShown, !isAnimating, !isEditorFocused,
-              PanelSettings.shared.autoHideOnMouseExit,
-              PanelSettings.shared.dismissalMode == .auto,
-              !PanelSettings.shared.isPanelPinned else { return }
+        guard canAutoHide else { return }
         let delay = PanelSettings.shared.hideDelay
         if delay == 0 {
             hidePanel()
@@ -494,7 +491,9 @@ final class SidePanelController: NSWindowController {
 
     // MARK: - Show / Hide
 
-    func showPanel(on screen: NSScreen? = nil) {
+    /// `fromEdge`: opened by the mouse at the screen edge, so it hides once the mouse
+    /// has left, even when that happened during the open animation.
+    func showPanel(on screen: NSScreen? = nil, fromEdge: Bool = false) {
         guard let window, !isShown else { return }
         let targetScreen = screen ?? NSScreen.main ?? NSScreen.screens.first!
         let visibleFrame = targetScreen.visibleFrame
@@ -571,6 +570,7 @@ final class SidePanelController: NSWindowController {
                     guard let self, animationGeneration == gen else { return }
                     isAnimating = false
                     peekCoordinator.suppressPeek = false
+                    if fromEdge { hideIfMouseLeft() }
                 }
             } else {
                 // Fade: position at the final frame while invisible, then animate alpha 0 → 1.
@@ -586,6 +586,7 @@ final class SidePanelController: NSWindowController {
                     guard let self, animationGeneration == gen else { return }
                     isAnimating = false
                     peekCoordinator.suppressPeek = false
+                    if fromEdge { hideIfMouseLeft() }
                 }
             }
 
@@ -819,10 +820,30 @@ final class SidePanelController: NSWindowController {
         return false
     }
 
+    private var canAutoHide: Bool {
+        isShown && !isAnimating && !isEditorFocused
+            && PanelSettings.shared.autoHideOnMouseExit
+            && PanelSettings.shared.dismissalMode == .auto
+            && !PanelSettings.shared.isPanelPinned
+    }
+
+    /// A mouse exit during the open animation is dropped, and AppKit may not send
+    /// another one once the panel is in place.
+    private func hideIfMouseLeft() {
+        guard canAutoHide, !isMouseInPanel() else { return }
+        startHideTimer(delay: PanelSettings.shared.hideDelay)
+    }
+
     private func startHideTimer(delay: Double) {
         cancelHideTimer()
         hideTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            guard let self, isShown, !isMouseInPanel() else { return }
+            guard let self, canAutoHide else { return }
+            // Over the preview: look again, since leaving the preview sends the panel
+            // no exit event and it would stay open.
+            if isMouseInPanel() {
+                startHideTimer(delay: max(delay, 0.1))
+                return
+            }
             hidePanel()
         }
     }

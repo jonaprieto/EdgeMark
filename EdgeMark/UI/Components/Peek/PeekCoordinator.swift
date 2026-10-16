@@ -94,8 +94,10 @@ final class PeekCoordinator {
 
     /// The peek preview window's current screen frame, or `nil` if not showing.
     /// Used by `SidePanelController.isMouseInPanel()` to extend the hover region.
+    /// A hidden preview keeps its frame; counting it would keep the panel open.
     var peekWindowFrame: NSRect? {
-        controller.window?.frame
+        guard let window = controller.window, window.isVisible else { return nil }
+        return window.frame
     }
 
     /// Schedule the preview to appear after `showDelay`. Called from a row's
