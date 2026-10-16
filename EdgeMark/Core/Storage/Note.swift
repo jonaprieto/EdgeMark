@@ -153,7 +153,9 @@ extension Note {
         }
         return raw
             .replacingOccurrences(of: "#{1,6}\\s", with: "", options: .regularExpression)
-            .replacingOccurrences(of: "\\*{1,2}([^*]+)\\*{1,2}", with: "$1", options: .regularExpression)
+            .replacingOccurrences(of: "\\*{1,3}([^*]+)\\*{1,3}", with: "$1", options: .regularExpression)
+            .replacingOccurrences(of: "(~~|==)([^~=]+)\\1", with: "$2", options: .regularExpression)
+            .replacingOccurrences(of: "!?\\[([^\\]]*)\\]\\([^)]*\\)", with: "$1", options: .regularExpression)
             .replacingOccurrences(of: "`([^`]+)`", with: "$1", options: .regularExpression)
             .prefix(120)
             .description

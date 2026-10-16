@@ -14,6 +14,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Links in tables show as links and open when clicked, including `<url>` and bare URLs.
 - A link to a heading (`#heading`) scrolls to it instead of opening the browser.
 - An escaped pipe (`\|`) stays inside its table cell.
+- A note's preview in the list drops `***`, `~~`, `==` and link markup.
 
 ## 2.14.0 (2026-10-15)
 
