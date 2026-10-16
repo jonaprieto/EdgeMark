@@ -52,6 +52,8 @@ final class PeekWindowController: NSWindowController {
     private var isAnimating = false
     private var contentHostingView: NSView?
     private var hostingView: FirstMouseHostingView?
+    /// Drag strip on the outer edge, away from the panel, to change the preview's width.
+    private let resizeHandle = ResizeHandleView()
 
     /// Closure the window calls on mouseEntered over its content view.
     var onMouseEntered: (() -> Void)?
@@ -80,6 +82,12 @@ final class PeekWindowController: NSWindowController {
         window.alphaValue = 0
 
         super.init(window: window)
+
+        resizeHandle.minimumWidth = 280
+        resizeHandle.onDrag = { [weak self] width in self?.resize(to: width) }
+        resizeHandle.onDragEnded = { [weak self] _ in
+            PanelSettings.shared.previewWidth = self?.window?.frame.width
+        }
     }
 
     @available(*, unavailable)
@@ -127,6 +135,7 @@ final class PeekWindowController: NSWindowController {
             // Build the content, position the window, and fade in.
             installOrUpdateContent(content: content, tint: tint)
             window.setFrame(targetFrame, display: true)
+            placeResizeHandle(side: side)
             window.orderFront(nil)
             isAnimating = true
             let gen = animationGeneration &+ 1
@@ -149,7 +158,38 @@ final class PeekWindowController: NSWindowController {
             // through multiple rows quickly.
             installOrUpdateContent(content: content, tint: tint)
             window.setFrame(targetFrame, display: true)
+            placeResizeHandle(side: side)
         }
+    }
+
+    /// Put the resize handle on the outer edge for the panel's current side.
+    private func placeResizeHandle(side: EdgeSide) {
+        guard let host = hostingView else { return }
+        let w = ResizeHandleView.handleWidth
+        resizeHandle.side = side
+        switch side {
+        case .right:
+            resizeHandle.frame = NSRect(x: 0, y: 0, width: w, height: host.bounds.height)
+            resizeHandle.autoresizingMask = [.height, .maxXMargin]
+        case .left:
+            resizeHandle.frame = NSRect(x: host.bounds.width - w, y: 0, width: w, height: host.bounds.height)
+            resizeHandle.autoresizingMask = [.height, .minXMargin]
+        }
+    }
+
+    /// Resize from the outer edge; the edge next to the panel stays put.
+    private func resize(to width: CGFloat) {
+        guard let window, let visible = window.screen?.visibleFrame else { return }
+        var frame = window.frame
+        switch resizeHandle.side {
+        case .right:
+            let newWidth = min(width, frame.maxX - visible.minX)
+            frame.origin.x = frame.maxX - newWidth
+            frame.size.width = newWidth
+        case .left:
+            frame.size.width = min(width, visible.maxX - frame.minX)
+        }
+        window.setFrame(frame, display: true)
     }
 
     /// Dismiss the preview with a fade-out. Idempotent.
@@ -211,6 +251,7 @@ final class PeekWindowController: NSWindowController {
             )
             host.addTrackingArea(trackingArea)
 
+            host.addSubview(resizeHandle)
             window?.contentView = host
             contentHostingView = host
             hostingView = host
@@ -229,16 +270,21 @@ final class PeekWindowController: NSWindowController {
     // MARK: - Frame math
 
     /// Position the preview side-by-side with the panel. The preview window
-    /// is 80% of the panel's width and height, centered vertically, with a
-    /// small gap from the panel edge.
+    /// is 80% of the panel's height, centered vertically, with a small gap from
+    /// the panel edge. Its width is the one the user dragged it to, else 80% of
+    /// the panel's, and never more than the screen has room for.
     private static func computeFrame(
         content _: PeekContent,
         anchorRow _: NSRect,
         panelFrame: NSRect,
         side: EdgeSide,
-        screen _: NSScreen,
+        screen: NSScreen,
     ) -> NSRect {
-        let width = panelFrame.width * 0.8
+        let room = switch side {
+        case .right: panelFrame.minX - gap - screen.visibleFrame.minX
+        case .left: screen.visibleFrame.maxX - panelFrame.maxX - gap
+        }
+        let width = min(PanelSettings.shared.previewWidth ?? panelFrame.width * 0.8, room)
         let height = panelFrame.height * 0.8
 
         let x: CGFloat = switch side {

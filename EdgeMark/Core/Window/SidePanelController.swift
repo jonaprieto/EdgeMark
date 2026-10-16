@@ -931,16 +931,23 @@ final class SidePanelController: NSWindowController {
 // MARK: - ResizeHandleView
 
 /// Invisible 8pt-wide strip centered on the panel's visible inner card edge. Dragging it resizes the panel.
-private final class ResizeHandleView: NSView {
+final class ResizeHandleView: NSView {
     static let handleWidth: CGFloat = 8
     static let minWidth: CGFloat = 400
 
+    /// The panel's side; the handle widens its window away from it.
     var side: EdgeSide = .right
+    var minimumWidth = ResizeHandleView.minWidth
     var onDrag: ((CGFloat) -> Void)?
     var onDragEnded: ((CGFloat) -> Void)?
 
     private var dragStartX: CGFloat = 0
     private var dragStartWidth: CGFloat = 0
+
+    /// The preview window never becomes key; take the click that starts a drag there.
+    override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
+        true
+    }
 
     override func mouseDown(with _: NSEvent) {
         dragStartX = NSEvent.mouseLocation.x
@@ -955,10 +962,10 @@ private final class ResizeHandleView: NSView {
         let newWidth: CGFloat = switch side {
         case .right:
             // Left edge draggable: moving left (negative deltaX) widens the panel
-            max(Self.minWidth, dragStartWidth - deltaX)
+            max(minimumWidth, dragStartWidth - deltaX)
         case .left:
             // Right edge draggable: moving right (positive deltaX) widens the panel
-            max(Self.minWidth, dragStartWidth + deltaX)
+            max(minimumWidth, dragStartWidth + deltaX)
         }
         onDrag?(newWidth)
     }

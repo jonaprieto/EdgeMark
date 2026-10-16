@@ -174,6 +174,12 @@ final class PanelSettings {
         didSet { UserDefaults.standard.set(noteWidth.map(Double.init), forKey: noteWidthKey) }
     }
 
+    /// Width of the hover preview, set by dragging its outer edge. nil until the user
+    /// does, and the preview is 80% of the panel's width.
+    var previewWidth: CGFloat? {
+        didSet { UserDefaults.standard.set(previewWidth.map(Double.init), forKey: previewWidthKey) }
+    }
+
     /// Panel show/hide animation style.
     var animationStyle: AnimationStyle {
         didSet { UserDefaults.standard.set(animationStyle.rawValue, forKey: animationStyleKey) }
@@ -197,6 +203,7 @@ final class PanelSettings {
     private let swipeGestureSensitivityKey = "swipeGestureSensitivity"
     private let panelWidthKey = "panelWidth"
     private let noteWidthKey = "noteWidth"
+    private let previewWidthKey = "previewWidth"
     private let animationStyleKey = "animationStyle"
 
     // MARK: - Init
@@ -245,6 +252,7 @@ final class PanelSettings {
         let savedWidth = UserDefaults.standard.object(forKey: panelWidthKey) as? Double
         panelWidth = savedWidth.map { CGFloat($0) } ?? 671
         noteWidth = (UserDefaults.standard.object(forKey: noteWidthKey) as? Double).map { CGFloat($0) }
+        previewWidth = (UserDefaults.standard.object(forKey: previewWidthKey) as? Double).map { CGFloat($0) }
     }
 }
 
