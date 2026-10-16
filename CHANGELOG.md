@@ -20,6 +20,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Light appearance by default.
 - A gist with one file shows as that file in Gists, not as a folder.
 - Larger text in the panel.
+- Sorting by name lists A to Z and sorting by date lists newest first; the direction can
+  still be flipped.
 
 ### Fixed
 

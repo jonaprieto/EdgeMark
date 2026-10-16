@@ -453,16 +453,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panelController?.noteStore.openTrash()
     }
 
+    // Each field starts in its natural order: names A to Z, dates newest first. One
+    // shared direction listed names Z to A after switching from a date.
     @objc func setSortByName() {
         panelController?.appSettings.sortBy = .name
+        panelController?.appSettings.sortAscending = true
     }
 
     @objc func setSortByDateModified() {
         panelController?.appSettings.sortBy = .dateModified
+        panelController?.appSettings.sortAscending = false
     }
 
     @objc func setSortByDateCreated() {
         panelController?.appSettings.sortBy = .dateCreated
+        panelController?.appSettings.sortAscending = false
     }
 
     @objc func toggleSortDirection() {
