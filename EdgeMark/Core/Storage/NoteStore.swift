@@ -1434,7 +1434,7 @@ final class NoteStore {
     func trashNote(_ note: Note) {
         guard let index = notes.firstIndex(where: { $0.id == note.id }) else { return }
         notes[index].trashedAt = Date()
-        dirtyNoteIDs.remove(note.id)
+        let wasDirty = dirtyNoteIDs.remove(note.id) != nil
 
         // Move file to .trash/<UUID>_<Title>.md
         do {
@@ -1442,7 +1442,12 @@ final class NoteStore {
             let trashFilename = FileStorage.trashFilename(for: notes[index])
             notes[index].savedFilename = trashFilename
         } catch {
+            // The file is still in place, so the note stays in the list rather than
+            // looking deleted until the next reload brings it back.
             Log.storage.error("[NoteStore] trashNote failed — \(error)")
+            notes[index].trashedAt = nil
+            if wasDirty { dirtyNoteIDs.insert(note.id) }
+            return
         }
 
         let trashedNote = notes.remove(at: index)

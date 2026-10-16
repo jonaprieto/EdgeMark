@@ -21,6 +21,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ### Fixed
 
+- A note with a very long title can be deleted; it no longer comes back after a reload.
 - The preview no longer stays on screen after the panel hides.
 - A folder preview lists the notes the folder shows when opened.
 - Both edges stay armed unless one was chosen.

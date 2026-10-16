@@ -250,7 +250,7 @@ enum FileStorage {
 
     // MARK: - Filename Helpers
 
-    static func sanitizeForFilename(_ title: String) -> String {
+    static func sanitizeForFilename(_ title: String, maxBytes: Int = 248) -> String {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "Untitled" }
 
@@ -266,7 +266,6 @@ enum FileStorage {
         // Truncate to stay within APFS 255-byte filename limit (.md = 3 bytes + margin).
         // Every Character is at least one byte, so cut to that many Characters first: the
         // loop below copies the string per step, which never ends for a megabyte title.
-        let maxBytes = 248
         result = String(result.prefix(maxBytes))
         while result.utf8.count > maxBytes {
             result = String(result.dropLast())
@@ -492,8 +491,10 @@ enum FileStorage {
     }
 
     /// Name of a note's file in `.trash/`: `<UUID>_<Title>.md`, plus `.age` when encrypted.
+    /// The title is cut so the whole name fits the 255-byte limit: 37 for `<UUID>_`, 3 for
+    /// `.md`, 4 for `.age`. A longer name fails to write, and the note comes back on reload.
     static func trashFilename(for note: Note) -> String {
-        let name = "\(note.id.uuidString)_\(sanitizeForFilename(note.title)).md"
+        let name = "\(note.id.uuidString)_\(sanitizeForFilename(note.title, maxBytes: 211)).md"
         return note.isEncrypted ? name + EncryptedFileName.suffix : name
     }
 
