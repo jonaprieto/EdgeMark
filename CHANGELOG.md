@@ -5,6 +5,11 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Fixed
+
+- The panel stays open while the mouse is over any EdgeMark window, such as an alert, a
+  popup or Settings, and hides once it leaves them all.
+
 ## 2.15.1 (2026-10-16)
 
 ### Fixed

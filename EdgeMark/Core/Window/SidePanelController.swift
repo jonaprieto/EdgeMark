@@ -461,12 +461,10 @@ final class SidePanelController: NSWindowController {
     override func mouseExited(with _: NSEvent) {
         guard canAutoHide else { return }
         let delay = PanelSettings.shared.hideDelay
-        if delay == 0 {
-            hidePanel()
-        } else {
-            Log.window.debug("[SidePanelController] mouseExited — hide timer (\(delay)s)")
-            startHideTimer(delay: delay)
-        }
+        Log.window.debug("[SidePanelController] mouseExited — hide timer (\(delay)s)")
+        // Even with no delay, the timer checks the mouse first: the exit may be onto
+        // another EdgeMark window (an alert, a popup) over the panel.
+        startHideTimer(delay: delay)
     }
 
     override func mouseEntered(with _: NSEvent) {
@@ -824,15 +822,15 @@ final class SidePanelController: NSWindowController {
     private func isMouseInPanel() -> Bool {
         guard let window else { return false }
         let cursor = NSEvent.mouseLocation
-        // 1. Inside the panel window itself
-        if window.frame.contains(cursor) {
+        // 1. Inside any EdgeMark window on screen: the panel, the preview, a popup,
+        //    an alert or Settings. Hidden windows are transparent or ordered out.
+        if NSApp.windows.contains(where: {
+            $0.isVisible && $0.isOnActiveSpace && $0.alphaValue > 0 && !$0.ignoresMouseEvents
+                && $0.frame.contains(cursor)
+        }) {
             return true
         }
-        // 2. Inside the peek preview window
-        if let peekFrame = peekCoordinator.peekWindowFrame, peekFrame.contains(cursor) {
-            return true
-        }
-        // 3. Inside the 12pt gap strip between the panel and the preview
+        // 2. Inside the 12pt gap strip between the panel and the preview
         let gap = PeekWindowController.gap
         let side = PanelSettings.shared.edgeSide
         let gapStrip = switch side {
@@ -867,8 +865,8 @@ final class SidePanelController: NSWindowController {
         cancelHideTimer()
         hideTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             guard let self, canAutoHide else { return }
-            // Over the preview: look again, since leaving the preview sends the panel
-            // no exit event and it would stay open.
+            // Over the preview or another EdgeMark window: look again, since leaving it
+            // sends the panel no exit event and it would stay open.
             if isMouseInPanel() {
                 startHideTimer(delay: max(delay, 0.1))
                 return
