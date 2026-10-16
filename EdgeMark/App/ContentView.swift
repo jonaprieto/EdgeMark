@@ -94,25 +94,13 @@ struct ContentView: View {
         .clipped()
         .animation(.easeInOut(duration: 0.2), value: noteStore.copiedPathsCount)
         .animation(.easeInOut(duration: 0.2), value: FeedbackToast.shared.message?.text)
-        // Dismiss any open hover/Quick-Look preview when the user navigates
-        // deeper (open note, enter folder, open trash). The preview is anchored
-        // to a row in the list view we're leaving, so it would otherwise float
-        // detached after the transition.
-        .onChange(of: noteStore.selectedNote?.id) { _, newID in
-            if newID != nil {
-                peekCoordinator.dismissNow()
-            }
-        }
-        .onChange(of: noteStore.selectedFolder?.name) { _, newName in
-            if newName != nil {
-                peekCoordinator.dismissNow()
-            }
-        }
-        .onChange(of: noteStore.showTrash) { _, isOn in
-            if isOn {
-                peekCoordinator.dismissNow()
-            }
-        }
+        // Dismiss any open hover/Quick-Look preview when the user navigates, in
+        // either direction (open or close a note, enter or leave a folder or the
+        // trash). The preview is anchored to a row in the list view we're leaving,
+        // so it would otherwise float detached after the transition.
+        .onChange(of: noteStore.selectedNote?.id) { peekCoordinator.dismissNow() }
+        .onChange(of: noteStore.selectedFolder?.name) { peekCoordinator.dismissNow() }
+        .onChange(of: noteStore.showTrash) { peekCoordinator.dismissNow() }
     }
 }
 

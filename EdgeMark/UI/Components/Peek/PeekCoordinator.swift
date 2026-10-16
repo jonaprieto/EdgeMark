@@ -24,6 +24,7 @@ final class PeekCoordinator {
     private let controller = PeekWindowController()
     private var pendingShowWorkItem: DispatchWorkItem?
     private var dismissWorkItem: DispatchWorkItem?
+    private var cursorWatch: Timer?
 
     /// ID of the row currently scheduled (or shown). Used to suppress
     /// duplicate `scheduleShow` calls from the same row's re-enter.
@@ -154,6 +155,7 @@ final class PeekCoordinator {
                 screen: screen,
                 tint: tint,
             )
+            watchCursor()
         }
         pendingShowWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + showDelay, execute: work)
@@ -195,6 +197,25 @@ final class PeekCoordinator {
         }
         dismissWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.dismissDelay, execute: work)
+    }
+
+    /// While a hover preview is up, hide it once the cursor is outside both the panel and
+    /// the preview. Row exits alone can be missed (a row removed under the cursor, a
+    /// dismiss that ran before the show), and the preview then stayed on screen.
+    private func watchCursor() {
+        guard cursorWatch == nil else { return }
+        cursorWatch = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] timer in
+            guard let self else { return timer.invalidate() }
+            let visible = controller.window?.isVisible == true
+            let away = !panelFrame.contains(NSEvent.mouseLocation) && !isMouseInUnion()
+            guard !visible || isKeyboardTriggered || away else { return }
+            timer.invalidate()
+            cursorWatch = nil
+            if visible, !isKeyboardTriggered {
+                scheduledID = nil
+                controller.hide()
+            }
+        }
     }
 
     /// Re-check the cursor position after a short delay. If the cursor has

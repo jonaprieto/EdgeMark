@@ -22,6 +22,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ### Fixed
 
+- A hover preview closes once the mouse is away from the panel and the preview, and when
+  going back.
 - The panel hides when the mouse leaves it through a preview, after a preview closed, or
   during its opening animation.
 - A note with a very long title can be deleted; it no longer comes back after a reload.
