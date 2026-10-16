@@ -9,6 +9,12 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 - Drag the hover preview's outer edge to change its width; the width is remembered.
 
+### Fixed
+
+- Links in tables show as links and open when clicked, including `<url>` and bare URLs.
+- A link to a heading (`#heading`) scrolls to it instead of opening the browser.
+- An escaped pipe (`\|`) stays inside its table cell.
+
 ## 2.14.0 (2026-10-15)
 
 ### Added

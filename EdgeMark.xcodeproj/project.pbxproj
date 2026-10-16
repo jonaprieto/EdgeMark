@@ -376,10 +376,10 @@
 /* Begin XCRemoteSwiftPackageReference section */
 		F8F898652FD1E02E00AD68BF /* XCRemoteSwiftPackageReference "swift-markdown-engine" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/nodes-app/swift-markdown-engine";
+			repositoryURL = "https://github.com/jonaprieto/swift-markdown-engine";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.6.0;
+				branch = edgemark;
+				kind = branch;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
