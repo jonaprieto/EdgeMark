@@ -5,6 +5,10 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Fixed
+
+- Find stays fast in long notes: typing a query no longer stalls the editor.
+
 ## 2.15.0 (2026-10-15)
 
 ### Added
