@@ -8,6 +8,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 ### Added
 
 - Drag the hover preview's outer edge to change its width; the width is remembered.
+- Reference-style links (`[text][label]`, `[label]`) and footnotes (`[^1]`) show as links;
+  a footnote jumps to its note and back.
 
 ### Fixed
 
