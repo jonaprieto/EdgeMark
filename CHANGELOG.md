@@ -17,6 +17,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ### Changed
 
+- The panel remembers one width for the list and another for an open note.
 - Light appearance by default.
 - A gist with one file shows as that file in Gists, not as a folder.
 - Larger text in the panel.

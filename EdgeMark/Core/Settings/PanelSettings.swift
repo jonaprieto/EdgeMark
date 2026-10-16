@@ -168,6 +168,12 @@ final class PanelSettings {
         didSet { UserDefaults.standard.set(Double(panelWidth), forKey: panelWidthKey) }
     }
 
+    /// Width of the panel while a note is open, set by resizing it then. nil until the
+    /// user does, and a note opens at `panelWidth`.
+    var noteWidth: CGFloat? {
+        didSet { UserDefaults.standard.set(noteWidth.map(Double.init), forKey: noteWidthKey) }
+    }
+
     /// Panel show/hide animation style.
     var animationStyle: AnimationStyle {
         didSet { UserDefaults.standard.set(animationStyle.rawValue, forKey: animationStyleKey) }
@@ -190,6 +196,7 @@ final class PanelSettings {
     private let editorSwipeToNavigateEnabledKey = "editorSwipeToNavigateEnabled"
     private let swipeGestureSensitivityKey = "swipeGestureSensitivity"
     private let panelWidthKey = "panelWidth"
+    private let noteWidthKey = "noteWidth"
     private let animationStyleKey = "animationStyle"
 
     // MARK: - Init
@@ -237,6 +244,7 @@ final class PanelSettings {
         // Panel width (stored as Double since UserDefaults doesn't have CGFloat)
         let savedWidth = UserDefaults.standard.object(forKey: panelWidthKey) as? Double
         panelWidth = savedWidth.map { CGFloat($0) } ?? 671
+        noteWidth = (UserDefaults.standard.object(forKey: noteWidthKey) as? Double).map { CGFloat($0) }
     }
 }
 

@@ -116,6 +116,7 @@ final class SidePanelController: NSWindowController {
 
         setupDummyWindow()
         setupTrackingArea()
+        trackOpenNote()
 
         // A row clicked in a folder preview opens in the panel, like the same row there.
         peekCoordinator.onOpen = { [weak self] id in
@@ -331,7 +332,7 @@ final class SidePanelController: NSWindowController {
         contentHostingView?.layer?.maskedCorners = Self.maskedCorners(for: side)
 
         // Reposition resize handle for new edge side
-        let panelWidth = PanelSettings.shared.panelWidth
+        let panelWidth = currentWidth
         resizeHandleView?.side = side
         resizeHandleView?.autoresizingMask = Self.resizeHandleAutoresizing(for: side)
         resizeHandleView?.frame = Self.resizeHandleFrame(for: side, containerWidth: panelWidth, height: containerView.bounds.height)
@@ -681,7 +682,7 @@ final class SidePanelController: NSWindowController {
 
     // MARK: - Resize
 
-    private func panelDidResize(to newWidth: CGFloat) {
+    private func panelDidResize(to newWidth: CGFloat, animate: Bool = false) {
         guard let window else { return }
         let side = PanelSettings.shared.edgeSide
         let targetScreen = window.screen ?? NSScreen.main ?? NSScreen.screens.first!
@@ -695,19 +696,47 @@ final class SidePanelController: NSWindowController {
         }
         // Left: left screen edge is the fixed anchor — origin.x stays the same
         frame.size.width = clampedWidth
-        window.setFrame(frame, display: true)
+        window.setFrame(frame, display: true, animate: animate)
     }
 
-    /// Apply `PanelSettings.panelWidth` to the live panel (Behavior settings slider).
-    /// A hidden panel picks the width up on its next show via `panelFrames`.
-    func applyPanelWidth() {
+    /// The saved width for what the panel shows. The list and an open note each keep
+    /// their own; a note uses the list's width until the panel is resized with one open.
+    private var currentWidth: CGFloat {
+        let s = PanelSettings.shared
+        return noteStore.selectedNote == nil ? s.panelWidth : s.noteWidth ?? s.panelWidth
+    }
+
+    /// Apply the saved width to the live panel: from the Behavior settings slider, and
+    /// when a note opens or closes. A hidden panel picks it up on its next show via
+    /// `panelFrames`.
+    func applyPanelWidth(animate: Bool = false) {
         guard isShown, !isAnimating else { return }
-        panelDidResize(to: PanelSettings.shared.panelWidth)
+        panelDidResize(to: currentWidth, animate: animate)
+    }
+
+    private var noteIsOpen = false
+
+    /// Resize to the saved width when a note opens or closes. Observation fires before
+    /// the change lands, so the next read happens on the main queue.
+    private func trackOpenNote() {
+        let isOpen = withObservationTracking {
+            noteStore.selectedNote != nil
+        } onChange: { [weak self] in
+            DispatchQueue.main.async { self?.trackOpenNote() }
+        }
+        guard isOpen != noteIsOpen else { return }
+        noteIsOpen = isOpen
+        applyPanelWidth(animate: true)
     }
 
     private func panelResizeEnded(width: CGFloat) {
-        PanelSettings.shared.panelWidth = window?.frame.width ?? width
-        Log.window.info("[SidePanelController] panel resized to \(PanelSettings.shared.panelWidth, privacy: .public)pt")
+        let width = window?.frame.width ?? width
+        if noteStore.selectedNote == nil {
+            PanelSettings.shared.panelWidth = width
+        } else {
+            PanelSettings.shared.noteWidth = width
+        }
+        Log.window.info("[SidePanelController] panel resized to \(width, privacy: .public)pt")
     }
 
     // MARK: - Frame Calculation
@@ -718,9 +747,9 @@ final class SidePanelController: NSWindowController {
         NSRect(x: -panelWidth - 1000, y: -10000, width: panelWidth, height: 100)
     }
 
-    /// Returns (shown, hidden) frames for the given edge side using the persisted panel width.
+    /// Returns (shown, hidden) frames for the given edge side at `currentWidth`.
     private func panelFrames(visibleFrame: NSRect, side: EdgeSide) -> (shown: NSRect, hidden: NSRect) {
-        let width = PanelSettings.shared.panelWidth
+        let width = currentWidth
         let shown: NSRect
         let hidden: NSRect
         switch side {
