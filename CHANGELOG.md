@@ -18,6 +18,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 ### Changed
 
 - Light appearance by default.
+- A gist with one file shows as that file in Gists, not as a folder.
 
 ### Fixed
 

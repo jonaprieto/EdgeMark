@@ -11,6 +11,9 @@ final class NoteStore {
     var trashedNotes: [Note] = []
     var trashedFolders: [TrashedFolder] = []
     var folders: [Folder] = []
+    /// Gist clones holding a single note. Each lists as that note in `Gists`, not as a
+    /// folder: a one-file gist is a file to the user. Kept in step by `refreshFolders`.
+    private(set) var singleFileGists: Set<String> = []
     var selectedFolder: Folder?
     var selectedNote: Note?
     var showTrash = false
@@ -170,7 +173,7 @@ final class NoteStore {
     /// Notes filtered by selected folder (unsorted — views apply sort via `sortedNotes`).
     var filteredNotes: [Note] {
         if let folder = selectedFolder {
-            notes.filter { $0.folder == folder.name }
+            notes.filter { listedFolder(of: $0) == folder.name }
         } else {
             notes
         }
@@ -290,7 +293,7 @@ final class NoteStore {
         let folder = note.folder
         Log.navigation.debug("[NoteStore] openNoteFromSearch — \(title, privacy: .public) in \(folder, privacy: .public)")
         if !note.folder.isEmpty {
-            selectedFolder = Folder(name: note.folder, noteCount: 0)
+            selectedFolder = Folder(name: listedFolder(of: note), noteCount: 0)
         }
         navigationDirection = .forward
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -311,7 +314,7 @@ final class NoteStore {
     /// Notes in the current folder only (not descendants). Root = notes with empty folder.
     private var currentFolderNotes: [Note] {
         if let folder = selectedFolder {
-            notes.filter { $0.folder == folder.name }
+            notes.filter { listedFolder(of: $0) == folder.name }
         } else {
             notes.filter(\.folder.isEmpty)
         }
@@ -1850,14 +1853,19 @@ final class NoteStore {
 
     /// Folders that are direct children of the given parent path.
     func childFolders(of parent: String) -> [Folder] {
-        folders.filter { $0.parentPath == parent }
+        folders.filter { $0.parentPath == parent && !singleFileGists.contains($0.name) }
+    }
+
+    /// The folder whose list shows the note: its own, or `Gists` for a one-file gist.
+    private func listedFolder(of note: Note) -> String {
+        singleFileGists.contains(note.folder) ? "Gists" : note.folder
     }
 
     /// The notes directly in a folder, sorted by most recently modified. Used by the
     /// hover-peek preview, which lists what opening the folder shows: its subfolders and
     /// its own notes, not the notes inside those subfolders.
     func recentNotes(in folder: Folder) -> [Note] {
-        notes.filter { $0.folder == folder.name }.sorted { $0.modifiedAt > $1.modifiedAt }
+        notes.filter { listedFolder(of: $0) == folder.name }.sorted { $0.modifiedAt > $1.modifiedAt }
     }
 
     /// Immediate child folders of the given folder. Used by the hover-peek
@@ -1866,6 +1874,7 @@ final class NoteStore {
         let prefix = folder.name + "/"
         return folders.filter { child in
             child.name.hasPrefix(prefix) && !child.name.dropFirst(prefix.count).contains("/")
+                && !singleFileGists.contains(child.name)
         }
     }
 
@@ -1963,6 +1972,10 @@ final class NoteStore {
                 color: color,
             )
         }
+        singleFileGists = Set(folders.filter { gist in
+            gist.parentPath == "Gists" && gist.noteCount == 1
+                && !folders.contains { $0.parentPath == gist.name }
+        }.map(\.name))
         // Folder/note membership changed → tag set may have too.
         recomputeAllUsedTags()
     }
