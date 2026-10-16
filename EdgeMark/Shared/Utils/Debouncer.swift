@@ -10,7 +10,9 @@ final class Debouncer {
 
     func call(action: @escaping () -> Void) {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            // Fired: nothing is pending any more, so `isPending` callers don't run it twice.
+            self?.timer = nil
             action()
         }
     }
