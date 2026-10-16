@@ -389,6 +389,12 @@ final class AppSettings {
         case .dateCreated: folder.earliestCreatedAt
         }
     }
+
+    /// Note date to display based on the current sort setting, so the dates read in
+    /// the order the list is in.
+    func noteDate(for note: Note) -> Date {
+        sortBy == .dateCreated ? note.createdAt : note.modifiedAt
+    }
 }
 
 extension AppSettings.SortBy {

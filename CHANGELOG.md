@@ -22,6 +22,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Larger text in the panel.
 - Sorting by name lists A to Z and sorting by date lists newest first; the direction can
   still be flipped.
+- A note's date in the list is the one the list is sorted by: modified, or created when
+  sorting by date created.
 
 ### Fixed
 

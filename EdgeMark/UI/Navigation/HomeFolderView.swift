@@ -1052,7 +1052,7 @@ struct NoteRowView: View {
 
                     Spacer()
 
-                    Text(note.createdAt.homeDisplayFormat)
+                    Text(AppSettings.shared.noteDate(for: note).homeDisplayFormat)
                         .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                 }
