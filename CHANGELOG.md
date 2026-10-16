@@ -7,7 +7,10 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ### Fixed
 
-- Find stays fast in long notes: typing a query no longer stalls the editor.
+- Find stays fast in long notes: typing a query no longer stalls the editor, and searching
+  starts at two characters.
+- Replace and Replace All edit the note in place and undo in one step; Match Case applies
+  to them too.
 
 ## 2.15.0 (2026-10-15)
 

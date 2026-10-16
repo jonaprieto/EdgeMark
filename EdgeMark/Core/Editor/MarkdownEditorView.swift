@@ -139,8 +139,11 @@ struct MarkdownEditorView: View {
                 applyStrikethroughRequest: .editorApplyStrikethrough,
                 applyInlineCodeRequest: .editorApplyInlineCode,
                 applyLinkRequest: .editorApplyLink,
-                findScrollToRange: .editorFindScrollToRange,
                 findClearHighlights: .editorFindClearHighlights,
+                findQuery: .editorFindQuery,
+                findResults: .editorFindResults,
+                replaceCurrent: .editorReplaceCurrent,
+                replaceAll: .editorReplaceAll,
             ),
         )
         config.spellChecking = SpellCheckingPolicy(
@@ -245,7 +248,7 @@ struct MarkdownEditorView: View {
 
             // Find bar overlay — slides in from the bottom when showFindBar is true.
             if showFindBar.wrappedValue {
-                FindBarView(isPresented: showFindBar, editorText: $text)
+                FindBarView(isPresented: showFindBar, editorText: text)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -428,8 +431,11 @@ struct MarkdownEditorView: View {
 // MARK: - Notification names for the editor find bus
 
 extension Notification.Name {
-    static let editorFindScrollToRange = Notification.Name("io.github.ender-wang.EdgeMark.editor.findScrollToRange")
     static let editorFindClearHighlights = Notification.Name("io.github.ender-wang.EdgeMark.editor.findClearHighlights")
+    static let editorFindQuery = Notification.Name("io.github.ender-wang.EdgeMark.editor.findQuery")
+    static let editorFindResults = Notification.Name("io.github.ender-wang.EdgeMark.editor.findResults")
+    static let editorReplaceCurrent = Notification.Name("io.github.ender-wang.EdgeMark.editor.replaceCurrent")
+    static let editorReplaceAll = Notification.Name("io.github.ender-wang.EdgeMark.editor.replaceAll")
 
     // Formatting-request bus channels — posting these drives the engine's
     // didMarkdown* actions (routed from the ⌘B/⌘I/⌘E/⌘K/⇧⌘X local key monitor).
