@@ -17,18 +17,18 @@ struct InlineRenameEditor: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.title3)
+                .font(.panel(.title3))
                 .foregroundStyle(iconColor)
                 .frame(width: iconWidth)
 
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
-                .font(.body)
+                .font(.panel(.body))
                 .focused(isFocused)
                 .onSubmit(onCommit)
                 .overlay(alignment: .trailing) {
                     Text(L10n.shared["common.nameTaken"])
-                        .font(.caption2)
+                        .font(.panel(.caption2))
                         .foregroundStyle(.red)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)

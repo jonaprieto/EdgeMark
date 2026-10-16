@@ -160,11 +160,11 @@ struct EditorScreen: View {
                         }
 
                         Text(note.title.isEmpty ? l10n["common.untitled"] : note.title)
-                            .font(.headline)
+                            .font(.panel(.headline))
                             .lineLimit(1)
 
                         Text(note.displayDirectory)
-                            .font(.caption)
+                            .font(.panel(.caption1))
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
 
@@ -479,7 +479,7 @@ private struct DateLabelView: View {
             Image(systemName: systemName)
             Text(date)
         }
-        .font(.caption)
+        .font(.panel(.caption1))
         .foregroundStyle(.tertiary)
         .contentShape(Rectangle())
         .help(tooltip)

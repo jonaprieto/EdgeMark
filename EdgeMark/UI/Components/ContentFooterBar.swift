@@ -200,7 +200,7 @@ private struct SelectionBar: View {
         let canTag = !noteStore.selectedNotes.isEmpty
         HStack(spacing: 4) {
             Text(l10n.t(count == 1 ? "selection.count.one" : "selection.count.other", "\(count)"))
-                .font(.callout.weight(.medium))
+                .font(.panel(.callout).weight(.medium))
                 .lineLimit(1)
                 .layoutPriority(1)
             Spacer(minLength: 8)
@@ -285,7 +285,7 @@ private struct SelectionBarButton: View {
                     .font(.system(size: 14, weight: .medium))
                 if showTitle, let title {
                     Text(title)
-                        .font(.callout)
+                        .font(.panel(.callout))
                         .lineLimit(1)
                 }
             }

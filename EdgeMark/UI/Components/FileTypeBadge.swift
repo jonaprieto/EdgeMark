@@ -62,7 +62,7 @@ struct NoteTypeIcon: View {
                 .frame(width: width)
         } else {
             Image(systemName: "doc.text")
-                .font(.title3)
+                .font(.panel(.title3))
                 .foregroundStyle(.secondary)
                 .frame(width: width)
         }

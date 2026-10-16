@@ -47,14 +47,14 @@ struct PeekContentView: View {
             // Header
             HStack(spacing: 8) {
                 Image(systemName: "folder.fill")
-                    .font(.title3)
+                    .font(.panel(.title3))
                     .foregroundStyle(folder.color?.color ?? Color.accentColor)
                 Text(folder.displayName)
-                    .font(.headline)
+                    .font(.panel(.headline))
                     .lineLimit(1)
                 Spacer()
                 Text("\(folder.noteCount)")
-                    .font(.subheadline.monospacedDigit())
+                    .font(.panel(.subheadline).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 16)
@@ -97,17 +97,17 @@ struct PeekContentView: View {
     private func subfolderRow(_ subfolder: Folder) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "folder.fill")
-                .font(.title3)
+                .font(.panel(.title3))
                 .foregroundStyle(subfolder.color?.color ?? Color.accentColor)
                 .frame(width: 22)
 
             Text(subfolder.displayName)
-                .font(.body)
+                .font(.panel(.body))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
             Spacer()
             Text("\(subfolder.noteCount)")
-                .font(.caption.monospacedDigit())
+                .font(.panel(.caption1).monospacedDigit())
                 .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 16)
@@ -122,7 +122,7 @@ struct PeekContentView: View {
                 .font(.system(size: 24))
                 .foregroundStyle(.tertiary)
             Text(l10n["peek.emptyFolder"])
-                .font(.subheadline)
+                .font(.panel(.subheadline))
                 .foregroundStyle(.secondary)
             Spacer()
         }
@@ -141,17 +141,17 @@ struct PeekContentView: View {
                         TagDotsView(tags: note.tags)
                     }
                     Text(note.title.isEmpty ? l10n["common.untitled"] : note.title)
-                        .font(.body)
+                        .font(.panel(.body))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Spacer()
                     Text(note.modifiedAt.homeDisplayFormat)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                 }
                 if !note.previewText.isEmpty {
                     Text(note.previewText)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }

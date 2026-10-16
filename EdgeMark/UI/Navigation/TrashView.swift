@@ -129,7 +129,7 @@ struct TrashView: View {
             }
             .overlay {
                 Text(l10n["trash.title"])
-                    .font(.headline)
+                    .font(.panel(.headline))
             }
         } content: {
             VStack(spacing: 0) {
@@ -222,11 +222,11 @@ struct TrashView: View {
 
                         HStack(spacing: 4) {
                             Text(note.title.isEmpty ? l10n["common.untitled"] : note.title)
-                                .font(.headline)
+                                .font(.panel(.headline))
                                 .lineLimit(1)
 
                             Text(l10n["editor.readOnly"])
-                                .font(.caption)
+                                .font(.panel(.caption1))
                                 .foregroundStyle(.tertiary)
                         }
 
@@ -248,14 +248,14 @@ struct TrashView: View {
                             Image(systemName: "clock")
                             Text(note.modifiedAt.homeDisplayFormat)
                         }
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
 
                         HStack(spacing: 3) {
                             Image(systemName: "calendar")
                             Text(note.createdAt.homeDisplayFormat)
                         }
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                     }
                 }
@@ -328,12 +328,12 @@ struct TrashView: View {
             .overlay {
                 HStack(spacing: 4) {
                     Text(folderDisplayName)
-                        .font(.headline)
+                        .font(.panel(.headline))
                         .lineLimit(1)
                         .layoutPriority(1)
 
                     Text(folderDisplayPath)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -561,26 +561,26 @@ private struct TrashedNoteRowView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "doc.text")
-                    .font(.title3)
+                    .font(.panel(.title3))
                     .foregroundStyle(.secondary)
                     .frame(width: iconWidth)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(note.title.isEmpty ? L10n.shared["common.untitled"] : note.title)
-                            .font(.body)
+                            .font(.panel(.body))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
 
                         Spacer()
 
                         Text(note.createdAt.homeDisplayFormat)
-                            .font(.caption)
+                            .font(.panel(.caption1))
                             .foregroundStyle(.tertiary)
                     }
 
                     Text(trashInfo)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
@@ -631,7 +631,7 @@ private struct TrashedFolderRowView: View {
             HStack(spacing: 10) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "folder.fill")
-                        .font(.title3)
+                        .font(.panel(.title3))
                         .foregroundStyle(Color.accentColor)
 
                     if !folder.notes.isEmpty {
@@ -649,7 +649,7 @@ private struct TrashedFolderRowView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack {
                         Text(folder.displayName)
-                            .font(.body)
+                            .font(.panel(.body))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                             .truncationMode(.tail)
@@ -657,12 +657,12 @@ private struct TrashedFolderRowView: View {
                         Spacer()
 
                         Text(folder.trashedAt.homeDisplayFormat)
-                            .font(.caption)
+                            .font(.panel(.caption1))
                             .foregroundStyle(.tertiary)
                     }
 
                     Text(trashInfo)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }

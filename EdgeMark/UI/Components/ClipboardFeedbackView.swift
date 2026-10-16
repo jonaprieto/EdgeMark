@@ -16,7 +16,7 @@ struct ClipboardFeedbackView: View {
 
     var body: some View {
         Label(message, systemImage: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-            .font(.callout.weight(.medium))
+            .font(.panel(.callout).weight(.medium))
             .foregroundStyle(isError ? AnyShapeStyle(.red) : AnyShapeStyle(.primary))
             .lineLimit(2)
             .padding(.horizontal, 12)

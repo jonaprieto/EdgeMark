@@ -143,7 +143,7 @@ struct HomeFolderView: View {
             Image(systemName: "lightbulb")
                 .foregroundStyle(.secondary)
             Text(l10n["hint.firstRun"])
-                .font(.caption)
+                .font(.panel(.caption1))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
@@ -258,9 +258,9 @@ struct HomeFolderView: View {
             // Picker header — shown when awaiting a storage choice.
             VStack(spacing: 2) {
                 Label(l10n["picker.chooseStorageLocation"], systemImage: "folder")
-                    .font(.headline)
+                    .font(.panel(.headline))
                 Text(l10n["menu.storageTemporary"])
-                    .font(.caption)
+                    .font(.panel(.caption1))
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
             }
@@ -291,7 +291,7 @@ struct HomeFolderView: View {
             // Title bar
             HStack {
                 Text(l10n["home.title"])
-                    .font(.title2.bold())
+                    .font(.panel(.title2).bold())
 
                 Spacer()
 
@@ -342,9 +342,9 @@ struct HomeFolderView: View {
                             .foregroundStyle(chosen ? Color.accentColor : .secondary)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(root.displayName)
-                                .font(.body)
+                                .font(.panel(.body))
                             Text(root.url.path(percentEncoded: false))
-                                .font(.system(.caption, design: .monospaced))
+                                .font(.panel(.caption1).monospaced())
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                                 .foregroundStyle(.secondary)
@@ -725,7 +725,7 @@ struct HomeFolderView: View {
                 .font(.system(size: 28))
                 .foregroundStyle(.tertiary)
             Text(message)
-                .font(.subheadline)
+                .font(.panel(.subheadline))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
@@ -733,7 +733,7 @@ struct HomeFolderView: View {
 
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.caption.weight(.semibold))
+            .font(.panel(.caption1).weight(.semibold))
             .foregroundStyle(.secondary)
             .textCase(.uppercase)
             .padding(.horizontal, 16)
@@ -801,11 +801,11 @@ struct HomeFolderView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Self.highlightedTitle(note.title, query: trimmedQuery))
-                        .font(.body)
+                        .font(.panel(.body))
                         .lineLimit(1)
 
                     Text(note.folder.isEmpty ? L10n.shared["common.root"] : note.folder)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                 }
 
@@ -827,12 +827,12 @@ struct HomeFolderView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(note.title.isEmpty ? L10n.shared["common.untitled"] : note.title)
-                        .font(.body)
+                        .font(.panel(.body))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     Text(snippet)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -857,19 +857,19 @@ struct HomeFolderView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(note.title.isEmpty ? l10n["common.untitled"] : note.title)
-                        .font(.body)
+                        .font(.panel(.body))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     Text(note.folder.isEmpty ? l10n["common.root"] : note.folder)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                 }
 
                 Spacer()
 
                 Text(note.modifiedAt.homeDisplayFormat)
-                    .font(.caption)
+                    .font(.panel(.caption1))
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 16)
@@ -955,7 +955,7 @@ struct FolderRowView: View {
             }
 
             Text(name)
-                .font(.body)
+                .font(.panel(.body))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -964,7 +964,7 @@ struct FolderRowView: View {
 
             if let date {
                 Text(date.homeDisplayFormat)
-                    .font(.caption)
+                    .font(.panel(.caption1))
                     .foregroundStyle(.tertiary)
             }
         }
@@ -986,7 +986,7 @@ struct FolderRowView: View {
     private var folderIcon: some View {
         ZStack(alignment: .topTrailing) {
             Image(systemName: "folder.fill")
-                .font(.title3)
+                .font(.panel(.title3))
                 .foregroundStyle(color?.color ?? Color.accentColor)
 
             if count > 0 {
@@ -1039,13 +1039,13 @@ struct NoteRowView: View {
                     }
 
                     Text(note.title.isEmpty ? L10n.shared["common.untitled"] : note.title)
-                        .font(.body)
+                        .font(.panel(.body))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     if note.isEncrypted {
                         Image(systemName: note.isLocked ? "lock.fill" : "lock.open.fill")
-                            .font(.caption)
+                            .font(.panel(.caption1))
                             .foregroundStyle(.secondary)
                             .help(L10n.shared[note.isLocked ? "encryption.tooltip.locked" : "encryption.tooltip.unlocked"])
                     }
@@ -1053,13 +1053,13 @@ struct NoteRowView: View {
                     Spacer()
 
                     Text(note.createdAt.homeDisplayFormat)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                 }
 
                 if !note.previewText.isEmpty {
                     Text(note.previewText)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -1118,7 +1118,7 @@ struct RowSelectionIcon<Icon: View>: View {
         ZStack {
             if showsCheckbox {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
+                    .font(.panel(.title3))
                     .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                     .transition(.opacity)
             } else {

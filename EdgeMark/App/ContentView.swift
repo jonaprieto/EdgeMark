@@ -92,6 +92,8 @@ struct ContentView: View {
             }
         }
         .clipped()
+        // Text without its own font (buttons, fields) takes the panel size too.
+        .font(.panel(.body))
         .animation(.easeInOut(duration: 0.2), value: noteStore.copiedPathsCount)
         .animation(.easeInOut(duration: 0.2), value: FeedbackToast.shared.message?.text)
         // Dismiss any open hover/Quick-Look preview when the user navigates, in

@@ -13,11 +13,11 @@ struct EmptyStateView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(.tertiary)
             Text(title)
-                .font(.headline)
+                .font(.panel(.headline))
                 .foregroundStyle(.secondary)
             if let subtitle {
                 Text(subtitle)
-                    .font(.caption)
+                    .font(.panel(.caption1))
                     .foregroundStyle(.tertiary)
             }
             Spacer()

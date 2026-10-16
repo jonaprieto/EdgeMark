@@ -92,14 +92,14 @@ struct NoteListView: View {
 
                 HStack(spacing: 4) {
                     Text(folderLabel)
-                        .font(.headline)
+                        .font(.panel(.headline))
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .layoutPriority(1)
                         .help(folderLabel)
 
                     Text(folderPath)
-                        .font(.caption)
+                        .font(.panel(.caption1))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .truncationMode(.tail)

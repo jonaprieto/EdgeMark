@@ -14,13 +14,13 @@ struct LockedNoteView: View {
     var body: some View {
         VStack(spacing: 12) {
             Image(systemName: "lock.fill")
-                .font(.largeTitle)
+                .font(.panel(.largeTitle))
                 .foregroundStyle(.secondary)
             Text(l10n["encryption.locked.title"])
-                .font(.headline)
+                .font(.panel(.headline))
             if let text = message ?? note.lockError.map({ l10n["encryption.error.\($0)"] }) {
                 Text(text)
-                    .font(.caption)
+                    .font(.panel(.caption1))
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
                     .textSelection(.enabled)
@@ -59,10 +59,10 @@ struct LockedNotePlaceholder: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "lock.fill")
-                .font(.largeTitle)
+                .font(.panel(.largeTitle))
                 .foregroundStyle(.secondary)
             Text(l10n["encryption.locked.title"])
-                .font(.headline)
+                .font(.panel(.headline))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

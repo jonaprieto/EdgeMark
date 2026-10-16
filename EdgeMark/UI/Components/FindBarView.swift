@@ -55,7 +55,7 @@ struct FindBarView: View {
                         } else if matches.isEmpty {
                             Text(l10n["find.noResults"])
                                 .foregroundStyle(.secondary)
-                                .font(.caption)
+                                .font(.panel(.caption1))
                         } else {
                             Text(l10n.t(
                                 "find.matchCount",
@@ -63,7 +63,7 @@ struct FindBarView: View {
                                 "\(matches.count)",
                             ))
                             .foregroundStyle(.secondary)
-                            .font(.caption)
+                            .font(.panel(.caption1))
                             .monospacedDigit()
                         }
                     }
