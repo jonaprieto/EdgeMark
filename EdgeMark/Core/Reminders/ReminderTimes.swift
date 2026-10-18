@@ -31,6 +31,11 @@ enum ReminderOption: String, CaseIterable {
         case .tomorrowMorning: fire = at(Self.morningHour, daysAhead: 1)
         case .everyWeekday: return (2 ... 6).map { DateComponents(hour: Self.morningHour, minute: 0, weekday: $0) }
         }
-        return [calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fire)]
+        return [Self.trigger(at: fire, calendar: calendar)]
+    }
+
+    /// A one-time trigger at `date`, in local time: also the custom date and time.
+    static func trigger(at date: Date, calendar: Calendar = .current) -> DateComponents {
+        calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
     }
 }

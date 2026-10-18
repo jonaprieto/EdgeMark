@@ -18,6 +18,15 @@ final class NoteReminders: NSObject, UNUserNotificationCenterDelegate {
 
     /// Replaces the note's reminder. False when notifications are not allowed.
     func schedule(_ option: ReminderOption, for note: Note) async -> Bool {
+        await schedule(option.triggers(now: Date()), repeats: option.repeats, for: note)
+    }
+
+    /// Replaces the note's reminder with one at `date`.
+    func schedule(at date: Date, for note: Note) async -> Bool {
+        await schedule([ReminderOption.trigger(at: date)], repeats: false, for: note)
+    }
+
+    private func schedule(_ triggers: [DateComponents], repeats: Bool, for note: Note) async -> Bool {
         guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return false }
         await cancel(noteIDs: [note.id])
         let content = UNMutableNotificationContent()
@@ -27,9 +36,9 @@ final class NoteReminders: NSObject, UNUserNotificationCenterDelegate {
         }
         content.sound = .default
         content.userInfo = ["noteID": note.id.uuidString]
-        for (index, components) in option.triggers(now: Date()).enumerated() {
-            let id = Self.prefix + note.id.uuidString + (option.repeats ? ".\(index)" : "")
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: option.repeats)
+        for (index, components) in triggers.enumerated() {
+            let id = Self.prefix + note.id.uuidString + (repeats ? ".\(index)" : "")
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: repeats)
             try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
         }
         await refresh()

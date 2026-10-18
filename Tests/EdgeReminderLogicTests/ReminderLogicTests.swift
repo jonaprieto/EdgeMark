@@ -39,6 +39,11 @@ final class ReminderLogicTests: XCTestCase {
         XCTAssertFalse(ReminderOption.in1h.repeats)
     }
 
+    func testCustomDateKeepsItsLocalTime() {
+        let trigger = ReminderOption.trigger(at: date(2026, 12, 24, 18, 45), calendar: calendar)
+        XCTAssertEqual([trigger.year, trigger.month, trigger.day, trigger.hour, trigger.minute], [2026, 12, 24, 18, 45])
+    }
+
     func testRequestOffersOnlyShownOptionsPlusNone() throws {
         let body = try ReminderSuggestion.requestBody(
             title: "Visa", text: String(repeating: "a", count: 5000), now: "Friday 18:40", options: [.in1h, .tomorrowMorning],

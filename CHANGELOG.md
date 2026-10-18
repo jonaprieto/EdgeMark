@@ -18,6 +18,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   tonight, tomorrow morning or every weekday. The reminder opens the note, and with a Jev
   key the bell marks the option that fits the note.
 - Notes with a reminder show a bell next to their title in the list.
+- Custom date and time for a reminder, from Remind Me > Custom.
 
 ### Changed
 
