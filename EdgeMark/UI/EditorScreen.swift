@@ -195,6 +195,8 @@ struct EditorScreen: View {
                         }
                     }
 
+                    ReminderButton(note: note)
+
                     // A locked note has no text to copy or export.
                     if !note.isLocked {
                         CopyMenuButton(note: note)
@@ -262,6 +264,33 @@ private struct EditorModeChooser<Rich: View, Plain: View>: View {
 
 /// Copy icon that opens a menu with plain text and Markdown copy options.
 /// If text is selected in the editor, copies the selection; otherwise copies the whole document.
+/// Bell in the editor header: the note's reminder options, with Jev's pick badged.
+private struct ReminderButton: View {
+    let note: Note
+
+    var body: some View {
+        let hasReminder = NoteReminders.shared.noteIDs.contains(note.id)
+        HeaderIconButton(systemName: hasReminder ? "bell.fill" : "bell", help: L10n.shared["tooltip.reminder"]) {
+            guard let event = NSApp.currentEvent, let view = event.window?.contentView else { return }
+            let (menu, items) = ReminderMenu.menu(for: note)
+            // The note's text goes to Jev only now, and never for an encrypted note.
+            if !note.isEncrypted {
+                let key = GitSync.shared.apiKeyProvider()
+                Task { @MainActor in
+                    let option = await ReminderSuggestion.suggest(
+                        title: note.title, text: note.content, now: Date(), options: Array(items.keys), apiKey: key,
+                    )
+                    if let option {
+                        items[option]?.badge = NSMenuItemBadge(string: L10n.shared["reminder.suggested"])
+                    }
+                }
+            }
+            menu.popUpContextMenu(with: event, for: view)
+        }
+        .task(id: note.id) { await NoteReminders.shared.refresh() }
+    }
+}
+
 private struct CopyMenuButton: View {
     let note: Note
 

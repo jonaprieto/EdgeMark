@@ -301,6 +301,11 @@ enum NoteListMenus {
             menu.addItem(moveItem)
         }
 
+        let remindItem = NSMenuItem(title: l10n["reminder.title"], action: nil, keyEquivalent: "")
+        remindItem.image = NSImage(systemSymbolName: "bell", accessibilityDescription: nil)
+        remindItem.submenu = ReminderMenu.menu(for: note).menu
+        menu.addItem(remindItem)
+
         // Tags submenu
         let tagsItem = NSMenuItem(title: l10n["common.tags"], action: nil, keyEquivalent: "")
         tagsItem.image = NSImage(systemSymbolName: "tag", accessibilityDescription: nil)

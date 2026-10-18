@@ -140,6 +140,7 @@ extension NoteStore {
 
     /// Trashes the plan's plain notes and folders, resolved against the live lists.
     private func trashPlanned(_ plan: GistTrash.Plan<UUID>) {
+        let before = Set(notes.filter { $0.trashedAt == nil }.map(\.id))
         for id in plan.notes {
             if let note = notes.first(where: { $0.id == id }) {
                 trashNote(note)
@@ -148,6 +149,9 @@ extension NoteStore {
         for path in plan.folders where self.folders.contains(where: { $0.name == path }) {
             trashFolder(path)
         }
+        // Reminders of the notes that just went to Trash, folders included.
+        let gone = before.subtracting(notes.filter { $0.trashedAt == nil }.map(\.id))
+        Task { await NoteReminders.shared.cancel(noteIDs: gone) }
     }
 
     private func gistTrashPlan(_ requested: [Note], _ folders: [String], gists: Set<String>) -> GistTrash.Plan<UUID> {

@@ -14,6 +14,9 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Send Selection to Claude in a note's right-click menu puts the selected lines in Claude
   Code's prompt.
 - Pinching closed on the trackpad goes back to the notes home from a note or a folder.
+- Remind Me on a note, from the list's menu or the bell in the editor: in 1 or 3 hours,
+  tonight, tomorrow morning or every weekday. The reminder opens the note, and with a Jev
+  key the bell marks the option that fits the note.
 
 ### Changed
 

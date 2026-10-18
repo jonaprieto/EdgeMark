@@ -1,6 +1,7 @@
 import Cocoa
 import OSLog
 import SwiftUI
+import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Strong single instance set on launch, so SwiftUI views (e.g. GeneralSettingsTab)
@@ -20,6 +21,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let updateState = UpdateState()
 
+    func applicationWillFinishLaunching(_: Notification) {
+        // Before launch ends, so a reminder click that launched the app is delivered.
+        UNUserNotificationCenter.current().delegate = NoteReminders.shared
+    }
+
     func applicationDidFinishLaunching(_: Notification) {
         Self.shared = self
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
@@ -31,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SidecarMigration.runIfNeeded()
         try? SidecarStore.shared.load()
         panelController?.noteStore.loadFromDisk()
+        configureReminders()
         // Key sources, first hit wins: Keychain, this process's environment, then the login shell
         // (a Finder launch has no shell variables, so the shell is asked once in the background).
         GitSync.shared.apiKeyProvider = {
@@ -85,6 +92,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
         panelController?.togglePanel()
         return true
+    }
+
+    // MARK: - Reminders
+
+    /// A clicked reminder opens its note; a note gone since just shows the panel.
+    private func configureReminders() {
+        NoteReminders.shared.onOpen = { [weak self] id in
+            guard let panel = self?.panelController else { return }
+            panel.showPanel()
+            if let note = panel.noteStore.notes.first(where: { $0.id == id && $0.trashedAt == nil }) {
+                panel.noteStore.openNoteFromSearch(note)
+            }
+        }
     }
 
     // MARK: - Encryption
