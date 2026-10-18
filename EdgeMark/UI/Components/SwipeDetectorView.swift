@@ -2,9 +2,10 @@ import AppKit
 import OSLog
 import SwiftUI
 
-/// Transparent overlay that detects two-finger trackpad horizontal swipes
-/// via NSEvent scroll monitoring. Only fires when the scroll belongs to this
-/// view's window and the cursor is inside its bounds. Mouse clicks pass through.
+/// Transparent overlay that detects horizontal trackpad swipes: two-finger scrolls, and
+/// the system's "swipe between pages" gesture when it is set to three fingers. Only
+/// fires when the event belongs to this view's window and the cursor is inside its
+/// bounds. Mouse clicks pass through.
 struct SwipeDetectorView: NSViewRepresentable {
     var onSwipeBack: (() -> Void)?
     var onSwipeForward: (() -> Void)?
@@ -45,7 +46,7 @@ final class SwipeDetectorNSView: NSView {
     private func startMonitoring() {
         guard monitor == nil else { return }
         Log.navigation.debug("[SwipeDetector] monitoring started")
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel, .swipe]) { [weak self] event in
             self?.handleScroll(event)
             return event
         }
@@ -75,6 +76,17 @@ final class SwipeDetectorNSView: NSView {
         guard settings.swipeToNavigateEnabled,
               onSwipeBack != nil || onSwipeForward != nil
         else { return }
+
+        // Three-finger "swipe between pages" (System Settings > Trackpad): one event per
+        // swipe, deltaX -1 for a swipe right (back, as in Safari) and 1 for a swipe left.
+        if event.type == .swipe {
+            if event.deltaX < 0, let onSwipeBack {
+                DispatchQueue.main.async { onSwipeBack() }
+            } else if event.deltaX > 0, let onSwipeForward {
+                DispatchQueue.main.async { onSwipeForward() }
+            }
+            return
+        }
 
         if event.phase == .began {
             accumulatedDeltaX = 0

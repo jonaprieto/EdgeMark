@@ -21,6 +21,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ### Fixed
 
+- Swiping between pages with three fingers works like two-finger swipes: in a note it goes
+  to the previous or next note, and on a header it goes back.
 - The panel stays open while the mouse is over any EdgeMark window, such as an alert, a
   popup or Settings, and hides once it leaves them all.
 
