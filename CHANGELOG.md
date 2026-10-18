@@ -17,6 +17,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Remind Me on a note, from the list's menu or the bell in the editor: in 1 or 3 hours,
   tonight, tomorrow morning or every weekday. The reminder opens the note, and with a Jev
   key the bell marks the option that fits the note.
+- Notes with a reminder show a bell next to their title in the list.
 
 ### Changed
 

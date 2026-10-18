@@ -513,6 +513,8 @@ final class SidePanelController: NSWindowController {
         let visibleFrame = targetScreen.visibleFrame
         let side = PanelSettings.shared.edgeSide
         Log.window.info("[SidePanelController] showPanel (\(side.rawValue, privacy: .public) edge)")
+        // Reminders that fired while the panel was hidden no longer show a bell.
+        Task { await NoteReminders.shared.refresh() }
 
         // With sync on, unsaved edits go to disk before the pull so it commits them and any
         // clash becomes a visible conflict instead of a silent overwrite.

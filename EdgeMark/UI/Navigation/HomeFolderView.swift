@@ -1050,6 +1050,13 @@ struct NoteRowView: View {
                             .help(L10n.shared[note.isLocked ? "encryption.tooltip.locked" : "encryption.tooltip.unlocked"])
                     }
 
+                    if NoteReminders.shared.noteIDs.contains(note.id) {
+                        Image(systemName: "bell.fill")
+                            .font(.panel(.caption1))
+                            .foregroundStyle(.secondary)
+                            .help(L10n.shared["reminder.pending"])
+                    }
+
                     Spacer()
 
                     Text(AppSettings.shared.noteDate(for: note).homeDisplayFormat)

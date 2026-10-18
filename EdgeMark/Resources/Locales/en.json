@@ -129,6 +129,7 @@
   "reminder.everyWeekday": "Every Weekday",
   "reminder.cancel": "Cancel Reminder",
   "reminder.suggested": "Suggested",
+  "reminder.pending": "This note has a reminder",
   "reminder.offTitle": "Notifications are off for EdgeMark",
   "reminder.offBody": "Turn them on in System Settings > Notifications to get note reminders.",
   "reminder.openSettings": "Open System Settings",

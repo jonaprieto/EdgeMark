@@ -105,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 panel.noteStore.openNoteFromSearch(note)
             }
         }
+        Task { await NoteReminders.shared.refresh() }
     }
 
     // MARK: - Encryption
