@@ -5,6 +5,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+## 2.16.0 (2026-10-18)
+
 ### Added
 
 - In a note, ⌘+ and ⌘- make the text bigger or smaller, and ⌘0 puts it back to the default
