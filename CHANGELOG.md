@@ -5,6 +5,11 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Added
+
+- In a note, ⌘+ and ⌘- make the text bigger or smaller, and ⌘0 puts it back to the default
+  size.
+
 ### Fixed
 
 - The panel stays open while the mouse is over any EdgeMark window, such as an alert, a
