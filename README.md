@@ -25,6 +25,7 @@ For the same reason: a fast cadence on the features I care about, with full cont
 | Export | none | Markdown (with images), PDF, or a gist |
 | Updates | in-app updater | disabled; "Check for Updates" opens this fork's Releases page |
 | Panel width | saved by dragging | default 671 pt, plus a slider in Settings > Behavior |
+| Claude Code | none | connects as an IDE and shares the editor's selection |
 | Languages | en, de, es, hi, zh-Hans | same, with an English fallback for the new strings |
 
 Sync. The notes folder is committed and pushed to a GitHub repo through `git` and `gh`. Commits are debounced (120 s after the last save by default, configurable from 30 to 600 s), the repo is pulled when the panel opens (throttled to once a minute), and a pending push is flushed on quit with a 20 second limit. A conflict pauses sync, and the footer button (with a status menu) says what to do. Held-back files are reported the same way.
@@ -34,6 +35,8 @@ Gists. Your gists are cloned under `Gists/` in the notes folder and kept in sync
 Secrets guard. Before each commit, the added lines of changed files are checked against regex rules (private key blocks, AWS, GitHub, Slack and `sk-` style keys, JWTs). If a file passes the regex check and a TypeSafe key is configured, the [Jev](https://typesafe.ai) model judges whether it contains a credential or private personal data. Flagged files are not committed; you can allow a specific one from Settings.
 
 Export. A note can be exported as Markdown (images are copied next to it and links rewritten) or as PDF, from the export menu.
+
+Claude Code. When `~/.claude` exists, EdgeMark listens on localhost the way the VS Code extension does. Start `claude` inside the notes folder and run `/ide` (or `claude --ide`) to connect; Claude then sees the open note and the selected text. Encrypted notes are not shared. The protocol is not documented by Anthropic for other editors, so a Claude Code update can break it. EdgeMark has no diff view: if Claude asks before edits, set the diff tool to `terminal` in `/config` to see diffs in the terminal.
 
 Editor and panel. A single click opens notes and folders. A new note takes focus. Code blocks are compact, with line numbers and a copy button. Prose and monospace fonts are set separately in Settings. Mermaid diagrams (a fenced block tagged `mermaid`) render as diagrams while the cursor is outside the block, and as source while it is inside; previews and PDF export show the diagram too. YAML front matter at the top of a note shows as a compact metadata block. Image files are removed from disk when you delete the image from the text. The editor header moves a note to Trash instead of deleting it. Very large or pathological notes open in a plain-text mode. Right-clicking the empty space of the list opens a menu with New Note, New Folder, Sort By, Paste as New Note, Sync Now and more. Icon-only controls have tooltips, with the keyboard shortcut where one is set. A first-run hint and a clearer empty state were added. File type badges mark non-Markdown files, and code files in gists are syntax highlighted by file extension.
 

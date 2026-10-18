@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         GitSync.shared.configure(root: StorageSettings.shared.resolvedStorageDirectory)
         configureEncryption()
         ShortcutManager.shared.setup(panelController: panelController!)
+        ClaudeIDEBridge.shared.start(workspace: StorageSettings.shared.resolvedStorageDirectory)
 
         // "Choose on launch": if the toggle is on and ≥2 roots are configured, show the
         // non-blocking storage-root picker as the panel's empty state instead of the
@@ -78,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Log.app.info("[AppDelegate] terminating")
         panelController?.noteStore.saveDirtyNotes()
         KeySession.shared.lock()
+        ClaudeIDEBridge.shared.stop()
     }
 
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {

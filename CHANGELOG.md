@@ -9,6 +9,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 - In a note, ⌘+ and ⌘- make the text bigger or smaller, and ⌘0 puts it back to the default
   size.
+- Claude Code can connect to EdgeMark as an IDE with `/ide` from the notes folder, and sees
+  the open note and the selected text.
 
 ### Fixed
 

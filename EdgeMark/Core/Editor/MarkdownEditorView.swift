@@ -71,6 +71,9 @@ struct MarkdownEditorView: View {
     @State private var saveDebouncer = Debouncer(delay: 1.0)
     @State private var slashHandler = SlashCommandHandler()
     @State private var noteNavMonitor: Any?
+    /// Shares the selection with Claude Code sessions connected through `ClaudeIDEBridge`.
+    @State private var selectionObserver: Any?
+    @State private var selectionDebouncer = Debouncer(delay: 0.1)
     @State private var codeBlocks = CodeBlockOverlayModel()
 
     /// Per-note scroll offsets persisted across editor unmount/remount (engine 0.12.0
@@ -300,8 +303,32 @@ struct MarkdownEditorView: View {
                 }
                 return event
             }
+            // Encrypted notes are never shared without being asked.
+            if !isEncrypted {
+                // Focus reaches this editor later (EditorScreen.focusEditorForTyping), so a text
+                // view focused now is the outgoing note's, still animating out.
+                weak var outgoing = NSApp.keyWindow?.firstResponder as? NSTextView
+                selectionObserver = NotificationCenter.default.addObserver(
+                    forName: NSTextView.didChangeSelectionNotification, object: nil, queue: .main,
+                ) { [self] notification in
+                    guard let tv = notification.object as? NSTextView, !tv.isFieldEditor, tv !== outgoing,
+                          tv.window?.firstResponder === tv else { return }
+                    selectionDebouncer.call { [self] in
+                        guard let note = noteStore.selectedNote, note.id == stableNoteID else { return }
+                        ClaudeIDEBridge.shared.sendSelection(
+                            text: tv.string, range: tv.selectedRange(),
+                            hiddenPrefix: hiddenHeadingLine + headingSeparator,
+                            filePath: FileStorage.urlForNote(note).path,
+                        )
+                    }
+                }
+            }
         }
         .onDisappear {
+            if let o = selectionObserver {
+                NotificationCenter.default.removeObserver(o); selectionObserver = nil
+            }
+            selectionDebouncer.cancel()
             noteStore.clearFlushEditor(owner: flushToken)
             // Flush debounced save immediately on note switch or panel hide.
             // Use stableNoteID (latched @State) — not noteID (let) — because @Observable
