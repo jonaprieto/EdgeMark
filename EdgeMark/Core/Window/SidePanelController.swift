@@ -238,6 +238,22 @@ final class SidePanelController: NSWindowController {
             }
         }
 
+        // Pinching closed on the trackpad goes back to the notes home, from a note or a folder.
+        var pinch: CGFloat = 0
+        NSEvent.addLocalMonitorForEvents(matching: .magnify) { [weak self] event in
+            guard let self, isShown, event.window === window,
+                  PanelSettings.shared.swipeToNavigateEnabled else { return event }
+            if event.phase == .began {
+                pinch = 0
+            }
+            pinch += event.magnification
+            if event.phase == .ended, pinch < -0.3, !noteStore.showTrash,
+               noteStore.selectedNote != nil || noteStore.selectedFolder != nil {
+                noteStore.navigateToHome()
+            }
+            return event
+        }
+
         // Configurable local shortcuts
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, isShown else { return event }

@@ -13,6 +13,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   the open note and the selected text.
 - Send Selection to Claude in a note's right-click menu puts the selected lines in Claude
   Code's prompt.
+- Pinching closed on the trackpad goes back to the notes home from a note or a folder.
 
 ### Changed
 
