@@ -14,6 +14,11 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Send Selection to Claude in a note's right-click menu puts the selected lines in Claude
   Code's prompt.
 
+### Changed
+
+- The list and an open note share one panel width again, so opening a note no longer
+  resizes the panel.
+
 ### Fixed
 
 - The panel stays open while the mouse is over any EdgeMark window, such as an alert, a
