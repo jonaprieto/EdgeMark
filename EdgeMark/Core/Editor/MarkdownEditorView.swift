@@ -169,6 +169,21 @@ struct MarkdownEditorView: View {
                     // onChange converts it back to standard ![](path) markdown before saving.
                     return (try? FileStorage.saveImage(data: data, ext: ext, forNote: note))?.embedMarkdown
                 },
+                onBuildContextMenu: { [self] menu, range in
+                    // Not for encrypted notes: Claude would only find ciphertext on disk.
+                    guard !isEncrypted, let tv = Self.clickedTextView() else { return menu }
+                    let text = tv.string
+                    let key = range.length > 0 ? "editor.sendSelectionToClaude" : "editor.sendNoteToClaude"
+                    menu.addItem(.separator())
+                    _ = menu.addActionItem(title: L10n.shared[key], icon: "paperplane") { [self] in
+                        guard let note = noteStore.selectedNote, note.id == stableNoteID else { return }
+                        ClaudeIDEBridge.shared.mention(
+                            text: text, range: range, hiddenPrefix: hiddenHeadingLine + headingSeparator,
+                            filePath: FileStorage.urlForNote(note).path, workspace: FileStorage.rootURL,
+                        )
+                    }
+                    return menu
+                },
                 onCodeBlockSelectionChange: { [codeBlocks] in codeBlocks.update($0) },
                 onSpellCheckingPolicyChanged: { policy in
                     // Persist context-menu spelling/grammar/autocorrect toggles back to settings
@@ -360,6 +375,17 @@ struct MarkdownEditorView: View {
         )
         let full = NoteText.joinHeading(hiddenHeadingLine, separator: headingSeparator, body: storage)
         onContentChanged(stableNoteID, full)
+    }
+
+    /// The text view building its context menu: the one under the right-click, else the
+    /// focused one (menu opened from the keyboard).
+    private static func clickedTextView() -> NSTextView? {
+        let event = NSApp.currentEvent
+        var view = event.flatMap { $0.window?.contentView?.hitTest($0.locationInWindow) }
+        while let current = view, !(current is NSTextView) {
+            view = current.superview
+        }
+        return view as? NSTextView ?? NSApp.keyWindow?.firstResponder as? NSTextView
     }
 
     private static func resolvedFontFamily(from postscriptName: String?) -> String? {

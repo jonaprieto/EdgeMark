@@ -12,6 +12,8 @@ final class ClaudeIDEBridge {
     private var listener: NWListener?
     private var connections: [NWConnection] = []
     private var lastSelection: Data?
+    /// A mention sent while no session was connected, delivered to the next one.
+    private var pendingMention: Data?
     private var lockURL: URL?
 
     private init() {}
@@ -23,12 +25,16 @@ final class ClaudeIDEBridge {
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude", isDirectory: true)
     }
 
-    /// Starts the server for `workspace`, the notes root.
-    /// ponytail: no setting; it runs only where Claude Code has a config directory, and a
-    /// root switched while running stays the old one in the lock file until relaunch.
-    func start(workspace: URL) {
+    /// Starts the server for `workspace`, the notes root. At launch it runs only where Claude
+    /// Code has a config directory; `create` (Send to Claude) makes `~/.claude/ide` instead.
+    /// ponytail: a root switched while running stays the old one in the lock file until relaunch.
+    func start(workspace: URL, create: Bool = false) {
+        queue.sync { startOnQueue(workspace: workspace, create: create) }
+    }
+
+    private func startOnQueue(workspace: URL, create: Bool) {
         let config = Self.configDirectory
-        guard listener == nil, FileManager.default.fileExists(atPath: config.path),
+        guard listener == nil, create || FileManager.default.fileExists(atPath: config.path),
               let token = IDEProtocol.token() else { return }
 
         let webSocket = NWProtocolWebSocket.Options()
@@ -91,6 +97,21 @@ final class ClaudeIDEBridge {
         }
     }
 
+    /// Puts `@file#Lstart-end` in the prompt of the connected session, starting the server
+    /// if needed; with no session yet, the next one to connect gets it.
+    func mention(text: String, range: NSRange, hiddenPrefix: String, filePath: String, workspace: URL) {
+        start(workspace: workspace, create: true)
+        queue.async { [self] in
+            let mention = IDEProtocol.atMentioned(text: text, range: range, hiddenPrefix: hiddenPrefix, filePath: filePath)
+            if connections.isEmpty {
+                pendingMention = mention
+            }
+            for connection in connections {
+                send(mention, on: connection)
+            }
+        }
+    }
+
     // MARK: - Queue-confined
 
     private func writeLockFile(port: UInt16, workspace: URL, token: String, config: URL) {
@@ -121,6 +142,10 @@ final class ClaudeIDEBridge {
                 connections.append(connection)
                 if let lastSelection {
                     send(lastSelection, on: connection)
+                }
+                if let pendingMention {
+                    send(pendingMention, on: connection)
+                    self.pendingMention = nil
                 }
             case .failed:
                 connection.cancel()

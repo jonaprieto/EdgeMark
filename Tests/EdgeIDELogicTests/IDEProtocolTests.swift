@@ -61,6 +61,27 @@ final class IDEProtocolTests: XCTestCase {
         XCTAssertEqual(params["text"] as? String, "")
     }
 
+    func testMentionGivesLinesInTheFile() throws {
+        let text = "one\ntwo\nthree\n"
+        let lines = { (range: NSRange) throws -> [String: Any] in
+            try XCTUnwrap(self.object(IDEProtocol.atMentioned(
+                text: text, range: range, hiddenPrefix: "# T\n\n", filePath: "/n.md",
+            ))["params"] as? [String: Any])
+        }
+        // "two\nth": lines 1-2 of the body, 3-4 of the file.
+        let partial = try lines(NSRange(location: 4, length: 6))
+        XCTAssertEqual(partial["lineStart"] as? Int, 3)
+        XCTAssertEqual(partial["lineEnd"] as? Int, 4)
+        // "two\n" ends at the start of line 2, which is not part of it.
+        let wholeLine = try lines(NSRange(location: 4, length: 4))
+        XCTAssertEqual(wholeLine["lineStart"] as? Int, 3)
+        XCTAssertEqual(wholeLine["lineEnd"] as? Int, 3)
+        // No selection: the whole file.
+        let file = try lines(NSRange(location: 2, length: 0))
+        XCTAssertEqual(file["filePath"] as? String, "/n.md")
+        XCTAssertNil(file["lineStart"])
+    }
+
     func testLockFileAndToken() throws {
         let token = try XCTUnwrap(IDEProtocol.token())
         XCTAssertNotNil(token.wholeMatch(of: #/[0-9a-f]{32}/#))

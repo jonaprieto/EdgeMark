@@ -119,6 +119,8 @@
   "editor.createdAt": "Created at {0}",
   "editor.readOnly": "(read-only)",
   "editor.restoreNote": "Restore Note",
+  "editor.sendSelectionToClaude": "Send Selection to Claude",
+  "editor.sendNoteToClaude": "Send Note to Claude",
   "editor.plainTextBanner": "Large note: formatting is off to keep the app responsive",
 
   "trash.title": "Trash",

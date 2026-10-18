@@ -53,14 +53,9 @@ enum IDEProtocol {
         let start = min(range.location, ns.length)
         let end = min(NSMaxRange(range), ns.length)
         let offset = hiddenPrefix.utf16.count(where: { $0 == 10 })
-        // ponytail: scans from the top on each (debounced) change; fine for note sizes.
         func position(_ index: Int) -> [String: Int] {
-            var line = 0, lineStart = 0
-            for i in 0 ..< index where ns.character(at: i) == 10 {
-                line += 1
-                lineStart = i + 1
-            }
-            return ["line": line + offset, "character": index - lineStart]
+            let (line, character) = Self.position(of: index, in: ns)
+            return ["line": line + offset, "character": character]
         }
         return json([
             "jsonrpc": "2.0",
@@ -72,6 +67,35 @@ enum IDEProtocol {
                 "selection": ["start": position(start), "end": position(end), "isEmpty": start == end],
             ],
         ])
+    }
+
+    /// `at_mentioned`: the CLI types `@file#Lstart-end` into its prompt. Lines are 0-based
+    /// and count `hiddenPrefix`; an empty range mentions the whole file. A selection ending
+    /// at the start of a line does not include that line.
+    static func atMentioned(text: String, range: NSRange, hiddenPrefix: String, filePath: String) -> Data {
+        var params: [String: Any] = ["filePath": filePath]
+        if range.length > 0 {
+            let ns = text as NSString
+            let start = min(range.location, ns.length)
+            let end = min(NSMaxRange(range), ns.length)
+            let offset = hiddenPrefix.utf16.count(where: { $0 == 10 })
+            let first = position(of: start, in: ns).line
+            let (last, character) = position(of: end, in: ns)
+            params["lineStart"] = first + offset
+            params["lineEnd"] = (character == 0 && last > first ? last - 1 : last) + offset
+        }
+        return json(["jsonrpc": "2.0", "method": "at_mentioned", "params": params])
+    }
+
+    /// 0-based line and UTF-16 column of `index`.
+    /// ponytail: scans from the top on each call; fine for note sizes.
+    private static func position(of index: Int, in ns: NSString) -> (line: Int, character: Int) {
+        var line = 0, lineStart = 0
+        for i in 0 ..< index where ns.character(at: i) == 10 {
+            line += 1
+            lineStart = i + 1
+        }
+        return (line, index - lineStart)
     }
 
     private static func json(_ object: Any) -> Data {
