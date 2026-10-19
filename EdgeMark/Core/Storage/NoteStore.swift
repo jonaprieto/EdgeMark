@@ -181,41 +181,49 @@ final class NoteStore {
 
     // MARK: - Sorting
 
-    func sortedNotes(_ notes: [Note], by sortBy: AppSettings.SortBy, ascending: Bool) -> [Note] {
-        notes.sorted { a, b in
-            let result: Bool = switch sortBy {
-            case .name:
-                a.title.localizedCaseInsensitiveCompare(b.title) == .orderedAscending
-            case .dateModified:
-                a.modifiedAt < b.modifiedAt
-            case .dateCreated:
-                a.createdAt < b.createdAt
+    /// A row of a folder's list.
+    enum ListRow: Identifiable {
+        case folder(Folder)
+        case note(Note)
+
+        var id: SelectableID {
+            switch self {
+            case let .folder(folder): .folder(folder.name)
+            case let .note(note): .note(note.id)
             }
-            return ascending ? result : !result
+        }
+
+        /// A folder sorts by its newest or oldest file, a note by its own dates.
+        func precedes(_ other: ListRow, by sortBy: AppSettings.SortBy, ascending: Bool) -> Bool {
+            ListOrder.precedes(key(sortBy), other.key(sortBy), byName: sortBy == .name, ascending: ascending)
+        }
+
+        private func key(_ sortBy: AppSettings.SortBy) -> (name: String, date: Date?) {
+            switch self {
+            case let .folder(folder):
+                (folder.displayName, sortBy == .dateCreated ? folder.earliestCreatedAt : folder.latestModifiedAt)
+            case let .note(note):
+                (note.title, sortBy == .dateCreated ? note.createdAt : note.modifiedAt)
+            }
         }
     }
 
+    func sortedNotes(_ notes: [Note], by sortBy: AppSettings.SortBy, ascending: Bool) -> [Note] {
+        notes.sorted { ListRow.note($0).precedes(.note($1), by: sortBy, ascending: ascending) }
+    }
+
     func sortedFolders(_ folders: [Folder], by sortBy: AppSettings.SortBy, ascending: Bool) -> [Folder] {
-        folders.sorted { a, b in
-            let result: Bool = switch sortBy {
-            case .name:
-                a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-            case .dateModified:
-                // nil dates (empty folders) sort to end
-                switch (a.latestModifiedAt, b.latestModifiedAt) {
-                case let (aDate?, bDate?): aDate < bDate
-                case (nil, _): false
-                case (_, nil): true
-                }
-            case .dateCreated:
-                switch (a.earliestCreatedAt, b.earliestCreatedAt) {
-                case let (aDate?, bDate?): aDate < bDate
-                case (nil, _): false
-                case (_, nil): true
-                }
-            }
-            return ascending ? result : !result
-        }
+        folders.sorted { ListRow.folder($0).precedes(.folder($1), by: sortBy, ascending: ascending) }
+    }
+
+    /// The list of `parent`: its subfolders above the divider, `notes` below. In Gists a
+    /// folder is a gist with several files and a note a gist with one, so all of them sort
+    /// together in `upper` and `lower` is empty.
+    func listRows(in parent: String, notes: [Note], by sortBy: AppSettings.SortBy, ascending: Bool) -> (upper: [ListRow], lower: [ListRow]) {
+        let folders = sortedFolders(childFolders(of: parent), by: sortBy, ascending: ascending).map(ListRow.folder)
+        let notes = sortedNotes(notes, by: sortBy, ascending: ascending).map(ListRow.note)
+        guard parent == "Gists" else { return (folders, notes) }
+        return ((folders + notes).sorted { $0.precedes($1, by: sortBy, ascending: ascending) }, [])
     }
 
     // MARK: - Animated Navigation
@@ -905,9 +913,8 @@ final class NoteStore {
         }
         let s = AppSettings.shared
         if let parent = selectedFolder?.name {
-            let kidFolders = sortedFolders(childFolders(of: parent), by: s.sortBy, ascending: s.sortAscending)
-            let folderNotes = sortedNotes(filteredNotes, by: s.sortBy, ascending: s.sortAscending)
-            return kidFolders.map { .folder($0.name) } + folderNotes.map { .note($0.id) }
+            let rows = listRows(in: parent, notes: filteredNotes, by: s.sortBy, ascending: s.sortAscending)
+            return (rows.upper + rows.lower).map(\.id)
         }
         let topLevel = sortedFolders(folders.filter(\.isTopLevel), by: s.sortBy, ascending: s.sortAscending)
         let rootNotes = sortedNotes(notes.filter(\.folder.isEmpty), by: s.sortBy, ascending: s.sortAscending)

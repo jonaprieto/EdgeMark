@@ -18,6 +18,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Edits in a gist are pushed 10 seconds after you stop typing, not after the notes delay (2
   minutes by default). Sync settings can change the gist delay or turn automatic gist pushes
   off.
+- In Gists, gists with several files and single-file gists sort together by date or name,
+  instead of all multi-file gists first.
 
 ### Fixed
 
@@ -25,6 +27,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   putting the table into edit mode.
 - Bold, italic, highlight, strikethrough or code on a selection that spans several table cells
   formats each cell and keeps the table intact.
+- Empty folders stay at the end of a list sorted by date, newest first included.
 
 ## 2.16.0 (2026-10-18)
 

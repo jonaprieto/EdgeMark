@@ -37,9 +37,12 @@ struct NoteListView: View {
         return "/\(name)/"
     }
 
-    private var sortedNotes: [Note] {
-        noteStore.sortedNotes(
-            excludingPendingGroupingNotes(noteStore.filteredNotes),
+    /// Subfolders above the divider and notes below it; in Gists all in `upper`.
+    private var rows: (upper: [NoteStore.ListRow], lower: [NoteStore.ListRow]) {
+        guard let parent = noteStore.selectedFolder?.name else { return ([], []) }
+        return noteStore.listRows(
+            in: parent,
+            notes: excludingPendingGroupingNotes(noteStore.filteredNotes),
             by: appSettings.sortBy,
             ascending: appSettings.sortAscending,
         )
@@ -54,9 +57,10 @@ struct NoteListView: View {
         )
     }
 
-    /// Flat row order used for ⇧-click range selection (folders first, then notes).
+    /// Flat row order used for ⇧-click range selection, top to bottom.
     private var visibleOrder: [NoteStore.SelectableID] {
-        childFolders.map { .folder($0.name) } + sortedNotes.map { .note($0.id) }
+        let rows = rows
+        return (rows.upper + rows.lower).map(\.id)
     }
 
     /// An explicit selection exists in single-click mode: plain clicks toggle rows instead
@@ -77,7 +81,8 @@ struct NoteListView: View {
     }
 
     private var isEmpty: Bool {
-        sortedNotes.isEmpty && childFolders.isEmpty && !folderRename.isCreating
+        let rows = rows
+        return rows.upper.isEmpty && rows.lower.isEmpty && !folderRename.isCreating
     }
 
     var body: some View {
@@ -164,23 +169,24 @@ struct NoteListView: View {
 
                     GeometryReader { geo in
                         ScrollView {
+                            let rows = rows
                             VStack(spacing: 0) {
-                                ForEach(childFolders) { folder in
-                                    folderRowWithContextMenu(folder: folder)
+                                ForEach(rows.upper) { row in
+                                    listRow(row)
                                 }
 
                                 if folderRename.isCreating {
                                     inlineFolderEditor
                                 }
 
-                                if !childFolders.isEmpty, !sortedNotes.isEmpty {
+                                if !rows.upper.isEmpty, !rows.lower.isEmpty {
                                     Divider()
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 4)
                                 }
 
-                                ForEach(sortedNotes) { note in
-                                    noteRowWithContextMenu(note: note)
+                                ForEach(rows.lower) { row in
+                                    listRow(row)
                                 }
                             }
                             .padding(.vertical, 10)
@@ -253,6 +259,14 @@ struct NoteListView: View {
             DispatchQueue.main.async { isNoteRenameFocused = true }
         }
         .moveConflictAlerts(noteStore: noteStore, l10n: l10n)
+    }
+
+    @ViewBuilder
+    private func listRow(_ row: NoteStore.ListRow) -> some View {
+        switch row {
+        case let .folder(folder): folderRowWithContextMenu(folder: folder)
+        case let .note(note): noteRowWithContextMenu(note: note)
+        }
     }
 
     // MARK: - Folder Row with Context Menu
