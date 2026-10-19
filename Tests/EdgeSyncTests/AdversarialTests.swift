@@ -567,7 +567,7 @@ final class AdversarialTests: XCTestCase {
         let sync = makeSync(root: work, debounce: 0.05)
         var expected: [String] = ["note.md"]
         await bounded(90, "concurrent burst") {
-            async let pull: Void = sync.pullAll(force: true)
+            async let pull: Int? = sync.pullAll(force: true)
             async let now: Void = sync.syncNow()
             for i in 0 ..< 50 {
                 let name = "c\(i).md"

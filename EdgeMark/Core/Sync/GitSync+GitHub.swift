@@ -21,9 +21,9 @@ extension GitSync {
     /// Clones gists of the chosen account that have no directory under `Gists/` yet and
     /// were not hidden on this Mac (`settings.ignoredGistIDs`). A clone of this account whose gist is no longer listed was deleted on GitHub: its
     /// files stay on disk, but it goes into `detachedGists` so it is not synced. A failed
-    /// listing changes nothing. Returns how many gists were cloned.
+    /// listing changes nothing and returns nil. Returns how many gists were cloned.
     @discardableResult
-    func refreshGistsIfNeeded() async -> Int {
+    func refreshGistsIfNeeded() async -> Int? {
         guard settings.syncGists, !settings.account.isEmpty, let gistsDir else { return 0 }
         var clones: [(repo: GitRepo, id: String, login: String?)] = []
         for repo in gistRepos() {
@@ -36,6 +36,7 @@ extension GitSync {
         switch await listGists(settings.account) {
         case let .failure(error):
             SyncLog.log.error("[GitSync] gist list failed: \(error.message, privacy: .public)")
+            return nil
         case let .success(gists):
             let listed = Set(gists.map(\.id))
             for gist in gists where !gist.description.isEmpty {

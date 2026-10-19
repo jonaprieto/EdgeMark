@@ -38,7 +38,8 @@ final class GitSync {
     @ObservationIgnored var guardTransport: JevTransport?
 
     @ObservationIgnored private var debounceTasks: [URL: Task<Void, Never>] = [:]
-    @ObservationIgnored private var pulling = false
+    /// True while `pullAll` runs; the Gists refresh button shows a spinner meanwhile.
+    private(set) var pulling = false
     /// Set when `commitAndPush` pulled new commits; reported by the next `pullAll`.
     @ObservationIgnored private var pendingReload = false
     /// Last queued git operation per repo; the next one waits for it.
@@ -204,64 +205,97 @@ final class GitSync {
         }
     }
 
-    /// Pull every repo in turn, then let the app re-read files from disk.
+    /// Pull every repo, up to `pullWidth` at once, then let the app re-read files from disk.
     /// The callback runs on every call: with false when sync is inactive, and right away
     /// when a pull is already in flight or (unless `force`) one finished less than
     /// `settings.pullIntervalSeconds` ago; then the flag is true only if an earlier
     /// `commitAndPush` pulled new commits.
-    /// Gist discovery runs when forced or when the last one is over an hour old.
-    func pullAll(force: Bool = false) async {
-        guard isActive else { onPullFinished?(false); return }
-        if pulling { finishPull(changed: false); return }
+    /// Gist discovery runs when forced or when the last one is over an hour old. Returns
+    /// how many gists it cloned, or nil when it did not run or could not list the gists.
+    @discardableResult
+    func pullAll(force: Bool = false) async -> Int? {
+        guard isActive else { onPullFinished?(false); return nil }
+        if pulling { finishPull(changed: false); return nil }
         if !force, let lastPullAll, Date().timeIntervalSince(lastPullAll) < settings.pullIntervalSeconds {
             finishPull(changed: false)
-            return
+            return nil
         }
         pulling = true
         defer { pulling = false }
         var changed = false
+        var cloned: Int?
         if force || lastGistDiscovery.map({ Date().timeIntervalSince($0) >= 3600 }) ?? true {
             lastGistDiscovery = Date()
-            changed = await refreshGistsIfNeeded() > 0
+            cloned = await refreshGistsIfNeeded()
+            changed = (cloned ?? 0) > 0
         }
-        for repo in repos() {
-            await serialized(repo) { [self] in
-                if await isPaused(repo) { return }
-                // A fresh repo (created here, or connected to an empty remote) has no
-                // upstream until its first push; there is nothing to pull yet.
-                guard await repo.hasUpstream() else {
-                    SyncLog.log.debug("[GitSync] no upstream in \(repo.url.lastPathComponent, privacy: .public), skipping pull")
-                    return
-                }
-                repoStates[repo.url] = .syncing
-                // Commit local edits first: a clash then pauses as a real rebase instead
-                // of an autostash pop that leaves markers git would happily commit.
-                if await repo.stageChanges(), await guardStaged(repo) {
-                    let c = await repo.commit(message: settings.renderCommitMessage())
-                    guard c.ok else { return await recordFailure(repo, c, during: "commit") }
-                }
-                let before = await repo.head()
-                let r = await repo.pull(autostash: heldState(repo) != nil)
-                if r.ok {
-                    let moved = await repo.head() != before
-                    if moved { changed = true }
-                    // A gist file shows the date of its last commit, so date the files a
-                    // pull brought, and once per run the ones cloned by an older version.
-                    if repo.url != rootRepo?.url, moved || !datedGists.contains(repo.url) {
-                        datedGists.insert(repo.url)
-                        if await repo.stampCommitDates() { changed = true }
-                    }
-                    if await isPaused(repo) { return }
-                    let now = Date()
-                    lastSync[repo.url] = now
-                    repoStates[repo.url] = await repo.hasUnpushedCommits() ? .pending : heldState(repo) ?? .idle(lastSync: now)
-                } else {
-                    await recordFailure(repo, r, during: "pull")
+        // Each pull waits on the network, so pulling one repo after another made a few dozen
+        // gists take most of a minute. `serialized` still orders the git work within a repo.
+        let repos = repos()
+        let pulled = await withTaskGroup(of: Bool.self) { group in
+            var next = 0
+            var moved = false
+            while next < min(Self.pullWidth, repos.count) {
+                let repo = repos[next]
+                group.addTask { await self.pull(repo) }
+                next += 1
+            }
+            for await repoMoved in group {
+                moved = moved || repoMoved
+                if next < repos.count {
+                    let repo = repos[next]
+                    group.addTask { await self.pull(repo) }
+                    next += 1
                 }
             }
+            return moved
         }
         lastPullAll = Date()
-        finishPull(changed: changed)
+        finishPull(changed: changed || pulled)
+        return cloned
+    }
+
+    /// Repos `pullAll` pulls at the same time.
+    static let pullWidth = 6
+
+    /// Commits local edits in `repo` and pulls it; true when files on disk changed.
+    private func pull(_ repo: GitRepo) async -> Bool {
+        var changed = false
+        await serialized(repo) { [self] in
+            if await isPaused(repo) { return }
+            // A fresh repo (created here, or connected to an empty remote) has no
+            // upstream until its first push; there is nothing to pull yet.
+            guard await repo.hasUpstream() else {
+                SyncLog.log.debug("[GitSync] no upstream in \(repo.url.lastPathComponent, privacy: .public), skipping pull")
+                return
+            }
+            repoStates[repo.url] = .syncing
+            // Commit local edits first: a clash then pauses as a real rebase instead
+            // of an autostash pop that leaves markers git would happily commit.
+            if await repo.stageChanges(), await guardStaged(repo) {
+                let c = await repo.commit(message: settings.renderCommitMessage())
+                guard c.ok else { return await recordFailure(repo, c, during: "commit") }
+            }
+            let before = await repo.head()
+            let r = await repo.pull(autostash: heldState(repo) != nil)
+            if r.ok {
+                let moved = await repo.head() != before
+                if moved { changed = true }
+                // A gist file shows the date of its last commit, so date the files a
+                // pull brought, and once per run the ones cloned by an older version.
+                if repo.url != rootRepo?.url, moved || !datedGists.contains(repo.url) {
+                    datedGists.insert(repo.url)
+                    if await repo.stampCommitDates() { changed = true }
+                }
+                if await isPaused(repo) { return }
+                let now = Date()
+                lastSync[repo.url] = now
+                repoStates[repo.url] = await repo.hasUnpushedCommits() ? .pending : heldState(repo) ?? .idle(lastSync: now)
+            } else {
+                await recordFailure(repo, r, during: "pull")
+            }
+        }
+        return changed
     }
 
     /// Reports `changed`, or a reload left over from `commitAndPush`, and clears the latter.

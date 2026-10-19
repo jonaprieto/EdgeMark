@@ -22,6 +22,9 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   off.
 - In Gists, gists with several files and single-file gists sort together by date or name,
   instead of all multi-file gists first.
+- Updating Gists pulls several gists at once, so it finishes much sooner. The update button spins
+  while it runs, and the message says how many new gists arrived, that there were none, or that
+  GitHub could not list them.
 - Publishing a note as a gist opens Gists with the note selected, so it is clear where the note
   moved.
 

@@ -102,17 +102,21 @@ final class GistSyncTests: XCTestCase {
         var reloads: [Bool] = []
         sync.onPullFinished = { reloads.append($0) }
 
-        await sync.pullAll(force: true)
+        let first = await sync.pullAll(force: true)
+        XCTAssertEqual(first, 1)
         XCTAssertEqual(gistDirs(root), ["First-gist"])
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("Gists/First-gist/README.md"), encoding: .utf8), "# A\n")
 
         // Created later on github.com: picked up by the next discovery, the first is not cloned twice.
         await makeGist(id: "b2", files: ["mod.rs": "fn main() {}\n"])
         listed.append(gist("b2", "", ["mod.rs"]))
-        await sync.pullAll(force: true)
+        let second = await sync.pullAll(force: true)
+        XCTAssertEqual(second, 1)
         XCTAssertEqual(gistDirs(root), ["First-gist", "b2"])
         XCTAssertEqual(reloads, [true, true])
         XCTAssertEqual(sync.repos().count, 3)
+        let third = await sync.pullAll(force: true)
+        XCTAssertEqual(third, 0)
     }
 
     func testSameDescriptionGetsDistinctFolders() async throws {
@@ -264,7 +268,8 @@ final class GistSyncTests: XCTestCase {
         let sync = makeSync(root: root)
         await sync.pullAll(force: true)
         sync.listGists = { _ in .failure(GHError(message: "offline")) }
-        await sync.pullAll(force: true)
+        let cloned = await sync.pullAll(force: true)
+        XCTAssertNil(cloned, "a failed listing is reported, not taken for no new gists")
         XCTAssertEqual(sync.repos().count, 2)
     }
 

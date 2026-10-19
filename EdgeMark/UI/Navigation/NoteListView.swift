@@ -119,19 +119,17 @@ struct NoteListView: View {
                 // In Gists: pull every gist now, and clone the ones created since, without
                 // waiting for the next automatic pull.
                 if FileStorage.isGistFolder(noteStore.selectedFolder?.name ?? ""), GitSync.shared.isActive {
-                    HeaderIconButton(
-                        systemName: "arrow.triangle.2.circlepath",
-                        help: l10n["tooltip.updateGists"],
-                    ) {
-                        Task {
-                            await GitSync.shared.pullAll(force: true)
-                            // A failed pull shows in the footer's sync status instead.
-                            let failed = GitSync.shared.repoStates.values.contains {
-                                if case .error = $0 { true } else { false }
-                            }
-                            if !failed {
-                                FeedbackToast.shared.show(l10n["sync.gistsUpdated"])
-                            }
+                    if GitSync.shared.pulling {
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(width: 28, height: 28)
+                            .help(l10n["tooltip.updatingGists"])
+                    } else {
+                        HeaderIconButton(
+                            systemName: "arrow.triangle.2.circlepath",
+                            help: l10n["tooltip.updateGists"],
+                        ) {
+                            Task { await updateGists() }
                         }
                     }
                 }
@@ -257,6 +255,26 @@ struct NoteListView: View {
             DispatchQueue.main.async { isNoteRenameFocused = true }
         }
         .moveConflictAlerts(noteStore: noteStore, l10n: l10n)
+    }
+
+    /// Pulls every gist and clones new ones, then says what came of it.
+    private func updateGists() async {
+        let sync = GitSync.shared
+        guard !sync.pulling else { return }
+        guard let cloned = await sync.pullAll(force: true) else {
+            return FeedbackToast.shared.show(l10n["sync.gistsListFailed"], isError: true)
+        }
+        // A failed pull shows in the footer's sync status instead.
+        let failed = sync.repoStates.values.contains {
+            if case .error = $0 { true } else { false }
+        }
+        guard !failed else { return }
+        let message = switch cloned {
+        case 0: l10n["sync.gistsNoNew"]
+        case 1: l10n["sync.gistNew"]
+        default: l10n.t("sync.gistsNew", "\(cloned)")
+        }
+        FeedbackToast.shared.show(message)
     }
 
     @ViewBuilder
