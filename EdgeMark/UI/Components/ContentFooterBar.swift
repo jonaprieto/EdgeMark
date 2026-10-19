@@ -1,7 +1,7 @@
 import Cocoa
 import SwiftUI
 
-/// Shared footer bar with sort (left), sync and settings (right) menus.
+/// Shared footer bar with sort (left), sync, appearance and settings (right) menus.
 /// Pinned at the bottom of the content card on home and folder list screens.
 /// While rows are selected it shows the selection actions instead.
 struct ContentFooterBar: View {
@@ -30,6 +30,9 @@ struct ContentFooterBar: View {
                 SyncFooterButton(state: GitSync.shared.state, help: l10n.t("sync.footer.help", detail)) {
                     showSyncMenu()
                 }
+            }
+            HeaderIconButton(systemName: "circle.lefthalf.filled", help: l10n["settings.general.appearance"]) {
+                showAppearanceMenu()
             }
             HeaderIconButton(systemName: "gearshape", help: l10n["tooltip.menu"]) {
                 showSettingsMenu()
@@ -62,6 +65,24 @@ struct ContentFooterBar: View {
         dirItem.target = delegate
         menu.addItem(dirItem)
 
+        popUpMenu(menu)
+    }
+
+    // MARK: - Appearance Menu
+
+    private func showAppearanceMenu() {
+        let l10n = L10n.shared
+        let menu = NSMenu()
+        let modes: [(AppSettings.AppearanceMode, String, String)] = [
+            (.system, "settings.appearance.system", "circle.lefthalf.filled"),
+            (.light, "settings.appearance.light", "sun.max"),
+            (.dark, "settings.appearance.dark", "moon"),
+        ]
+        for (mode, key, icon) in modes {
+            menu.addActionItem(title: l10n[key], icon: icon) { [settings] in
+                settings.appearanceMode = mode
+            }.state = settings.appearanceMode == mode ? .on : .off
+        }
         popUpMenu(menu)
     }
 

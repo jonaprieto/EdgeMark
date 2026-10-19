@@ -5,7 +5,6 @@ struct GeneralSettingsTab: View {
     @Environment(L10n.self) var l10n
     @Environment(AppSettings.self) var appSettings
 
-    @State private var appearanceMode: AppSettings.AppearanceMode
     @State private var launchAtLogin: Bool
     @State private var selectedLocale: String
     // Multiple storage locations (#55). Mirrored from StorageSettings (a plain class,
@@ -17,7 +16,6 @@ struct GeneralSettingsTab: View {
     @State private var hoveredCheckboxPreset: AppSettings.TaskCheckboxPreset?
 
     init() {
-        _appearanceMode = State(initialValue: AppSettings.shared.appearanceMode)
         _launchAtLogin = State(initialValue: AppSettings.shared.launchAtLogin)
         _roots = State(initialValue: StorageSettings.shared.storageRoots)
         _activeRootID = State(initialValue: StorageSettings.shared.activeStorageRoot?.id)
@@ -49,7 +47,8 @@ struct GeneralSettingsTab: View {
         @Bindable var settings = appSettings
         Form {
             Section {
-                Picker(l10n["settings.general.appearance"], selection: $appearanceMode) {
+                // Bound to the settings, not a copy, so the footer's menu shows here too.
+                Picker(l10n["settings.general.appearance"], selection: $settings.appearanceMode) {
                     Text(l10n["settings.appearance.system"]).tag(AppSettings.AppearanceMode.system)
                     Text(l10n["settings.appearance.light"]).tag(AppSettings.AppearanceMode.light)
                     Text(l10n["settings.appearance.dark"]).tag(AppSettings.AppearanceMode.dark)
@@ -57,9 +56,6 @@ struct GeneralSettingsTab: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .labelsHidden()
-                .onChange(of: appearanceMode) { _, newValue in
-                    AppSettings.shared.appearanceMode = newValue
-                }
 
                 Picker(l10n["settings.general.panelStyle"], selection: $settings.panelStyle) {
                     ForEach(AppSettings.PanelStyle.allCases, id: \.self) { style in

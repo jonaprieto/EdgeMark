@@ -5,6 +5,10 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Added
+
+- An appearance button in the list footer switches between System, Light and Dark.
+
 ## 2.16.0 (2026-10-18)
 
 ### Added
