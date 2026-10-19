@@ -21,7 +21,7 @@ struct ReadOnlyMarkdownView: View {
             PlainTextView(
                 model: PlainTextEditorModel(noteID: UUID()),
                 initialContent: content,
-                monoFontName: AppSettings.shared.editorMonoFontName,
+                font: AppSettings.shared.editorMonoFont,
                 isEditable: false,
             )
         } else {

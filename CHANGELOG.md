@@ -34,6 +34,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   putting the table into edit mode.
 - Bold, italic, highlight, strikethrough or code on a selection that spans several table cells
   formats each cell and keeps the table intact.
+- ⌘+, ⌘- and ⌘0 change the text size in code and other plain-text files (a .patch, say) too.
+  Those files now follow the editor text size, like code blocks in notes.
 - Empty folders stay at the end of a list sorted by date, newest first included.
 
 ## 2.16.0 (2026-10-18)

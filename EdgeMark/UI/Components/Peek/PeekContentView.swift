@@ -29,7 +29,7 @@ struct PeekContentView: View {
             PlainTextView(
                 model: PlainTextEditorModel(noteID: note.id),
                 initialContent: note.content,
-                monoFontName: AppSettings.shared.editorMonoFontName,
+                font: AppSettings.shared.editorMonoFont,
                 language: SyntaxLanguage.language(forFileName: note.title, content: note.content),
                 isEditable: false,
             )

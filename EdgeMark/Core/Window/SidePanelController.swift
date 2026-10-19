@@ -298,6 +298,17 @@ final class SidePanelController: NSWindowController {
                 noteStore.copySelectedPaths()
                 return nil
             }
+            // In an open note, Markdown or plain text: ⌘+ / ⌘- / ⌘0 zoom the text like other
+            // apps, within the Settings range. Shift is ignored so both ⌘= and ⌘⇧= (⌘+) work.
+            if noteStore.selectedNote != nil, event.modifierFlags.intersection([.command, .option, .control]) == .command {
+                let settings = AppSettings.shared
+                switch event.charactersIgnoringModifiers {
+                case "=", "+": settings.editorFontSize = min(settings.editorFontSize + 1, 28); return nil
+                case "-": settings.editorFontSize = max(settings.editorFontSize - 1, 11); return nil
+                case "0": settings.editorFontSize = 16; return nil
+                default: break
+                }
+            }
             return event
         }
 

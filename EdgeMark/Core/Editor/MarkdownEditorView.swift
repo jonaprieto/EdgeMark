@@ -309,17 +309,6 @@ struct MarkdownEditorView: View {
                 if s.nextNoteShortcut?.matches(event) == true {
                     onNavigateNext?(); return nil
                 }
-                // ⌘+ / ⌘- / ⌘0 zoom the text like other apps, within the Settings range.
-                // Shift is ignored so both ⌘= and ⌘⇧= (⌘+) work.
-                if event.modifierFlags.intersection([.command, .option, .control]) == .command {
-                    let settings = AppSettings.shared
-                    switch event.charactersIgnoringModifiers {
-                    case "=", "+": settings.editorFontSize = min(settings.editorFontSize + 1, 28); return nil
-                    case "-": settings.editorFontSize = max(settings.editorFontSize - 1, 11); return nil
-                    case "0": settings.editorFontSize = 16; return nil
-                    default: break
-                    }
-                }
                 return event
             }
             // Encrypted notes are never shared without being asked.

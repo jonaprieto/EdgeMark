@@ -52,7 +52,7 @@ struct PlainTextNoteEditor: View {
             PlainTextView(
                 model: model,
                 initialContent: initialContent,
-                monoFontName: AppSettings.shared.editorMonoFontName,
+                font: AppSettings.shared.editorMonoFont,
                 language: language,
             )
         }
@@ -157,18 +157,12 @@ final class CodeTextView: NSTextView {
 struct PlainTextView: NSViewRepresentable {
     let model: PlainTextEditorModel
     let initialContent: String
-    /// `AppSettings.editorMonoFontName`, passed in so the parent's body tracks it and a
-    /// change reaches `updateNSView`.
-    let monoFontName: String?
+    /// `AppSettings.editorMonoFont`, passed in so the parent's body tracks the font and
+    /// the text size (⌘+ / ⌘-) and a change reaches `updateNSView`.
+    let font: NSFont
     /// highlight.js language for a gist code file; nil shows the text uncoloured.
     var language: String?
     var isEditable = true
-
-    /// The monospace font at the system text size; the system monospaced font by default.
-    private static func font(named name: String?) -> NSFont {
-        let size = NSFont.systemFontSize
-        return name.flatMap { NSFont(name: $0, size: size) } ?? .monospacedSystemFont(ofSize: size, weight: .regular)
-    }
 
     /// The model `makeNSView` wired up; a caller may pass a fresh one on every render.
     func makeCoordinator() -> PlainTextEditorModel {
@@ -186,7 +180,7 @@ struct PlainTextView: NSViewRepresentable {
         textView.isEditable = isEditable
         textView.isSelectable = true
         textView.usesFindBar = true
-        textView.font = Self.font(named: monoFontName)
+        textView.font = font
         textView.textColor = .textColor
         textView.backgroundColor = .clear
         textView.drawsBackground = false
@@ -223,7 +217,6 @@ struct PlainTextView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
-        let font = Self.font(named: monoFontName)
         if textView.font != font {
             textView.font = font
             context.coordinator.highlight()
