@@ -170,7 +170,6 @@ struct EditorScreen: View {
 
                         if let gist {
                             GistPill(gist: gist, fileURL: FileStorage.urlForNote(note))
-                            GistPushButton(repoURL: gist.repoURL, fileURL: FileStorage.urlForNote(note))
                         }
                     }
                     // The note moves into the clone after publishing, so its path is the
@@ -183,6 +182,10 @@ struct EditorScreen: View {
                     Spacer()
 
                     PinButton()
+
+                    if let gist {
+                        GistPushButton(repoURL: gist.repoURL, fileURL: FileStorage.urlForNote(note))
+                    }
 
                     // The visible way to encrypt the open note; the row menu has it too.
                     // An encrypted note shows a closed lock that ends the session.

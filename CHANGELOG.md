@@ -12,8 +12,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   pressed in.
 - ⇧⌘F opens the search over all notes from anywhere, an open note included; Escape returns to
   the note.
-- A note in a gist has an upload button next to the Gist pill that pushes the gist right away
-  and shows whether it is synced.
+- A note in a gist has an upload button, with the other icons on the right of its header, that
+  pushes the gist right away and shows whether it is synced.
 
 ### Changed
 
