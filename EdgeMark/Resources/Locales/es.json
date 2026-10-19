@@ -342,6 +342,7 @@
   "settings.keyboard.inlineCode": "Código en línea",
   "settings.keyboard.link": "Insertar o envolver enlace",
   "settings.keyboard.strikethrough": "Tachado",
+  "settings.keyboard.highlight": "Resaltar",
   "settings.keyboard.openLink": "Abrir enlace en el navegador",
   "settings.keyboard.reset": "Restablecer",
   "settings.keyboard.conflictsWith": "En conflicto con",

@@ -109,6 +109,7 @@ struct KeyboardSettingsTab: View {
                 localShortcutRow("\u{2318}E", l10n["settings.keyboard.inlineCode"])
                 localShortcutRow("\u{2318}K", l10n["settings.keyboard.link"])
                 localShortcutRow("\u{21E7}\u{2318}X", l10n["settings.keyboard.strikethrough"])
+                localShortcutRow("\u{21E7}\u{2318}H", l10n["settings.keyboard.highlight"])
                 localShortcutRow("/ (at line start)", l10n["settings.keyboard.slashCommand"])
                 localShortcutRow("\u{2318} Click", l10n["settings.keyboard.openLink"])
             } header: {

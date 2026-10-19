@@ -342,6 +342,7 @@
   "settings.keyboard.inlineCode": "Inline-Code",
   "settings.keyboard.link": "Link einfügen oder umschließen",
   "settings.keyboard.strikethrough": "Durchgestrichen",
+  "settings.keyboard.highlight": "Hervorheben",
   "settings.keyboard.openLink": "Link im Browser öffnen",
   "settings.keyboard.reset": "Zurücksetzen",
   "settings.keyboard.conflictsWith": "Konflikt mit",

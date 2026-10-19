@@ -135,10 +135,11 @@ struct MarkdownEditorView: View {
             mermaidColumn: mermaidColumn,
             bus: MarkdownEditorBus(
                 // Formatting-request channels — posting these drives the engine's
-                // didMarkdown* actions (bold/italic/code/link/strikethrough), which in
+                // didMarkdown* actions (bold/italic/code/link/strikethrough/highlight), which in
                 // 0.8+ also word-wrap the token under the caret when nothing is selected.
                 applyBoldRequest: .editorApplyBold,
                 applyItalicRequest: .editorApplyItalic,
+                applyHighlightRequest: .editorApplyHighlight,
                 applyStrikethroughRequest: .editorApplyStrikethrough,
                 applyInlineCodeRequest: .editorApplyInlineCode,
                 applyLinkRequest: .editorApplyLink,
@@ -296,6 +297,9 @@ struct MarkdownEditorView: View {
                     }
                     if key == "x", mods == [.command, .shift] {
                         NotificationCenter.default.post(name: .editorApplyStrikethrough, object: nil); return nil
+                    }
+                    if key == "h", mods == [.command, .shift] {
+                        NotificationCenter.default.post(name: .editorApplyHighlight, object: nil); return nil
                     }
                 }
                 let s = ShortcutSettings.shared
@@ -508,4 +512,5 @@ extension Notification.Name {
     static let editorApplyInlineCode = Notification.Name("io.github.ender-wang.EdgeMark.editor.applyInlineCode")
     static let editorApplyLink = Notification.Name("io.github.ender-wang.EdgeMark.editor.applyLink")
     static let editorApplyStrikethrough = Notification.Name("io.github.ender-wang.EdgeMark.editor.applyStrikethrough")
+    static let editorApplyHighlight = Notification.Name("io.github.ender-wang.EdgeMark.editor.applyHighlight")
 }

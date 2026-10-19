@@ -360,6 +360,7 @@
   "settings.keyboard.inlineCode": "Inline code",
   "settings.keyboard.link": "Insert or wrap link",
   "settings.keyboard.strikethrough": "Strikethrough",
+  "settings.keyboard.highlight": "Highlight",
   "settings.keyboard.openLink": "Open link in browser",
   "settings.keyboard.reset": "Reset",
   "settings.keyboard.conflictsWith": "Conflicts with",

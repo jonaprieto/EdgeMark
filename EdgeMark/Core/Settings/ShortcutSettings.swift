@@ -136,6 +136,7 @@ final class ShortcutSettings {
         ("settings.keyboard.inlineCode", KeyboardShortcut(keyCode: UInt16(kVK_ANSI_E), modifiers: UInt32(cmdKey))),
         ("settings.keyboard.link", KeyboardShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: UInt32(cmdKey))),
         ("settings.keyboard.strikethrough", KeyboardShortcut(keyCode: UInt16(kVK_ANSI_X), modifiers: UInt32(cmdKey | shiftKey))),
+        ("settings.keyboard.highlight", KeyboardShortcut(keyCode: UInt16(kVK_ANSI_H), modifiers: UInt32(cmdKey | shiftKey))),
     ]
 
     // MARK: - Keys
