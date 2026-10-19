@@ -177,6 +177,21 @@ final class GistSyncTests: XCTestCase {
         XCTAssertTrue(files.contains("b.md"))
     }
 
+    /// The editor's push button: the gist is pushed right away, with no timer involved.
+    func testPushNowPushesTheGistWithoutWaiting() async throws {
+        let root = try await makeRoot()
+        let remote = await makeGist(id: "f8", files: ["a.md": "a\n"])
+        listed = [gist("f8", "h", ["a.md"])]
+        let sync = makeSync(root: root)
+        sync.settings.debounceSeconds = 600
+        await sync.pullAll(force: true)
+        let file = root.appendingPathComponent("Gists/h/b.md")
+        TestGit.write("b\n", to: file)
+        await sync.pushNow(containing: file)
+        let files = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(files.contains("b.md"))
+    }
+
     /// Trashing one file of a gist removes it from the clone and reports activity there
     /// (FileStorage.trashNote); the removal is pushed as a deletion.
     func testRemovedGistFileIsDeletedFromTheGist() async throws {

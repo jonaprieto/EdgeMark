@@ -417,6 +417,7 @@
   "tooltip.export": "Exportar la nota como Markdown o PDF",
   "tooltip.deleteNote": "Mueve la nota a la papelera",
   "tooltip.gistPill": "Sincronizada con un Gist de GitHub, haz clic para ver opciones",
+  "tooltip.gist.pushNow": "Subir este gist ahora ({0})",
   "tooltip.find.previous": "Coincidencia anterior",
   "tooltip.find.next": "Coincidencia siguiente",
   "tooltip.find.matchCase": "Distinguir mayúsculas y minúsculas",

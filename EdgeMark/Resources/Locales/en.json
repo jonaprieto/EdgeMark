@@ -439,6 +439,7 @@
   "tooltip.export": "Export the note as Markdown or PDF",
   "tooltip.deleteNote": "Moves the note to Trash",
   "tooltip.gistPill": "Synced with a GitHub Gist, click for options",
+  "tooltip.gist.pushNow": "Push this gist now ({0})",
   "tooltip.find.previous": "Previous match",
   "tooltip.find.next": "Next match",
   "tooltip.find.matchCase": "Match upper and lower case",

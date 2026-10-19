@@ -417,6 +417,7 @@
   "tooltip.export": "नोट को Markdown या PDF के रूप में निर्यात करें",
   "tooltip.deleteNote": "नोट को ट्रैश में ले जाता है",
   "tooltip.gistPill": "GitHub Gist से सिंक है, विकल्पों के लिए क्लिक करें",
+  "tooltip.gist.pushNow": "यह gist अभी पुश करें ({0})",
   "tooltip.find.previous": "पिछला मिलान",
   "tooltip.find.next": "अगला मिलान",
   "tooltip.find.matchCase": "बड़े और छोटे अक्षरों का अंतर रखें",

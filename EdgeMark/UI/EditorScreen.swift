@@ -170,6 +170,7 @@ struct EditorScreen: View {
 
                         if let gist {
                             GistPill(gist: gist, fileURL: FileStorage.urlForNote(note))
+                            GistPushButton(repoURL: gist.repoURL, fileURL: FileStorage.urlForNote(note))
                         }
                     }
                     // The note moves into the clone after publishing, so its path is the
@@ -462,6 +463,37 @@ private struct GistPill: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help(l10n["tooltip.gistPill"])
+    }
+}
+
+// MARK: - Gist Push Button
+
+/// Pushes the open note's gist now instead of after the gist delay. The icon shows the
+/// gist's sync state, so the click visibly lands.
+private struct GistPushButton: View {
+    let repoURL: URL
+    let fileURL: URL
+
+    @Environment(NoteStore.self) private var noteStore
+
+    var body: some View {
+        let state = GitSync.shared.repoStates[repoURL] ?? .idle(lastSync: nil)
+        HeaderIconButton(systemName: Self.symbol(for: state), help: L10n.shared.t("tooltip.gist.pushNow", state.summary)) {
+            // The last keystrokes may still be in the editor or only in memory.
+            noteStore.onFlushEditor?()
+            noteStore.saveDirtyNotes()
+            Task { await GitSync.shared.pushNow(containing: fileURL) }
+        }
+        .disabled(state == .syncing)
+    }
+
+    private static func symbol(for state: SyncState) -> String {
+        switch state {
+        case .syncing: "arrow.triangle.2.circlepath"
+        case .pending: "icloud.and.arrow.up"
+        case .idle: "checkmark.icloud"
+        default: "exclamationmark.icloud"
+        }
     }
 }
 

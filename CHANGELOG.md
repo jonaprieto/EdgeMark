@@ -8,6 +8,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 ### Added
 
 - An appearance button in the list footer switches between System, Light and Dark.
+- A note in a gist has an upload button next to the Gist pill that pushes the gist right away
+  and shows whether it is synced.
 
 ## 2.16.0 (2026-10-18)
 

@@ -417,6 +417,7 @@
   "tooltip.export": "Notiz als Markdown oder PDF exportieren",
   "tooltip.deleteNote": "Verschiebt die Notiz in den Papierkorb",
   "tooltip.gistPill": "Mit einem GitHub Gist synchronisiert, für Optionen klicken",
+  "tooltip.gist.pushNow": "Diesen Gist jetzt hochladen ({0})",
   "tooltip.find.previous": "Vorheriger Treffer",
   "tooltip.find.next": "Nächster Treffer",
   "tooltip.find.matchCase": "Groß- und Kleinschreibung beachten",

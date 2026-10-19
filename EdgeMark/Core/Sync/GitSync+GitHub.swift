@@ -8,6 +8,8 @@ extension GitSync {
         let account: String
         let fileCount: Int
         let webURL: URL
+        /// The clone's directory, the key of its `repoStates` entry.
+        let repoURL: URL
     }
 
     private var gistsDir: URL? {
@@ -97,6 +99,7 @@ extension GitSync {
             account: settings.account,
             fileCount: files,
             webURL: GistCatalog.webURL(account: settings.account, id: id, file: files > 1 ? noteURL.lastPathComponent : nil),
+            repoURL: repo.url,
         )
     }
 

@@ -417,6 +417,7 @@
   "tooltip.export": "将笔记导出为 Markdown 或 PDF",
   "tooltip.deleteNote": "将笔记移到废纸篓",
   "tooltip.gistPill": "已与 GitHub Gist 同步，点击查看选项",
+  "tooltip.gist.pushNow": "立即推送此 gist（{0}）",
   "tooltip.find.previous": "上一个匹配项",
   "tooltip.find.next": "下一个匹配项",
   "tooltip.find.matchCase": "区分大小写",

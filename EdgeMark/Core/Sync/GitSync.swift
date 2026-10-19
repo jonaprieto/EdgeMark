@@ -314,6 +314,13 @@ final class GitSync {
         await refreshStates()
     }
 
+    /// Commits and pushes the repo holding `url` now instead of when its timer fires.
+    func pushNow(containing url: URL) async {
+        guard let repo = repoContaining(url) else { return }
+        debounceTasks[repo.url]?.cancel()
+        await commitAndPush(repo)
+    }
+
     /// Best effort on quit: commits and pushes every repo (15 s per git network step)
     /// and returns after at most `budget` seconds even if git is still running.
     func flushOnQuit(budget: TimeInterval = 20) async {
