@@ -158,6 +158,9 @@ final class NoteStore {
     /// Folder to return to when the user dismisses search (set when search is triggered from a subfolder).
     var searchReturnFolder: Folder?
 
+    /// Note to reopen when the user dismisses search (set when ⇧⌘F is pressed in a note).
+    var searchReturnNoteID: UUID?
+
     /// Active tag filter applied within the search experience. Session-only; cleared on dismiss.
     var activeTagFilter: Set<TagColor> = []
 
@@ -258,6 +261,22 @@ final class NoteStore {
         }
     }
 
+    /// Opens the search over every note on the home list. Dismissing it returns to the
+    /// open note, or else to the open folder.
+    func searchAllNotes() {
+        if selectedNote != nil {
+            onFlushEditor?()
+            saveDirtyNotes()
+        }
+        // Pressed again on the home list (search open), keep where the first press came from.
+        if selectedNote != nil || selectedFolder != nil {
+            searchReturnNoteID = selectedNote?.id
+            searchReturnFolder = selectedFolder
+        }
+        pendingSearchOnHome = true
+        navigateToHome()
+    }
+
     func navigateBack() {
         let from = selectedNote?.title ?? selectedFolder?.name ?? "home"
         Log.navigation.debug("[NoteStore] navigateBack from \(from, privacy: .public)")
@@ -297,6 +316,8 @@ final class NoteStore {
 
     func openNoteFromSearch(_ note: Note) {
         if note.isEncrypted { KeySession.shared.touch() }
+        searchReturnFolder = nil
+        searchReturnNoteID = nil
         let title = note.title
         let folder = note.folder
         Log.navigation.debug("[NoteStore] openNoteFromSearch — \(title, privacy: .public) in \(folder, privacy: .public)")

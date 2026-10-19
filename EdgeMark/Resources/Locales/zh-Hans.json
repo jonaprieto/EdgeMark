@@ -317,6 +317,7 @@
   "settings.keyboard.newNote": "新建笔记",
   "settings.keyboard.newFolder": "新建文件夹",
   "settings.keyboard.search": "搜索笔记（在编辑器中打开查找栏）",
+  "settings.keyboard.searchAllNotes": "搜索所有笔记，在笔记中也可以",
   "settings.keyboard.pinPanel": "切换固定（保持面板打开）",
   "settings.keyboard.hidePanel": "隐藏面板或返回",
   "settings.keyboard.slashCommand": "打开斜杠命令菜单",

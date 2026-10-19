@@ -68,6 +68,7 @@ struct KeyboardSettingsTab: View {
                     defaultValue: ShortcutSettings.defaultSearch,
                     apply: { ShortcutSettings.shared.searchShortcut = $0 },
                 )
+                localShortcutRow("\u{21E7}\u{2318}F", l10n["settings.keyboard.searchAllNotes"])
                 editableRow(
                     ownKey: "settings.keyboard.pinPanel",
                     label: l10n["settings.keyboard.pinPanel"],

@@ -258,6 +258,11 @@ final class SidePanelController: NSWindowController {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, isShown else { return event }
             let s = ShortcutSettings.shared
+            // ⇧⌘F searches every note from anywhere, an open note included.
+            if ShortcutSettings.searchAllNotes.matches(event), !noteStore.showTrash {
+                noteStore.searchAllNotes()
+                return nil
+            }
             if s.searchShortcut?.matches(event) == true {
                 // Trash overlay: pass through (navigateToHome while Trash is active leaves
                 // pendingSearchOnHome stuck).
@@ -269,9 +274,7 @@ final class SidePanelController: NSWindowController {
                     noteStore.pendingEditorFind = true
                     return nil
                 }
-                noteStore.searchReturnFolder = noteStore.selectedFolder
-                noteStore.pendingSearchOnHome = true
-                noteStore.navigateToHome()
+                noteStore.searchAllNotes()
                 return nil
             }
             if s.pinShortcut?.matches(event) == true {

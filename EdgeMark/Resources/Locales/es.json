@@ -317,6 +317,7 @@
   "settings.keyboard.newNote": "Nueva nota",
   "settings.keyboard.newFolder": "Nueva carpeta",
   "settings.keyboard.search": "Buscar notas (abre la barra de búsqueda en el editor)",
+  "settings.keyboard.searchAllNotes": "Buscar en todas las notas, también desde una nota",
   "settings.keyboard.pinPanel": "Fijar/desfijar panel (mantener abierto)",
   "settings.keyboard.hidePanel": "Ocultar panel o retroceder",
   "settings.keyboard.slashCommand": "Abrir menú de comandos con barra",

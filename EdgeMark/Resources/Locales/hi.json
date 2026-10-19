@@ -317,6 +317,7 @@
   "settings.keyboard.newNote": "नया नोट",
   "settings.keyboard.newFolder": "नया फ़ोल्डर",
   "settings.keyboard.search": "नोट्स खोजें (एडिटर में Find बार खोलता है)",
+  "settings.keyboard.searchAllNotes": "सभी नोट्स में खोजें, नोट के अंदर से भी",
   "settings.keyboard.pinPanel": "पिन चालू/बंद करें (पैनल खुला रखें)",
   "settings.keyboard.hidePanel": "पैनल छिपाएं या वापस जाएं",
   "settings.keyboard.slashCommand": "स्लैश कमांड मेनू खोलें",

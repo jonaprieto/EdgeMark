@@ -317,6 +317,7 @@
   "settings.keyboard.newNote": "Neue Notiz",
   "settings.keyboard.newFolder": "Neuer Ordner",
   "settings.keyboard.search": "Notizen durchsuchen (öffnet die Suchleiste im Editor)",
+  "settings.keyboard.searchAllNotes": "Alle Notizen durchsuchen, auch aus einer Notiz",
   "settings.keyboard.pinPanel": "Anheften umschalten (Panel offen halten)",
   "settings.keyboard.hidePanel": "Panel ausblenden oder zurück",
   "settings.keyboard.slashCommand": "Slash-Befehlsmenü öffnen",

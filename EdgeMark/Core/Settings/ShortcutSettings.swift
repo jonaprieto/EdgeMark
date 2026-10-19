@@ -97,6 +97,9 @@ final class ShortcutSettings {
     static let defaultNextNote = KeyboardShortcut(keyCode: UInt16(kVK_RightArrow), modifiers: UInt32(cmdKey))
     static let defaultCopySelectedPaths = KeyboardShortcut(keyCode: UInt16(kVK_ANSI_C), modifiers: UInt32(cmdKey | shiftKey))
 
+    /// Fixed: opens the search over every note, from a note too, where ⌘F finds in the note.
+    static let searchAllNotes = KeyboardShortcut(keyCode: UInt16(kVK_ANSI_F), modifiers: UInt32(cmdKey | shiftKey))
+
     // MARK: - Conflict detection
 
     /// Returns the L10n key of the shortcut that uses the same combo, or nil if no conflict.
@@ -137,6 +140,7 @@ final class ShortcutSettings {
         ("settings.keyboard.link", KeyboardShortcut(keyCode: UInt16(kVK_ANSI_K), modifiers: UInt32(cmdKey))),
         ("settings.keyboard.strikethrough", KeyboardShortcut(keyCode: UInt16(kVK_ANSI_X), modifiers: UInt32(cmdKey | shiftKey))),
         ("settings.keyboard.highlight", KeyboardShortcut(keyCode: UInt16(kVK_ANSI_H), modifiers: UInt32(cmdKey | shiftKey))),
+        ("settings.keyboard.searchAllNotes", searchAllNotes),
     ]
 
     // MARK: - Keys

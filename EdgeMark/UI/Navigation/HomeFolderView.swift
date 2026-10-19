@@ -905,7 +905,9 @@ struct HomeFolderView: View {
         isSearching = false
         searchQuery = ""
         noteStore.clearTagFilter()
-        if let returnFolder = noteStore.searchReturnFolder {
+        if let id = noteStore.searchReturnNoteID, let note = noteStore.notes.first(where: { $0.id == id }) {
+            noteStore.openNoteFromSearch(note)
+        } else if let returnFolder = noteStore.searchReturnFolder {
             let name = returnFolder.name
             Log.navigation.debug("[HomeFolderView] dismissSearch — restoring to \(name, privacy: .public)")
             noteStore.searchReturnFolder = nil

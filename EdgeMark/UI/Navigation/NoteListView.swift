@@ -140,9 +140,7 @@ struct NoteListView: View {
                     systemName: "magnifyingglass",
                     help: l10n.tooltip("tooltip.search", shortcut: ShortcutSettings.shared.searchShortcut),
                 ) {
-                    noteStore.searchReturnFolder = noteStore.selectedFolder
-                    noteStore.pendingSearchOnHome = true
-                    noteStore.navigateToHome()
+                    noteStore.searchAllNotes()
                 }
 
                 HeaderIconButton(
