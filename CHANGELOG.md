@@ -20,6 +20,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   off.
 - In Gists, gists with several files and single-file gists sort together by date or name,
   instead of all multi-file gists first.
+- Publishing a note as a gist opens Gists with the note selected, so it is clear where the note
+  moved.
 
 ### Fixed
 

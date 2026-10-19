@@ -179,7 +179,7 @@
   "sync.secretsTitle": "Posibles secretos en esta nota",
   "sync.secretsReasons": "Posibles secretos: {0}",
   "sync.publishMoveFailed": "Gist creado, pero no se pudo mover la nota a él.",
-  "sync.publishDone": "Gist creado, enlace copiado",
+  "sync.publishDone": "Publicado en Gists, enlace copiado",
   "sync.publishFailed": "Error al publicar: {0}",
   "gistTrash.title": "¿Eliminar también este gist en GitHub?",
   "gistTrash.titleMany": "¿Eliminar también estos gists en GitHub?",

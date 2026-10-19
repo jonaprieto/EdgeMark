@@ -368,6 +368,10 @@ enum NoteExporter {
                 }
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(result.webURL.absoluteString, forType: .string)
+                // Show where the note went: Gists, with the note selected. An open editor
+                // stays open, and going back lands there.
+                noteStore.navigateToFolder(noteStore.folders.first { $0.name == "Gists" } ?? Folder(name: "Gists", noteCount: 0))
+                noteStore.replaceSelection(with: .note(note.id))
                 FeedbackToast.shared.show(l10n["sync.publishDone"])
                 await sync.commitAndPush(GitRepo(url: result.gistDir))
             case let .failure(error):

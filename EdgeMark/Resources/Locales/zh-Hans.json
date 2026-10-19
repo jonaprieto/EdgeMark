@@ -179,7 +179,7 @@
   "sync.secretsTitle": "此笔记可能包含机密信息",
   "sync.secretsReasons": "可能的机密信息：{0}",
   "sync.publishMoveFailed": "Gist 已创建，但无法将笔记移入其中。",
-  "sync.publishDone": "Gist 已创建，链接已复制",
+  "sync.publishDone": "已发布到 Gists，链接已复制",
   "sync.publishFailed": "发布失败：{0}",
   "gistTrash.title": "也在 GitHub 上删除此 gist？",
   "gistTrash.titleMany": "也在 GitHub 上删除这些 gist？",

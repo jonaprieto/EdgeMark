@@ -179,7 +179,7 @@
   "sync.secretsTitle": "इस नोट में संभावित गोपनीय जानकारी",
   "sync.secretsReasons": "संभावित गोपनीय जानकारी: {0}",
   "sync.publishMoveFailed": "Gist बन गया, लेकिन नोट को उसमें नहीं ले जाया जा सका।",
-  "sync.publishDone": "Gist बन गया, लिंक कॉपी हो गया",
+  "sync.publishDone": "Gists में प्रकाशित, लिंक कॉपी हो गया",
   "sync.publishFailed": "प्रकाशन विफल: {0}",
   "gistTrash.title": "क्या इस gist को GitHub पर भी हटाएँ?",
   "gistTrash.titleMany": "क्या इन gists को GitHub पर भी हटाएँ?",

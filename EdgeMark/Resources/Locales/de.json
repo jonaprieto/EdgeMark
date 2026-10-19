@@ -179,7 +179,7 @@
   "sync.secretsTitle": "Mögliche Geheimnisse in dieser Notiz",
   "sync.secretsReasons": "Mögliche Geheimnisse: {0}",
   "sync.publishMoveFailed": "Gist erstellt, aber die Notiz konnte nicht hinein verschoben werden.",
-  "sync.publishDone": "Gist erstellt, Link kopiert",
+  "sync.publishDone": "In Gists veröffentlicht, Link kopiert",
   "sync.publishFailed": "Veröffentlichen fehlgeschlagen: {0}",
   "gistTrash.title": "Diesen Gist auch auf GitHub löschen?",
   "gistTrash.titleMany": "Diese Gists auch auf GitHub löschen?",
