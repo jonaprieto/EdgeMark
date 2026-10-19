@@ -71,6 +71,7 @@ final class GistSyncTests: XCTestCase {
         settings.syncGists = true
         settings.account = "tester"
         settings.debounceSeconds = 0.2
+        settings.gistDebounceSeconds = 0.2
         let sync = GitSync(settings: settings)
         sync.guardTransport = StubTransport()
         sync.listGists = { [unowned self] _ in .success(listed) }
@@ -175,6 +176,27 @@ final class GistSyncTests: XCTestCase {
         }
         let files = await TestGit.remoteFiles(remote)
         XCTAssertTrue(files.contains("b.md"))
+    }
+
+    /// With gist auto-push off an edit only marks the gist pending; the push button sends it.
+    func testGistAutoPushOffWaitsForPushNow() async throws {
+        let root = try await makeRoot()
+        let remote = await makeGist(id: "f9", files: ["a.md": "a\n"])
+        listed = [gist("f9", "k", ["a.md"])]
+        let sync = makeSync(root: root)
+        sync.settings.gistAutoPush = false
+        await sync.pullAll(force: true)
+        let file = root.appendingPathComponent("Gists/k/b.md")
+        TestGit.write("b\n", to: file)
+        sync.noteActivity(at: file)
+        try await Task.sleep(for: .seconds(1))
+        let before = await TestGit.remoteFiles(remote)
+        XCTAssertFalse(before.contains("b.md"))
+        let clone = try XCTUnwrap(sync.repoContaining(file))
+        XCTAssertEqual(sync.repoStates[clone.url], .pending)
+        await sync.pushNow(containing: file)
+        let after = await TestGit.remoteFiles(remote)
+        XCTAssertTrue(after.contains("b.md"))
     }
 
     /// The editor's push button: the gist is pushed right away, with no timer involved.

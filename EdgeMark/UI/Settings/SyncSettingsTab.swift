@@ -144,6 +144,18 @@ struct SyncSettingsTab: View {
             }
             Toggle(l10n["sync.pushOnQuit"], isOn: $settings.pushOnQuit)
             Toggle(l10n["sync.syncGists"], isOn: $settings.syncGists)
+            Toggle(l10n["sync.gistAutoPush"], isOn: $settings.gistAutoPush)
+                .help(l10n["tooltip.sync.gistAutoPush"])
+            LabeledContent(l10n["sync.gistDebounce"]) {
+                HStack {
+                    Slider(value: $settings.gistDebounceSeconds, in: 5 ... 600, step: 5)
+                        .help(l10n["tooltip.sync.gistDebounce"])
+                    Text(l10n.t("sync.seconds", "\(Int(settings.gistDebounceSeconds))"))
+                        .monospacedDigit()
+                        .frame(width: 48, alignment: .trailing)
+                }
+            }
+            .disabled(!settings.gistAutoPush)
             if !settings.ignoredGistIDs.isEmpty {
                 hiddenGists
             }

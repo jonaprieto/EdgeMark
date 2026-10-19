@@ -15,6 +15,11 @@ final class SyncSettings {
     var commitTemplate: String { didSet { defaults.set(commitTemplate, forKey: "sync.commitTemplate") } }
     var pushOnQuit: Bool { didSet { defaults.set(pushOnQuit, forKey: "sync.pushOnQuit") } }
     var syncGists: Bool { didSet { defaults.set(syncGists, forKey: "sync.syncGists") } }
+    /// Push gist edits on their own timer. Off, they wait for Sync Now, the editor's push
+    /// button or quit.
+    var gistAutoPush: Bool { didSet { defaults.set(gistAutoPush, forKey: "sync.gistAutoPush") } }
+    /// Seconds between the last save in a gist and its commit+push (5 to 600).
+    var gistDebounceSeconds: Double { didSet { defaults.set(gistDebounceSeconds, forKey: "sync.gistDebounceSeconds") } }
     /// GitHub login used for gh calls and embedded in remote URLs. Empty = not chosen.
     var account: String { didSet { defaults.set(account, forKey: "sync.account") } }
     /// Check changed files for secrets before every commit that will be pushed.
@@ -47,6 +52,8 @@ final class SyncSettings {
         commitTemplate = defaults.string(forKey: "sync.commitTemplate") ?? Self.defaultTemplate
         pushOnQuit = defaults.object(forKey: "sync.pushOnQuit") as? Bool ?? true
         syncGists = defaults.object(forKey: "sync.syncGists") as? Bool ?? true
+        gistAutoPush = defaults.object(forKey: "sync.gistAutoPush") as? Bool ?? true
+        gistDebounceSeconds = defaults.object(forKey: "sync.gistDebounceSeconds") as? Double ?? 10
         account = defaults.string(forKey: "sync.account") ?? ""
         guardEnabled = defaults.object(forKey: "sync.guardEnabled") as? Bool ?? true
         allowedHashes = defaults.data(forKey: "sync.allowedHashes")

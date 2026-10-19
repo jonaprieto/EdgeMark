@@ -11,6 +11,12 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - A note in a gist has an upload button next to the Gist pill that pushes the gist right away
   and shows whether it is synced.
 
+### Changed
+
+- Edits in a gist are pushed 10 seconds after you stop typing, not after the notes delay (2
+  minutes by default). Sync settings can change the gist delay or turn automatic gist pushes
+  off.
+
 ## 2.16.0 (2026-10-18)
 
 ### Added

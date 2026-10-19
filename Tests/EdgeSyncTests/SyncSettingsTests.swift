@@ -17,6 +17,8 @@ final class SyncSettingsTests: XCTestCase {
         XCTAssertEqual(s.commitTemplate, "notes: {date}")
         XCTAssertTrue(s.pushOnQuit)
         XCTAssertTrue(s.syncGists)
+        XCTAssertTrue(s.gistAutoPush)
+        XCTAssertEqual(s.gistDebounceSeconds, 10)
         XCTAssertEqual(s.account, "")
         XCTAssertTrue(s.guardEnabled)
         XCTAssertEqual(s.allowedHashes, [])
@@ -38,6 +40,8 @@ final class SyncSettingsTests: XCTestCase {
         let d = freshDefaults()
         let a = SyncSettings(defaults: d)
         a.debounceSeconds = 45
+        a.gistAutoPush = false
+        a.gistDebounceSeconds = 30
         a.account = "jonaprieto"
         a.enabled = false
         a.guardEnabled = false
@@ -46,6 +50,8 @@ final class SyncSettingsTests: XCTestCase {
         XCTAssertFalse(b.guardEnabled)
         XCTAssertEqual(b.allowedHashes, ["abc", "def"])
         XCTAssertEqual(b.debounceSeconds, 45)
+        XCTAssertFalse(b.gistAutoPush)
+        XCTAssertEqual(b.gistDebounceSeconds, 30)
         XCTAssertEqual(b.account, "jonaprieto")
         XCTAssertFalse(b.enabled)
     }

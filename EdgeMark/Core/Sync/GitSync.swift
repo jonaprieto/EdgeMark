@@ -181,17 +181,21 @@ final class GitSync {
     // MARK: - Triggers
 
     /// A note was written at `url` (nil = something changed somewhere). Restarts the
-    /// debounce timer of the affected repo(s); the commit happens when it fires.
+    /// debounce timer of the affected repo(s); the commit happens when it fires. Gists
+    /// wait `gistDebounceSeconds`, or only get marked pending when `gistAutoPush` is off.
     func noteActivity(at url: URL?) {
         guard isActive else { return }
         let targets = url.flatMap(repoContaining).map { [$0] } ?? repos()
+        let rootURL = rootRepo?.url
         for repo in targets {
             switch repoStates[repo.url] {
             case .conflict, .error: break
             default: repoStates[repo.url] = .pending
             }
             debounceTasks[repo.url]?.cancel()
-            let delay = settings.debounceSeconds
+            let isGist = repo.url != rootURL
+            if isGist, !settings.gistAutoPush { continue }
+            let delay = isGist ? settings.gistDebounceSeconds : settings.debounceSeconds
             debounceTasks[repo.url] = Task { [weak self] in
                 try? await Task.sleep(for: .seconds(delay))
                 guard !Task.isCancelled else { return }
