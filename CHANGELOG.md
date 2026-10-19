@@ -17,6 +17,13 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   minutes by default). Sync settings can change the gist delay or turn automatic gist pushes
   off.
 
+### Fixed
+
+- A link far down in a table cell that wraps over several lines opens when clicked, instead of
+  putting the table into edit mode.
+- Bold, italic, highlight, strikethrough or code on a selection that spans several table cells
+  formats each cell and keeps the table intact.
+
 ## 2.16.0 (2026-10-18)
 
 ### Added
