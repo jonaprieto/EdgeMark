@@ -27,6 +27,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   GitHub could not list them.
 - Publishing a note as a gist opens Gists with the note selected, so it is clear where the note
   moved.
+- Inline code sits in a rounded gray box, so it stands apart from the text around it.
 
 ### Fixed
 
