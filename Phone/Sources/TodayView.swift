@@ -5,6 +5,8 @@ import SwiftUI
 struct TodayView: View {
     @Binding var capture: CaptureRequest?
 
+    @State private var brainstorming = false
+
     private var model: PhoneModel { .shared }
     private var path: String { Journal.path(for: Date()) }
 
@@ -36,7 +38,9 @@ struct TodayView: View {
             .refreshable { await model.sync() }
             .toolbar {
                 NavigationLink(value: "places") { Label("Places", systemImage: "map") }
+                Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
             }
+            .sheet(isPresented: $brainstorming) { BrainstormView(source: nil) }
             .navigationDestination(for: String.self) { _ in PlacesView() }
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }

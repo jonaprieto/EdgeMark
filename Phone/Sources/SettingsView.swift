@@ -2,6 +2,8 @@ import EventKit
 import SwiftUI
 
 struct SettingsView: View {
+    @AppStorage("brainstorm.model") private var modelName = "gpt-6.1-sol"
+
     private var model: PhoneModel { .shared }
 
     var body: some View {
@@ -15,6 +17,11 @@ struct SettingsView: View {
                     if !model.status.isEmpty { Text(model.status).font(.caption) }
                     Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { Task { await model.sync() } }
                         .disabled(model.syncing)
+                }
+                Section("Brainstorm") {
+                    TextField("OpenAI model", text: $modelName)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                 }
                 if !model.calendars.all.isEmpty {
                     Section("Calendars") {

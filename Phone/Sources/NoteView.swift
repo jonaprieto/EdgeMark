@@ -8,6 +8,7 @@ struct NoteView: View {
     @State private var editing = false
     @State private var edited = false
     @State private var dictation = Dictation()
+    @State private var brainstorming = false
     @FocusState private var focused: Bool
 
     private var model: PhoneModel { .shared }
@@ -42,8 +43,12 @@ struct NoteView: View {
                 ToolbarItem(placement: .primaryAction) {
                     Button(editing ? "Done" : "Edit") { setEditing(!editing) }
                 }
+                ToolbarItem(placement: .secondaryAction) {
+                    Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
+                }
             }
         }
+        .sheet(isPresented: $brainstorming) { BrainstormView(source: path) }
         .onAppear { text = model.text(of: path) }
         .onDisappear { setEditing(false) }
         .onChange(of: text) { _, new in

@@ -48,7 +48,7 @@ final class PhoneModel {
     private init() {
         // Keys exported to scripts/phone.sh reach the app once, at launch; the Keychain keeps them.
         let environment = ProcessInfo.processInfo.environment
-        for (name, account) in ["EDGEMARK_GITHUB_TOKEN": "github-token", "TYPESAFE_API_KEY": "typesafe-api-key"] {
+        for (name, account) in ["EDGEMARK_GITHUB_TOKEN": "github-token", "TYPESAFE_API_KEY": "typesafe-api-key", "OPENAI_API_KEY": "openai-api-key"] {
             if let value = environment[name], !value.isEmpty { Keychain.set(account, value) }
         }
         allowed = Set(UserDefaults.standard.stringArray(forKey: "sync.allowedHashes") ?? [])
@@ -60,6 +60,10 @@ final class PhoneModel {
             status = "\(error)"
         }
         refresh()
+    }
+
+    var openAIKey: String? {
+        Keychain.get("openai-api-key")
     }
 
     func note(_ path: String) -> PhoneNote? {
