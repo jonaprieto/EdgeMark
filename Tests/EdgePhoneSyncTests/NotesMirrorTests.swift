@@ -29,6 +29,16 @@ final class NotesMirrorTests: XCTestCase {
         XCTAssertEqual(try mirror.paths(), [".edgemark/meta.json", "Folder/Inner.md", "Note.md"])
     }
 
+    /// Path resolving drops `/private`, as an iPhone's app container under `/private/var` would see.
+    func testListsFilesUnderPrivate() throws {
+        let linked = URL(fileURLWithPath: "/private/tmp/\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: linked) }
+        let mirror = try NotesMirror(root: linked.appendingPathComponent("notes"), baseURL: linked.appendingPathComponent("base.json"))
+        try mirror.write(Data("a".utf8), to: "Folder/Note.md")
+        XCTAssertEqual(try mirror.paths(), ["Folder/Note.md"])
+        XCTAssertEqual(try mirror.read("Folder/Note.md"), Data("a".utf8))
+    }
+
     func testRefusesPathsOutsideTheRoot() throws {
         let mirror = try makeMirror()
         for path in ["../evil", "a/../../evil", "/etc/evil", "a//b", "./a", ""] {

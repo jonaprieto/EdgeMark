@@ -23,30 +23,27 @@ public struct NotesMirror: Sendable {
     }
 
     public init(root: URL, baseURL: URL) throws {
-        self.root = root.resolvingSymlinksInPath()
+        self.root = root
         self.baseURL = baseURL
         let fm = FileManager.default
-        try fm.createDirectory(at: self.root, withIntermediateDirectories: true)
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
         #if os(iOS)
-            try fm.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: self.root.path)
+            try fm.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: root.path)
         #endif
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
-        var excluded = self.root
+        var excluded = root
         try excluded.setResourceValues(values)
     }
 
-    /// Every file, as a path relative to the root.
+    /// Every file, as a path relative to the root. FileManager gives the relative paths itself:
+    /// a root under a symlink, as `/var` and `/tmp` are, would throw off any prefix math.
     public func paths() throws -> [String] {
-        guard let walk = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey]) else {
-            return []
-        }
-        let prefix = root.path + "/"
-        var out: [String] = []
-        for case let url as URL in walk where (try url.resourceValues(forKeys: [.isRegularFileKey])).isRegularFile == true {
-            out.append(String(url.resolvingSymlinksInPath().path.dropFirst(prefix.count)))
-        }
-        return out.sorted()
+        let fm = FileManager.default
+        return try fm.subpathsOfDirectory(atPath: root.path).filter { path in
+            var isDirectory: ObjCBool = false
+            return fm.fileExists(atPath: root.appendingPathComponent(path).path, isDirectory: &isDirectory) && !isDirectory.boolValue
+        }.sorted()
     }
 
     // ponytail: hashes every file each round, fine for tens of notes; cache by mtime if it grows.
