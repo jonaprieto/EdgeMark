@@ -2,7 +2,7 @@
 import PackageDescription
 
 // Builds EdgeMark/Core/Sync standalone so `swift test` can run against a local git
-// remote. EdgeStorageLogic builds the Foundation-only image cleanup and note text rules
+// remote. EdgePhoneSync is the iPhone's sync over the GitHub API, from Phone/Sync. EdgeStorageLogic builds the Foundation-only image cleanup and note text rules
 // from EdgeMark/Core/Storage, EdgeExportLogic the export link rewriting from
 // EdgeMark/Core/Export, EdgeCrypto the age format and key session from
 // EdgeMark/Core/Crypto, EdgeIDELogic the Claude Code IDE protocol messages from
@@ -41,5 +41,7 @@ let package = Package(
         .testTarget(name: "EdgeIDELogicTests", dependencies: ["EdgeIDELogic"], path: "Tests/EdgeIDELogicTests"),
         .target(name: "EdgeReminderLogic", path: "EdgeMark/Core/Reminders", sources: ["ReminderTimes.swift", "ReminderSuggestion.swift"]),
         .testTarget(name: "EdgeReminderLogicTests", dependencies: ["EdgeReminderLogic"], path: "Tests/EdgeReminderLogicTests"),
+        .target(name: "EdgePhoneSync", path: "Phone/Sync"),
+        .testTarget(name: "EdgePhoneSyncTests", dependencies: ["EdgePhoneSync"], path: "Tests/EdgePhoneSyncTests"),
     ]
 )
