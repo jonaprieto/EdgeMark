@@ -1,0 +1,115 @@
+import Foundation
+
+/// One task line: `- [ ] text due:2026-11-02`, in any note.
+public nonisolated struct Todo: Hashable, Identifiable, Sendable {
+    public let path: String
+    /// Zero-based line in the file at scan time.
+    public let line: Int
+    /// The whole line, which a toggle compares before it writes.
+    public let raw: String
+    /// The task without its box and due tag.
+    public let text: String
+    public let done: Bool
+    public let due: String?
+
+    public var id: String {
+        "\(path):\(line)"
+    }
+}
+
+/// Finds and edits task lines. Everything stays plain Markdown, so a todo is any `- [ ]` line in
+/// any note and existing notes work unchanged.
+public nonisolated enum TodoScan {
+    public enum Group: Int, CaseIterable, Comparable, Sendable {
+        case overdue, today, dated, undated
+
+        public static func < (a: Group, b: Group) -> Bool {
+            a.rawValue < b.rawValue
+        }
+    }
+
+    public static func todos(in text: String, path: String) -> [Todo] {
+        var out: [Todo] = []
+        var inFence = false
+        for (index, line) in lines(text).enumerated() {
+            let trimmed = line.drop { $0 == " " || $0 == "\t" }
+            if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
+                inFence.toggle()
+                continue
+            }
+            guard !inFence, let (done, body) = parse(trimmed) else { continue }
+            let (words, due) = splitDue(body)
+            out.append(Todo(path: path, line: index, raw: line, text: words, done: done, due: due))
+        }
+        return out
+    }
+
+    /// `today` is `yyyy-MM-dd`, which compares correctly as text.
+    public static func group(_ todo: Todo, today: String) -> Group {
+        guard let due = todo.due else { return .undated }
+        return due < today ? .overdue : due == today ? .today : .dated
+    }
+
+    /// Soonest first; undated keep their order.
+    public static func sorted(_ todos: [Todo], today: String) -> [Todo] {
+        todos.enumerated().sorted {
+            let (a, b) = ($0.element, $1.element)
+            let (x, y) = (group(a, today: today), group(b, today: today))
+            if x != y { return x < y }
+            if let p = a.due, let q = b.due, p != q { return p < q }
+            return $0.offset < $1.offset
+        }.map(\.element)
+    }
+
+    /// `text` with the box flipped, nil when the line changed since the scan.
+    public static func toggled(_ todo: Todo, in text: String) -> String? {
+        rewriting(todo, in: text) { line in
+            let (old, new) = todo.done ? (todo.raw.contains("[X]") ? "[X]" : "[x]", "[ ]") : ("[ ]", "[x]")
+            guard let box = line.range(of: old) else { return line }
+            return line.replacingCharacters(in: box, with: new)
+        }
+    }
+
+    /// `text` with the due tag replaced, removed when `due` is nil, nil when the line changed.
+    public static func settingDue(_ due: String?, on todo: Todo, in text: String) -> String? {
+        rewriting(todo, in: text) { line in
+            var kept = line.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+            kept.removeAll(where: isDueTag)
+            let bare = kept.joined(separator: " ")
+            return due.map { "\(bare) due:\($0)" } ?? bare
+        }
+    }
+
+    private static func rewriting(_ todo: Todo, in text: String, _ change: (String) -> String) -> String? {
+        var all = lines(text)
+        guard todo.line < all.count, all[todo.line] == todo.raw else { return nil }
+        all[todo.line] = change(all[todo.line])
+        return all.joined(separator: "\n")
+    }
+
+    private static func lines(_ text: String) -> [String] {
+        text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    }
+
+    /// The box state and the text after it, for a line with leading space removed.
+    private static func parse(_ line: Substring) -> (done: Bool, body: Substring)? {
+        guard let bullet = line.first, "-*+".contains(bullet) else { return nil }
+        let rest = line.dropFirst()
+        guard rest.hasPrefix(" [") else { return nil }
+        let mark = rest.dropFirst(2)
+        guard let state = mark.first, " xX".contains(state), mark.dropFirst().hasPrefix("] ") else { return nil }
+        return (state != " ", mark.dropFirst(3))
+    }
+
+    private static func splitDue(_ body: Substring) -> (text: String, due: String?) {
+        let words = body.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        let due = words.last(where: isDueTag).map { String($0.dropFirst(4)) }
+        return (words.filter { !isDueTag($0) }.joined(separator: " "), due)
+    }
+
+    private static func isDueTag(_ word: String) -> Bool {
+        guard word.hasPrefix("due:") else { return false }
+        let date = word.dropFirst(4).split(separator: "-", omittingEmptySubsequences: false)
+        return date.map(\.count) == [4, 2, 2] && date.allSatisfy { $0.allSatisfy(\.isNumber) }
+    }
+}
