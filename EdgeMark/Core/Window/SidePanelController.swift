@@ -200,7 +200,7 @@ final class SidePanelController: NSWindowController {
             if let fr = window.firstResponder as? NSTextView, fr.isFieldEditor {
                 return event
             }
-            if noteStore.selectedNote != nil || noteStore.showTrash || noteStore.awaitingRootChoice {
+            if noteStore.selectedNote != nil || noteStore.showsOverlay || noteStore.awaitingRootChoice {
                 return event
             }
             let shift = event.modifierFlags.contains(.shift)
@@ -247,7 +247,7 @@ final class SidePanelController: NSWindowController {
                 pinch = 0
             }
             pinch += event.magnification
-            if event.phase == .ended, pinch < -0.3, !noteStore.showTrash,
+            if event.phase == .ended, pinch < -0.3, !noteStore.showsOverlay,
                noteStore.selectedNote != nil || noteStore.selectedFolder != nil {
                 noteStore.navigateToHome()
             }
@@ -259,14 +259,14 @@ final class SidePanelController: NSWindowController {
             guard let self, isShown else { return event }
             let s = ShortcutSettings.shared
             // ⇧⌘F searches every note from anywhere, an open note included.
-            if ShortcutSettings.searchAllNotes.matches(event), !noteStore.showTrash {
+            if ShortcutSettings.searchAllNotes.matches(event), !noteStore.showsOverlay {
                 noteStore.searchAllNotes()
                 return nil
             }
             if s.searchShortcut?.matches(event) == true {
                 // Trash overlay: pass through (navigateToHome while Trash is active leaves
                 // pendingSearchOnHome stuck).
-                if noteStore.showTrash {
+                if noteStore.showsOverlay {
                     return event
                 }
                 // Note open: show the in-editor find bar instead of navigating to search.
@@ -289,12 +289,12 @@ final class SidePanelController: NSWindowController {
             if s.newFolderShortcut?.matches(event) == true {
                 // Only trigger when a list view is mounted. Editor and Trash both have
                 // selectedNote == nil but no consumer, so pending would get stuck.
-                guard noteStore.selectedNote == nil, !noteStore.showTrash else { return event }
+                guard noteStore.selectedNote == nil, !noteStore.showsOverlay else { return event }
                 noteStore.pendingNewFolder = true
                 return nil
             }
             if s.copySelectedPathsShortcut?.matches(event) == true {
-                guard noteStore.selectedNote == nil, !noteStore.showTrash else { return event }
+                guard noteStore.selectedNote == nil, !noteStore.showsOverlay else { return event }
                 noteStore.copySelectedPaths()
                 return nil
             }

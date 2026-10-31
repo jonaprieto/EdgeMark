@@ -93,6 +93,13 @@ struct ContentFooterBar: View {
         let menu = NSMenu()
         let delegate = NSApp.delegate as? AppDelegate
 
+        menu.addActionItem(title: l10n["menu.today"], icon: "sun.max") { [noteStore] in
+            noteStore.openToday()
+        }
+        menu.addActionItem(title: l10n["todos.title"], icon: "checklist") { [noteStore] in
+            noteStore.openTodos()
+        }
+
         let trashItem = NSMenuItem(
             title: l10n["common.trash"],
             action: #selector(AppDelegate.showTrash),

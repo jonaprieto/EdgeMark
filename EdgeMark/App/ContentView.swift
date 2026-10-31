@@ -5,15 +5,15 @@ struct ContentView: View {
     @Environment(PeekCoordinator.self) var peekCoordinator
 
     private var showHome: Bool {
-        !noteStore.showTrash && noteStore.selectedFolder == nil && noteStore.selectedNote == nil
+        !noteStore.showsOverlay && noteStore.selectedFolder == nil && noteStore.selectedNote == nil
     }
 
     private var showNoteList: Bool {
-        !noteStore.showTrash && noteStore.selectedFolder != nil && noteStore.selectedNote == nil
+        !noteStore.showsOverlay && noteStore.selectedFolder != nil && noteStore.selectedNote == nil
     }
 
     private var showEditor: Bool {
-        !noteStore.showTrash && noteStore.selectedNote != nil
+        !noteStore.showsOverlay && noteStore.selectedNote != nil
     }
 
     /// Horizontal page transition based on navigation direction.
@@ -73,6 +73,11 @@ struct ContentView: View {
                     TrashView()
                         .transition(trashTransition)
                 }
+
+                if noteStore.showTodos {
+                    TodosView()
+                        .transition(trashTransition)
+                }
             }
 
             if let count = noteStore.copiedPathsCount {
@@ -102,7 +107,7 @@ struct ContentView: View {
         // so it would otherwise float detached after the transition.
         .onChange(of: noteStore.selectedNote?.id) { peekCoordinator.dismissNow() }
         .onChange(of: noteStore.selectedFolder?.name) { peekCoordinator.dismissNow() }
-        .onChange(of: noteStore.showTrash) { peekCoordinator.dismissNow() }
+        .onChange(of: noteStore.showsOverlay) { peekCoordinator.dismissNow() }
     }
 }
 

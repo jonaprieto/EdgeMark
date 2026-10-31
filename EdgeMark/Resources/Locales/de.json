@@ -1,4 +1,12 @@
 {
+  "todos.title": "Aufgaben",
+  "todos.empty": "Keine offenen Aufgaben",
+  "todos.overdue": "Überfällig",
+  "todos.today": "Heute",
+  "todos.upcoming": "Demnächst",
+  "todos.noDate": "Ohne Datum",
+  "menu.today": "Heute",
+  "tooltip.todo.done": "Als erledigt markieren",
   "app.name": "EdgeMark",
 
   "menu.toggle": "EdgeMark ein-/ausblenden",

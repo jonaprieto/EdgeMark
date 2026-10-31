@@ -1,4 +1,12 @@
 {
+  "todos.title": "Pendientes",
+  "todos.empty": "No hay pendientes",
+  "todos.overdue": "Atrasados",
+  "todos.today": "Hoy",
+  "todos.upcoming": "Próximos",
+  "todos.noDate": "Sin fecha",
+  "menu.today": "Hoy",
+  "tooltip.todo.done": "Marcar como hecho",
   "app.name": "EdgeMark",
 
   "menu.toggle": "Mostrar/ocultar EdgeMark",

@@ -1,4 +1,12 @@
 {
+  "todos.title": "Todos",
+  "todos.empty": "No open todos",
+  "todos.overdue": "Overdue",
+  "todos.today": "Today",
+  "todos.upcoming": "Upcoming",
+  "todos.noDate": "No date",
+  "menu.today": "Today",
+  "tooltip.todo.done": "Mark as done",
   "app.name": "EdgeMark",
 
   "menu.toggle": "Toggle EdgeMark",

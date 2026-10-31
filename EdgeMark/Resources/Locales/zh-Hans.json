@@ -1,4 +1,12 @@
 {
+  "todos.title": "待办",
+  "todos.empty": "没有未完成的待办",
+  "todos.overdue": "已逾期",
+  "todos.today": "今天",
+  "todos.upcoming": "即将到来",
+  "todos.noDate": "无日期",
+  "menu.today": "今天",
+  "tooltip.todo.done": "标记为完成",
   "app.name": "EdgeMark",
 
   "menu.toggle": "切换 EdgeMark",

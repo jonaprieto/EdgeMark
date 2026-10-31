@@ -17,6 +17,12 @@ final class NoteStore {
     var selectedFolder: Folder?
     var selectedNote: Note?
     var showTrash = false
+    var showTodos = false
+
+    /// A screen covers the note lists, so list shortcuts and hover previews stay off.
+    var showsOverlay: Bool {
+        showTrash || showTodos
+    }
 
     /// Set at launch when "Choose on launch" is on and ≥2 storage roots are configured.
     /// While true, the panel shows a non-blocking storage-root picker instead of the

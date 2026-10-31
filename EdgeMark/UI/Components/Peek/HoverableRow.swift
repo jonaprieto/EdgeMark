@@ -136,7 +136,7 @@ final class PeekTrackingNSView: NSView {
             Log.peek.debug("[PeekTracking] mouseEntered — SKIP editor open")
             return
         }
-        guard !noteStore.showTrash else {
+        guard !noteStore.showsOverlay else {
             Log.peek.debug("[PeekTracking] mouseEntered — SKIP trash active")
             return
         }

@@ -1,4 +1,12 @@
 {
+  "todos.title": "कार्य",
+  "todos.empty": "कोई खुला कार्य नहीं",
+  "todos.overdue": "समय बीत चुका",
+  "todos.today": "आज",
+  "todos.upcoming": "आगामी",
+  "todos.noDate": "बिना तारीख",
+  "menu.today": "आज",
+  "tooltip.todo.done": "पूरा चिह्नित करें",
   "app.name": "EdgeMark",
 
   "menu.toggle": "EdgeMark दिखाएं/छिपाएं",
