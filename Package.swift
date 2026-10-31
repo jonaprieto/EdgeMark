@@ -6,8 +6,9 @@ import PackageDescription
 // from EdgeMark/Core/Storage, EdgeExportLogic the export link rewriting from
 // EdgeMark/Core/Export, EdgeCrypto the age format and key session from
 // EdgeMark/Core/Crypto, EdgeIDELogic the Claude Code IDE protocol messages from
-// EdgeMark/Core/IDE, and EdgeReminderLogic the reminder times and Jev suggestion from
-// EdgeMark/Core/Reminders. The app target compiles the same files through its synchronized group.
+// EdgeMark/Core/IDE, EdgeReminderLogic the reminder times and Jev suggestion from
+// EdgeMark/Core/Reminders, and EdgeJournalLogic the journal files, todos and meetings from
+// EdgeMark/Core/Journal. The app target compiles the same files through its synchronized group.
 // The phone build leaves out the files that run git, which iOS cannot do.
 let phone = Context.environment["EDGEMARK_PHONE"] == "1"
 let gitOnly = ["Shell.swift", "GitRepo.swift", "GitSync.swift", "GitSync+GitHub.swift", "GistCatalog.swift"]
@@ -41,6 +42,8 @@ let package = Package(
         .testTarget(name: "EdgeIDELogicTests", dependencies: ["EdgeIDELogic"], path: "Tests/EdgeIDELogicTests"),
         .target(name: "EdgeReminderLogic", path: "EdgeMark/Core/Reminders", sources: ["ReminderTimes.swift", "ReminderSuggestion.swift"]),
         .testTarget(name: "EdgeReminderLogicTests", dependencies: ["EdgeReminderLogic"], path: "Tests/EdgeReminderLogicTests"),
+        .target(name: "EdgeJournalLogic", path: "EdgeMark/Core/Journal"),
+        .testTarget(name: "EdgeJournalLogicTests", dependencies: ["EdgeJournalLogic"], path: "Tests/EdgeJournalLogicTests"),
         .target(name: "EdgePhoneSync", path: "Phone/Sync"),
         .testTarget(name: "EdgePhoneSyncTests", dependencies: ["EdgePhoneSync"], path: "Tests/EdgePhoneSyncTests"),
     ]
@@ -52,7 +55,7 @@ if phone {
     package.dependencies.append(.package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.1"))
     package.targets.append(.executableTarget(
         name: "EdgeMarkPhone",
-        dependencies: ["EdgePhoneSync", "EdgeSync", "EdgeStorageLogic", .product(name: "MarkdownUI", package: "swift-markdown-ui")],
+        dependencies: ["EdgeJournalLogic", "EdgePhoneSync", "EdgeSync", "EdgeStorageLogic", .product(name: "MarkdownUI", package: "swift-markdown-ui")],
         path: "Phone/Sources"
     ))
 }
