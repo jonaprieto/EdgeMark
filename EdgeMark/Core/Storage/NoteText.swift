@@ -2,7 +2,7 @@ import Foundation
 
 /// Pure text rules for note files: front matter detection and the first line used as a
 /// title. Foundation only, so the rules are unit tested by the `EdgeStorageLogic` SPM target.
-nonisolated enum NoteText {
+public nonisolated enum NoteText {
     // MARK: - Front Matter
 
     /// A leading block that opens with a `---` line and closes at the next `---` line.
@@ -157,7 +157,7 @@ nonisolated enum NoteText {
 
     /// Title shown for a note: the first line without leading `#` and spaces, or "Untitled".
     /// A leading YAML block is skipped: its `title:` key wins, otherwise the first body line.
-    static func title(from content: String) -> String {
+    public static func title(from content: String) -> String {
         var source = Substring(content)
         if let block = scanFrontMatter(content), block.isYAML {
             if let title = block.metadata["title"]?.trimmingCharacters(in: CharacterSet(charactersIn: "\"'")),
@@ -170,6 +170,32 @@ nonisolated enum NoteText {
         let line = firstLine(source)
         let stripped = line.drop { $0 == "#" || $0 == " " }
         return stripped.isEmpty ? "Untitled" : String(stripped)
+    }
+
+    /// The file name, without extension, for a note title.
+    public static func sanitizeForFilename(_ title: String, maxBytes: Int = 248) -> String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "Untitled" }
+
+        let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|\0")
+        let cleaned = trimmed.unicodeScalars
+            .map { illegal.contains($0) ? "-" : String($0) }
+            .joined()
+
+        let hyphenated = cleaned.replacingOccurrences(of: " ", with: "-")
+        let collapsed = hyphenated.replacingOccurrences(of: "-{2,}", with: "-", options: .regularExpression)
+        var result = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+
+        // Truncate to stay within APFS 255-byte filename limit (.md = 3 bytes + margin).
+        // Every Character is at least one byte, so cut to that many Characters first: the
+        // loop below copies the string per step, which never ends for a megabyte title.
+        result = String(result.prefix(maxBytes))
+        while result.utf8.count > maxBytes {
+            result = String(result.dropLast())
+        }
+        result = result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+
+        return result.isEmpty ? "Untitled" : result
     }
 
     /// Splits a note whose first line is a `#` heading into that line, the line breaks

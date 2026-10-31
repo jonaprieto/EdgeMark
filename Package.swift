@@ -8,11 +8,15 @@ import PackageDescription
 // EdgeMark/Core/Crypto, EdgeIDELogic the Claude Code IDE protocol messages from
 // EdgeMark/Core/IDE, and EdgeReminderLogic the reminder times and Jev suggestion from
 // EdgeMark/Core/Reminders. The app target compiles the same files through its synchronized group.
+// The phone build leaves out the files that run git, which iOS cannot do.
+let phone = Context.environment["EDGEMARK_PHONE"] == "1"
+let gitOnly = ["Shell.swift", "GitRepo.swift", "GitSync.swift", "GitSync+GitHub.swift", "GistCatalog.swift"]
+
 let package = Package(
     name: "EdgeSync",
-    platforms: [.macOS("15.7")],
+    platforms: [.macOS("15.7"), .iOS("26.0")],
     targets: [
-        .target(name: "EdgeSync", path: "EdgeMark/Core/Sync"),
+        .target(name: "EdgeSync", path: "EdgeMark/Core/Sync", exclude: phone ? gitOnly : []),
         .testTarget(name: "EdgeSyncTests", dependencies: ["EdgeSync"], path: "Tests/EdgeSyncTests"),
         .target(name: "EdgeStorageLogic", path: "EdgeMark/Core/Storage", sources: ["ImageCleanup.swift", "NoteText.swift", "NoteComplexity.swift", "GistTextFile.swift", "FileTypeStyle.swift", "NoteListBackgroundMenu.swift", "MermaidText.swift", "SyntaxLanguage.swift", "ListSelection.swift", "ListOrder.swift", "GistTrash.swift", "EncryptedFileName.swift", "EncryptedTags.swift"]),
         .testTarget(

@@ -251,28 +251,7 @@ enum FileStorage {
     // MARK: - Filename Helpers
 
     static func sanitizeForFilename(_ title: String, maxBytes: Int = 248) -> String {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "Untitled" }
-
-        let illegal = CharacterSet(charactersIn: "/\\:*?\"<>|\0")
-        let cleaned = trimmed.unicodeScalars
-            .map { illegal.contains($0) ? "-" : String($0) }
-            .joined()
-
-        let hyphenated = cleaned.replacingOccurrences(of: " ", with: "-")
-        let collapsed = hyphenated.replacingOccurrences(of: "-{2,}", with: "-", options: .regularExpression)
-        var result = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-
-        // Truncate to stay within APFS 255-byte filename limit (.md = 3 bytes + margin).
-        // Every Character is at least one byte, so cut to that many Characters first: the
-        // loop below copies the string per step, which never ends for a megabyte title.
-        result = String(result.prefix(maxBytes))
-        while result.utf8.count > maxBytes {
-            result = String(result.dropLast())
-        }
-        result = result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-
-        return result.isEmpty ? "Untitled" : result
+        NoteText.sanitizeForFilename(title, maxBytes: maxBytes)
     }
 
     // MARK: - Note I/O

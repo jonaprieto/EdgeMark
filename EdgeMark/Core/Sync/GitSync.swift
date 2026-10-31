@@ -2,10 +2,6 @@ import Foundation
 import Observation
 import OSLog
 
-enum SyncLog {
-    static let log = Logger(subsystem: "io.github.ender-wang.EdgeMark", category: "sync")
-}
-
 /// Keeps the notes root and the gist clones under `Gists/` in sync with GitHub.
 ///
 /// Triggers: `noteActivity` (debounced commit+push), `pullAll` (on panel show),

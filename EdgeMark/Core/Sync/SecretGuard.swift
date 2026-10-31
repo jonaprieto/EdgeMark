@@ -2,6 +2,10 @@ import CryptoKit
 import Foundation
 import OSLog
 
+enum SyncLog {
+    static let log = Logger(subsystem: "io.github.ender-wang.EdgeMark", category: "sync")
+}
+
 // MARK: - Thresholds and verdicts
 
 /// Jev score at or above which a file is held back.
@@ -261,5 +265,22 @@ struct SecretGuard {
         let held = verdicts.compactMap { $0 }.filter(\.held).count
         SyncLog.log.info("[Guard] reviewed \(items.count) file(s), \(held) held, jev \(jevAvailable ? "ok" : "unavailable", privacy: .public)")
         return (verdicts.compactMap { $0 }, jevAvailable)
+    }
+}
+
+// MARK: - Phone
+
+/// The guard across the module boundary, for the iPhone app, which pushes without the Mac.
+public enum NoteGuard {
+    /// Path to reasons for every file held back. Without a Jev key only the regex rules run.
+    public static func held(_ items: [(path: String, text: String)], jevKey: String?, allowed: Set<String>) async -> [String: [String]] {
+        let guardian = SecretGuard(transport: URLSessionJevTransport(apiKey: { jevKey }))
+        let verdicts = await guardian.review(items, allowedHashes: allowed).verdicts
+        return Dictionary(verdicts.filter(\.held).map { ($0.path, $0.reasons) }) { first, _ in first }
+    }
+
+    /// What `allowed` holds for a file the user chose to send anyway.
+    public static func hash(path: String, text: String) -> String {
+        SecretGuard.contentHash(path: path, text: text)
     }
 }

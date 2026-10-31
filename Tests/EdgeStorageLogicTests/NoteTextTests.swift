@@ -149,4 +149,10 @@ final class NoteTextTests: XCTestCase {
         // 0x81 is undefined in Windows-1252; Latin-1 still maps it.
         XCTAssertFalse(NoteText.decodeLegacyEncoding(Data([0x41, 0x81, 0x42])).isEmpty)
     }
+
+    func testFilenameForTitle() {
+        XCTAssertEqual(NoteText.sanitizeForFilename("2026-11-03 Felipe"), "2026-11-03-Felipe")
+        XCTAssertEqual(NoteText.sanitizeForFilename("a/b: c"), "a-b-c")
+        XCTAssertEqual(NoteText.sanitizeForFilename("   "), "Untitled")
+    }
 }
