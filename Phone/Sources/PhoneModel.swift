@@ -1,9 +1,11 @@
 import EdgeJournalLogic
+import EdgePhoneSupport
 import EdgePhoneSync
 import EdgeStorageLogic
 import EdgeSync
 import Foundation
 import UIKit
+import WidgetKit
 
 struct PhoneNote: Identifiable, Hashable {
     let path: String
@@ -31,6 +33,7 @@ final class PhoneModel {
     let calendars = Calendars()
     /// Edited since it was last finished. Finishing records the position once.
     private var unfinished: String?
+    private var lastSnapshot: WidgetSnapshot?
     /// Bumped when files changed under the views, which then read them again.
     private(set) var revision = 0
     /// The note open in the editor. Sync waits for it, so a pull cannot race the typing.
@@ -91,6 +94,23 @@ final class PhoneModel {
         }.sorted { $0.modified > $1.modified }
         places = PlaceLine.all(in: text(of: PlaceLine.logPath))
         revision += 1
+        updateWidgets()
+    }
+
+    /// Hands the widgets the next meetings and todos, only when they changed: iOS rations reloads.
+    private func updateWidgets() {
+        let upcoming = meetings.compactMap { row -> WidgetSnapshot.Event? in
+            guard let start = row.start else { return nil }
+            let end = calendars.ends[Meeting.Event(name: row.name, start: start)] ?? start.addingTimeInterval(3600)
+            return WidgetSnapshot.Event(title: row.name, start: start, end: end)
+        }
+        let open = todos
+        var snapshot = WidgetSnapshot(date: lastSnapshot?.date ?? Date(), events: Array(upcoming.prefix(3)), todos: open.prefix(5).map(\.text), openTodos: open.count)
+        guard snapshot != lastSnapshot else { return }
+        snapshot.date = Date()
+        lastSnapshot = snapshot
+        try? snapshot.save()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// A note is an `.md` or `.md.age` file outside hidden folders.

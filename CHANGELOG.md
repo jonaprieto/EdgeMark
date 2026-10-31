@@ -19,7 +19,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - A Meetings tab on the iPhone lists upcoming events from your calendars, Google and Proton included
   once iOS has them, and opens a note for each one to collect ideas.
 - Widgets for the iPhone: add a meal, idea or todo in one tap, or start dictating from the Home
-  Screen or Lock Screen.
+  Screen or Lock Screen. An agenda widget shows the next meeting and top todos, hidden while the
+  phone is locked.
 
 ## 2.17.0 (2026-10-19)
 

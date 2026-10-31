@@ -12,6 +12,7 @@ struct EdgeMarkPhoneApp: App {
                 case .active:
                     Task {
                         await PhoneModel.shared.calendars.refresh()
+                        PhoneModel.shared.refresh()
                         await PhoneModel.shared.sync()
                     }
                 case .background: PhoneModel.shared.syncBeforeSuspend()

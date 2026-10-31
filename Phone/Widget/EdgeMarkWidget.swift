@@ -6,6 +6,7 @@ struct EdgeMarkWidgets: WidgetBundle {
     var body: some Widget {
         CaptureWidget()
         VoiceWidget()
+        AgendaWidget()
     }
 }
 
@@ -85,5 +86,86 @@ struct VoiceWidgetView: View {
         } else {
             Label("Dictate", systemImage: "mic").font(.headline)
         }
+    }
+}
+
+struct AgendaEntry: TimelineEntry {
+    let date: Date
+    let snapshot: WidgetSnapshot?
+}
+
+/// The app is not running when a meeting ends, so the timeline moves on by itself.
+struct AgendaProvider: TimelineProvider {
+    func placeholder(in context: Context) -> AgendaEntry {
+        let now = Date()
+        return AgendaEntry(date: now, snapshot: WidgetSnapshot(
+            date: now,
+            events: [.init(title: "Next meeting", start: now, end: now.addingTimeInterval(3600))],
+            todos: ["Open todo"],
+            openTodos: 1,
+        ))
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (AgendaEntry) -> Void) {
+        completion(context.isPreview ? placeholder(in: context) : AgendaEntry(date: Date(), snapshot: .load()))
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<AgendaEntry>) -> Void) {
+        let now = Date()
+        let snapshot = WidgetSnapshot.load()
+        let ends = (snapshot?.events ?? []).map(\.end).filter { $0 > now }
+        let entries = ([now] + ends).map { AgendaEntry(date: $0, snapshot: snapshot) }
+        completion(Timeline(entries: entries, policy: .never))
+    }
+}
+
+struct AgendaWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "EdgeMarkAgenda", provider: AgendaProvider()) { entry in
+            AgendaWidgetView(entry: entry)
+                .containerBackground(.background, for: .widget)
+                .widgetURL(URL(string: "edgemark://agenda"))
+        }
+        .configurationDisplayName("Agenda")
+        .description("Your next meeting and top todos.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+    }
+}
+
+struct AgendaWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: AgendaEntry
+
+    private var next: WidgetSnapshot.Event? {
+        entry.snapshot?.events.first { $0.end > entry.date }
+    }
+
+    var body: some View {
+        if family == .accessoryRectangular {
+            VStack(alignment: .leading) {
+                Text(next?.title ?? "No meetings").font(.headline).lineLimit(1).privacySensitive()
+                if let next { Text(next.start, style: .time) }
+                Text("\(entry.snapshot?.openTodos ?? 0) todos").font(.caption)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                if let next {
+                    Text(next.title).font(.headline).lineLimit(1).privacySensitive()
+                    Text(next.start, style: .time).font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Text("No meetings").font(.headline)
+                }
+                Divider()
+                ForEach(todos, id: \.self) { todo in
+                    Text(todo).font(.caption).lineLimit(1).privacySensitive()
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var todos: [String] {
+        Array((entry.snapshot?.todos ?? []).prefix(family == .systemSmall ? 2 : 3))
     }
 }
