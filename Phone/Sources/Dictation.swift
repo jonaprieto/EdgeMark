@@ -155,10 +155,13 @@ struct MicButton: View {
                 language = language == .es ? .en : .es
             }
             .disabled(dictation.isListening)
+            .buttonStyle(.borderless)
             Button(dictation.isListening ? "Stop" : "Dictate", systemImage: dictation.isListening ? "stop.circle" : "mic") {
                 Task { await toggle() }
             }
             .disabled(dictation.isPreparing)
+            // In a Form row, a tap would otherwise fire both buttons.
+            .buttonStyle(.borderless)
         }
         .onChange(of: dictation.text) { _, heard in
             text = typed.isEmpty || heard.isEmpty ? typed + heard : typed + " " + heard

@@ -20,6 +20,7 @@ struct MeetingsView: View {
                         if row.path != nil { Image(systemName: "note.text").foregroundStyle(.secondary) }
                     }
                 }
+                .buttonStyle(.plain)
             }
             .overlay {
                 if model.meetings.isEmpty {
