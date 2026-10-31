@@ -45,3 +45,14 @@ let package = Package(
         .testTarget(name: "EdgePhoneSyncTests", dependencies: ["EdgePhoneSync"], path: "Tests/EdgePhoneSyncTests"),
     ]
 )
+
+// The iPhone app, built only by scripts/phone.sh: its SwiftUI code is iOS-only, so a plain
+// `swift build` on macOS leaves it and MarkdownUI out.
+if phone {
+    package.dependencies.append(.package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.1"))
+    package.targets.append(.executableTarget(
+        name: "EdgeMarkPhone",
+        dependencies: ["EdgePhoneSync", "EdgeSync", "EdgeStorageLogic", .product(name: "MarkdownUI", package: "swift-markdown-ui")],
+        path: "Phone/Sources"
+    ))
+}
