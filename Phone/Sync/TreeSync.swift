@@ -92,12 +92,11 @@ public struct TreeSync: Sendable {
     private func reconcile(_ path: String, ancestor: String?, theirs r: String, blobs: inout [String: String], uploads: inout [String: Data], report: inout SyncReport) async throws {
         let mine = try mirror.read(path)
         let theirs = try await repo.blob(r)
-        var common = Data()
+        var common: Data?
         if let ancestor { common = try await repo.blob(ancestor) }
 
         if let myText = String(data: mine, encoding: .utf8), let theirText = String(data: theirs, encoding: .utf8),
-           let baseText = String(data: common, encoding: .utf8),
-           let merged = ThreeWayMerge.merge(base: baseText, mine: myText, theirs: theirText)
+           let merged = Self.merged(path, base: common.flatMap { String(data: $0, encoding: .utf8) }, mine: myText, theirs: theirText)
         {
             let data = Data(merged.utf8)
             try mirror.write(data, to: path)
@@ -114,6 +113,14 @@ public struct TreeSync: Sendable {
         blobs[path] = r
         uploads[copy] = kept
         report.conflicts.append(copy)
+    }
+
+    /// Two files that appeared apart merge only when they are logs of lines. Two notes that happen
+    /// to share a name are different notes, so they stay apart in a conflict copy.
+    private static func merged(_ path: String, base: String?, mine: String, theirs: String) -> String? {
+        if let base { return ThreeWayMerge.merge(base: base, mine: mine, theirs: theirs) }
+        guard path.hasPrefix("Journal/") || path == ".edgemark/places.jsonl" else { return nil }
+        return ThreeWayMerge.union(mine: mine, theirs: theirs)
     }
 
     /// `a/Note.md` becomes `a/Note-phone-conflict-2026-10-31.md`, then `...-2.md` if that is taken.

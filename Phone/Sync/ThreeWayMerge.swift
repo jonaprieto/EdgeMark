@@ -42,6 +42,21 @@ public enum ThreeWayMerge {
         return out.joined(separator: "\n")
     }
 
+    /// Every line of two texts with no common ancestor: theirs in place, mine woven in where the
+    /// two line up. For one day's journal started on two devices, which share their headings.
+    public static func union(mine: String, theirs: String) -> String {
+        let theirLines = lines(theirs)
+        var out: [String] = []
+        var next = 0
+        for hunk in hunks(base: theirLines, edited: lines(mine)) {
+            out += theirLines[next ..< hunk.end]
+            out += hunk.lines
+            next = hunk.end
+        }
+        out += theirLines[next...]
+        return out.joined(separator: "\n")
+    }
+
     private static func lines(_ text: String) -> [String] {
         text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
     }

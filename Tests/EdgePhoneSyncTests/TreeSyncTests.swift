@@ -106,6 +106,26 @@ final class TreeSyncTests: XCTestCase {
         XCTAssertEqual(report.conflicts, ["Note-phone-conflict-\(day)-2.md"])
     }
 
+    func testADayStartedOnBothDevicesMerges() async throws {
+        FakeGitHub.push(["Note.md": "a\n"])
+        try await sync()
+        try edit("Journal/2026-10-31.md", "# 2026-10-31\n\n## Meals\n\n- 09:00 phone\n")
+        FakeGitHub.push(["Journal/2026-10-31.md": "# 2026-10-31\n\n## Meals\n\n- 08:00 mac\n"])
+        let report = try await sync()
+        XCTAssertEqual(report.conflicts, [])
+        XCTAssertEqual(FakeGitHub.files["Journal/2026-10-31.md"], "# 2026-10-31\n\n## Meals\n\n- 08:00 mac\n- 09:00 phone\n")
+    }
+
+    func testTwoNewNotesWithOneNameStayApart() async throws {
+        FakeGitHub.push(["Note.md": "a\n"])
+        try await sync()
+        try edit("Same.md", "# Same\nmine\n")
+        FakeGitHub.push(["Same.md": "# Same\ntheirs\n"])
+        let report = try await sync()
+        XCTAssertEqual(report.conflicts, ["Same-phone-conflict-\(day).md"])
+        XCTAssertEqual(try text("Same.md"), "# Same\ntheirs\n")
+    }
+
     func testRemoteDeleteKeepsLocalEdit() async throws {
         FakeGitHub.push(["Note.md": "# Note\n"])
         try await sync()

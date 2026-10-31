@@ -39,6 +39,13 @@ final class ThreeWayMergeTests: XCTestCase {
         XCTAssertNil(ThreeWayMerge.merge(base: "a\nb\nc\nd\n", mine: "a\nd\n", theirs: "a\nb\nnew\nc\nd\n"))
     }
 
+    func testUnionLinesUpHeadingsAndKeepsEveryEntry() {
+        XCTAssertEqual(
+            ThreeWayMerge.union(mine: "# D\n\n## Meals\n\n- b\n\n## Todos\n\n- [ ] c\n", theirs: "# D\n\n## Meals\n\n- a\n"),
+            "# D\n\n## Meals\n\n- a\n- b\n\n## Todos\n\n- [ ] c\n",
+        )
+    }
+
     func testEmptyBaseKeepsBothNewFiles() {
         XCTAssertEqual(ThreeWayMerge.merge(base: "", mine: "mine\n", theirs: "theirs\n"), "theirs\nmine\n")
     }
