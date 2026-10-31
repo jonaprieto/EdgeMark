@@ -28,6 +28,7 @@ final class PhoneModel {
     private(set) var held: [String: [String]] = [:]
     private(set) var syncing = false
     private(set) var places: [PlaceLine] = []
+    let calendars = Calendars()
     /// Edited since it was last finished. Finishing records the position once.
     private var unfinished: String?
     /// Bumped when files changed under the views, which then read them again.
@@ -143,7 +144,7 @@ final class PhoneModel {
     }
 
     /// Creates a note whose first line is the title, as the Mac expects, and returns its path.
-    func create(title: String, folder: String) -> String? {
+    func create(title: String, folder: String, body: String = "") -> String? {
         guard let mirror else { return nil }
         let stem = (folder.isEmpty ? "" : folder + "/") + NoteText.sanitizeForFilename(title)
         var path = stem + ".md"
@@ -152,9 +153,53 @@ final class PhoneModel {
             path = "\(stem)-\(n).md"
             n += 1
         }
-        save("# \(title)\n\n", to: path)
+        save("# \(title)\n\n\(body)", to: path)
         refresh()
         return path
+    }
+
+    /// Open todos across every note, soonest first.
+    var todos: [Todo] {
+        let open = notes.flatMap { TodoScan.todos(in: $0.text, path: $0.path) }.filter { !$0.done }
+        return TodoScan.sorted(open, today: Journal.day(Date()))
+    }
+
+    func toggle(_ todo: Todo) {
+        write(TodoScan.toggled(todo, in: text(of: todo.path)), to: todo.path)
+    }
+
+    func setDue(_ due: String?, on todo: Todo) {
+        write(TodoScan.settingDue(due, on: todo, in: text(of: todo.path)), to: todo.path)
+    }
+
+    /// Nil means the line changed since the scan: reread instead of writing over it.
+    private func write(_ text: String?, to path: String) {
+        if let text { save(text, to: path) }
+        refresh()
+        Task { await sync() }
+    }
+
+    /// Calendar events and meeting notes, soonest first.
+    var meetings: [Meeting.Row] {
+        let events = calendars.events
+        let inFolder = notes.filter { $0.folder == Meeting.folder }.map { (path: $0.path, title: $0.title) }
+        return Meeting.rows(events: events, notes: inFolder, today: Journal.day(Date()))
+    }
+
+    /// The note of a meeting, created on first use.
+    func notePath(for row: Meeting.Row) -> String? {
+        row.path ?? create(title: row.title, folder: Meeting.folder, body: Meeting.template)
+    }
+
+    /// Adds an idea to the next meeting's note. False when no meeting is coming.
+    func addMeetingIdea(_ text: String) -> Bool {
+        guard let row = meetings.first, let path = notePath(for: row) else { return false }
+        let line = "- " + text.split(whereSeparator: \.isNewline).joined(separator: " ")
+        unfinished = path
+        save(Journal.appending(line, under: .idea, to: self.text(of: path)), to: path)
+        refresh()
+        Task { await finish() }
+        return true
     }
 
     /// Adds a line to today's file. Needs no network; sync carries it when it can.

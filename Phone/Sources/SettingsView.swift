@@ -1,3 +1,4 @@
+import EventKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -14,6 +15,21 @@ struct SettingsView: View {
                     if !model.status.isEmpty { Text(model.status).font(.caption) }
                     Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { Task { await model.sync() } }
                         .disabled(model.syncing)
+                }
+                if !model.calendars.all.isEmpty {
+                    Section("Calendars") {
+                        ForEach(model.calendars.all, id: \.calendarIdentifier) { calendar in
+                            Toggle(isOn: Binding(
+                                get: { !model.calendars.hidden.contains(calendar.calendarIdentifier) },
+                                set: { on in Task { await model.calendars.setShown(on, calendar) } },
+                            )) {
+                                VStack(alignment: .leading) {
+                                    Text(calendar.title)
+                                    Text(calendar.source.title).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
                 }
                 if !model.held.isEmpty {
                     Section("Held on this phone") {

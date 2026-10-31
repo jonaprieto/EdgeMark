@@ -52,7 +52,7 @@ struct TodayView: View {
         "\(place.at.dropFirst(11).prefix(5)) \(place.place ?? "\(place.lat), \(place.lon)")"
     }
 
-    private func addButton(_ title: String, _ icon: String, _ kind: Journal.Kind) -> some View {
+    private func addButton(_ title: String, _ icon: String, _ kind: CaptureKind) -> some View {
         Button(title, systemImage: icon) { capture = CaptureRequest(kind: kind) }
             .buttonStyle(.bordered)
     }

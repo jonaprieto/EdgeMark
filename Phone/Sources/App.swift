@@ -9,7 +9,11 @@ struct EdgeMarkPhoneApp: App {
             .onChange(of: phase) { _, now in
                 // iOS gives no dependable background time, so sync on the way in and on the way out.
                 switch now {
-                case .active: Task { await PhoneModel.shared.sync() }
+                case .active:
+                    Task {
+                        await PhoneModel.shared.calendars.refresh()
+                        await PhoneModel.shared.sync()
+                    }
                 case .background: PhoneModel.shared.syncBeforeSuspend()
                 default: break
                 }

@@ -6,7 +6,7 @@ struct CaptureSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
-    @State private var kind = Journal.Kind.idea
+    @State private var kind = CaptureKind.idea
     @State private var hasDue = false
     @State private var due = Date()
     @State private var dictation = Dictation()
@@ -16,9 +16,10 @@ struct CaptureSheet: View {
         NavigationStack {
             Form {
                 Picker("Kind", selection: $kind) {
-                    Text("Meal").tag(Journal.Kind.meal)
-                    Text("Idea").tag(Journal.Kind.idea)
-                    Text("Todo").tag(Journal.Kind.todo)
+                    Text("Meal").tag(CaptureKind.meal)
+                    Text("Idea").tag(CaptureKind.idea)
+                    Text("Todo").tag(CaptureKind.todo)
+                    Text("Meeting").tag(CaptureKind.meeting)
                 }
                 .pickerStyle(.segmented)
                 TextField(prompt, text: $text, axis: .vertical)
@@ -28,6 +29,10 @@ struct CaptureSheet: View {
                     MicButton(dictation: dictation, text: $text, startsListening: request.voice)
                 } footer: {
                     if let problem = dictation.problem { Text(problem) }
+                }
+                if kind == .meeting {
+                    Text(PhoneModel.shared.meetings.first?.title ?? "No meeting coming up")
+                        .foregroundStyle(.secondary)
                 }
                 if kind == .todo {
                     Toggle("Due date", isOn: $hasDue)
@@ -44,7 +49,7 @@ struct CaptureSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await save() } }
-                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(cannotSave)
                 }
             }
         }
@@ -59,12 +64,21 @@ struct CaptureSheet: View {
         case .meal: "What did you eat?"
         case .idea: "What is the idea?"
         case .todo: "What needs doing?"
+        case .meeting: "What should you bring up?"
         }
+    }
+
+    private var cannotSave: Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (kind == .meeting && PhoneModel.shared.meetings.isEmpty)
     }
 
     private func save() async {
         await dictation.stop()
-        PhoneModel.shared.capture(text, kind: kind, due: kind == .todo && hasDue ? due : nil)
+        if let journal = kind.journal {
+            PhoneModel.shared.capture(text, kind: journal, due: kind == .todo && hasDue ? due : nil)
+        } else {
+            _ = PhoneModel.shared.addMeetingIdea(text)
+        }
         dismiss()
     }
 }
