@@ -191,4 +191,20 @@ final class SecretGuardTests: XCTestCase {
             XCTAssertEqual(error as? JevError, .noKey)
         }
     }
+
+    func testNoteGuardHoldsRegexHitsWithoutAKey() async {
+        let items = [
+            (path: "Key.md", text: "-----BEGIN PRIVATE KEY-----"),
+            (path: "Fine.md", text: "a plain note"),
+        ]
+        let held = await NoteGuard.held(items, jevKey: nil, allowed: [])
+        XCTAssertEqual(held, ["Key.md": ["private key block"]])
+    }
+
+    func testNoteGuardReleasesAnAllowedFile() async {
+        let text = "-----BEGIN PRIVATE KEY-----"
+        let allowed: Set<String> = [NoteGuard.hash(path: "Key.md", text: text)]
+        let held = await NoteGuard.held([(path: "Key.md", text: text)], jevKey: nil, allowed: allowed)
+        XCTAssertEqual(held, [:])
+    }
 }

@@ -73,6 +73,28 @@ To build from source you need Xcode 26 and macOS 15.7 or later:
 4. Optional: add a TypeSafe (Jev) key under Settings > Sync, where it is stored in the Keychain, or export `TYPESAFE_API_KEY` in your shell profile.
 5. Sync runs on its own from then on; the footer button shows the state.
 
+## iPhone app
+
+`Phone/` holds an iPhone app built without an Xcode project, signed with a free Apple account. It
+opens your notes, and adds a journal, todos, meetings from your calendars, dictation, widgets, and
+brainstorming with OpenAI. It syncs with the same private GitHub repository as the Mac, so it needs
+no iCloud and no server.
+
+1. Create a fine-grained GitHub token with contents read and write on your notes repository, and set
+   the repository in `Phone/Sources/PhoneModel.swift`.
+2. Connect the iPhone and run, once and then every 7 days, when the free profile expires:
+
+   ```sh
+   export EDGEMARK_GITHUB_TOKEN=...
+   scripts/phone.sh provision
+   ```
+
+3. On the Home Screen, touch and hold EdgeMark, then choose Require Face ID. The app's files are
+   already encrypted while the phone is locked; this guards the app while it is unlocked.
+
+Google calendars appear once the account is in iOS Settings. Proton Calendar appears through a
+subscription to a share link, which is read-only and can lag up to 8 hours.
+
 ## Known limits
 
 - In the editor, the line numbers and copy button of a code block are not shown for the block the cursor is in; they appear when you move out of it.

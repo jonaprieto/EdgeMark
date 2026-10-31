@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @AppStorage("brainstorm.model") private var modelName = "gpt-6.1-sol"
+    @AppStorage("voice.language") private var language = VoiceLanguage.es
 
     private var model: PhoneModel { .shared }
 
@@ -17,6 +18,12 @@ struct SettingsView: View {
                     if !model.status.isEmpty { Text(model.status).font(.caption) }
                     Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { Task { await model.sync() } }
                         .disabled(model.syncing)
+                }
+                Section("Dictation") {
+                    Picker("Language", selection: $language) {
+                        Text("Spanish").tag(VoiceLanguage.es)
+                        Text("English").tag(VoiceLanguage.en)
+                    }
                 }
                 Section("Brainstorm") {
                     TextField("OpenAI model", text: $modelName)
