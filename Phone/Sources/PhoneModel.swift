@@ -27,12 +27,16 @@ final class PhoneModel {
     private(set) var lastSync: Date?
     private(set) var held: [String: [String]] = [:]
     private(set) var syncing = false
+    private(set) var places: [PlaceLine] = []
+    /// Edited since it was last finished. Finishing records the position once.
+    private var unfinished: String?
     /// Bumped when files changed under the views, which then read them again.
     private(set) var revision = 0
     /// The note open in the editor. Sync waits for it, so a pull cannot race the typing.
     var editing: String?
 
     private let mirror: NotesMirror?
+    private let position = PositionLog()
     private var allowed: Set<String> {
         didSet { UserDefaults.standard.set(Array(allowed), forKey: "sync.allowedHashes") }
     }
@@ -84,6 +88,7 @@ final class PhoneModel {
                 modified: local[path] == base[path] ? dates[path] ?? file : file,
             )
         }.sorted { $0.modified > $1.modified }
+        places = PlaceLine.all(in: text(of: PlaceLine.logPath))
         revision += 1
     }
 
@@ -116,6 +121,27 @@ final class PhoneModel {
         }
     }
 
+    /// A change typed in the editor.
+    func edit(_ text: String, path: String) {
+        unfinished = path
+        save(text, to: path)
+    }
+
+    /// A note is done: records where, then syncs. Without a position the note still syncs.
+    func finish(inBackground: Bool = false) async {
+        if let path = unfinished {
+            unfinished = nil
+            await recordPosition(of: path)
+        }
+        await sync(inBackground: inBackground)
+    }
+
+    private func recordPosition(of path: String) async {
+        guard let fix = await position.fix() else { return }
+        let line = PlaceLine(date: Date(), path: path, latitude: fix.location.coordinate.latitude, longitude: fix.location.coordinate.longitude, place: fix.place)
+        save(text(of: PlaceLine.logPath) + line.text + "\n", to: PlaceLine.logPath)
+    }
+
     /// Creates a note whose first line is the title, as the Mac expects, and returns its path.
     func create(title: String, folder: String) -> String? {
         guard let mirror else { return nil }
@@ -138,8 +164,9 @@ final class PhoneModel {
         let existing = mirror?.exists(path) == true ? self.text(of: path) : Journal.emptyDay(for: now)
         let entry = Journal.entry(text, kind: kind, at: now, due: due)
         save(Journal.appending(entry, under: kind, to: existing), to: path)
+        unfinished = path
         refresh()
-        Task { await sync() }
+        Task { await finish() }
     }
 
     /// Lets the held file through on the next sync.
@@ -161,7 +188,8 @@ final class PhoneModel {
         let jevKey = Keychain.get("typesafe-api-key")
         let allowed = allowed
         let sync = TreeSync(repo: GitHubRepo(repository: Self.repository, token: token), mirror: mirror) { items in
-            await NoteGuard.held(items, jevKey: jevKey, allowed: allowed)
+            // The position log is private and no secret: it never goes to the guard's Jev check.
+            await NoteGuard.held(items.filter { $0.path != PlaceLine.logPath }, jevKey: jevKey, allowed: allowed)
         }
         do {
             let report = try await sync.run()
@@ -179,7 +207,7 @@ final class PhoneModel {
         var task = UIBackgroundTaskIdentifier.invalid
         task = UIApplication.shared.beginBackgroundTask { UIApplication.shared.endBackgroundTask(task) }
         Task {
-            await sync(inBackground: true)
+            await finish(inBackground: true)
             UIApplication.shared.endBackgroundTask(task)
         }
     }

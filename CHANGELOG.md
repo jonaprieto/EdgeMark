@@ -13,6 +13,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   per day in the Journal folder.
 - Dictate on the iPhone with Apple's on-device transcription, in Spanish or English. No audio is
   kept.
+- The iPhone app records where you finish a note, rounded to about 110 m, and shows it on a map.
+  The positions sit in a log of their own, never in the note text.
 
 ## 2.17.0 (2026-10-19)
 

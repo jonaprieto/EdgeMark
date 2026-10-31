@@ -49,7 +49,7 @@ struct NoteView: View {
         .onChange(of: text) { _, new in
             guard editing else { return }
             edited = true
-            model.save(new, to: path)
+            model.edit(new, path: path)
         }
         .onChange(of: model.revision) { text = model.text(of: path) }
     }
@@ -60,7 +60,7 @@ struct NoteView: View {
         model.editing = on ? path : nil
         guard !on, edited else { return }
         edited = false
-        Task { await model.sync() }
+        Task { await model.finish() }
     }
 }
 
