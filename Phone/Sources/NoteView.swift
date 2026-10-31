@@ -17,7 +17,7 @@ struct NoteView: View {
     var body: some View {
         Group {
             if encrypted {
-                ContentUnavailableView("Encrypted note", systemImage: "lock", description: Text("Open it on the Mac."))
+                EncryptedNoteView(path: path)
             } else if editing {
                 TextEditor(text: $text)
                     .focused($focused)

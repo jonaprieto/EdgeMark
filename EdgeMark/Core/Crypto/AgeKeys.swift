@@ -24,7 +24,7 @@ nonisolated struct AgeRecipient: Equatable, Sendable {
 }
 
 /// An age X25519 identity: the private key that decrypts. Its `string` is the secret.
-nonisolated struct AgeIdentity: Sendable {
+public nonisolated struct AgeIdentity: Sendable {
     let privateKey: Curve25519.KeyAgreement.PrivateKey
 
     static func generate() -> AgeIdentity {
@@ -36,7 +36,7 @@ nonisolated struct AgeIdentity: Sendable {
     }
 
     /// Parses `AGE-SECRET-KEY-1...`. Nil unless it is valid Bech32 with that prefix and 32 bytes.
-    init?(bech32: String) {
+    public init?(bech32: String) {
         guard let decoded = Bech32.decode(bech32.trimmingCharacters(in: .whitespacesAndNewlines)),
               decoded.hrp == "age-secret-key-", decoded.data.count == 32,
               let key = try? Curve25519.KeyAgreement.PrivateKey(rawRepresentation: decoded.data) else { return nil }

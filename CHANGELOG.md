@@ -22,6 +22,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   them off; Today opens the journal file of the day.
 - Brainstorm with OpenAI from a note on the iPhone, typing or speaking, and save the conversation as
   a note in the Brainstorms folder.
+- Notes encrypted on the Mac open read-only on the iPhone after Face ID, and close when you leave.
 - Widgets for the iPhone: add a meal, idea or todo in one tap, or start dictating from the Home
   Screen or Lock Screen. An agenda widget shows the next meeting and top todos, hidden while the
   phone is locked.

@@ -14,7 +14,7 @@ nonisolated enum AgeError: Error, Equatable {
 }
 
 /// The age v1 file format (c2sp.org/age) for one X25519 recipient, always ASCII armored.
-nonisolated enum Age {
+public nonisolated enum Age {
     static let versionLine = "age-encryption.org/v1"
     static let armorBegin = "-----BEGIN AGE ENCRYPTED FILE-----"
     static let armorEnd = "-----END AGE ENCRYPTED FILE-----"
@@ -71,7 +71,7 @@ nonisolated enum Age {
 
     // MARK: - Decrypt
 
-    static func decrypt(_ armored: String, with identity: AgeIdentity) throws -> Data {
+    public static func decrypt(_ armored: String, with identity: AgeIdentity) throws -> Data {
         let file = try dearmor(armored)
         let header = try parseHeader(file)
         guard let fileKey = header.stanzas.lazy.compactMap({ unwrap($0, with: identity) }).first else {

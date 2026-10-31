@@ -7,7 +7,8 @@
 #
 # EDGEMARK_GITHUB_TOKEN needs contents read/write on owner/notes. Exported here, it,
 # TYPESAFE_API_KEY and OPENAI_API_KEY reach the app at launch without showing in the command
-# line; it keeps them in its Keychain.
+# line; it keeps them in its Keychain. EDGEMARK_AGE_IDENTITY, the AGE-SECRET-KEY-1... of the Mac's
+# note encryption, opens .age notes: the phone keeps it behind Face ID. Unset it after one run.
 set -e
 cd "$(dirname "$0")/.."
 ID=io.github.jonaprieto.edgemark.ios
@@ -80,7 +81,7 @@ codesign -f -s "$CERT" --entitlements "$T/ent.plist" "$APP"
 codesign --verify --deep --strict "$APP"
 
 xcrun devicectl device install app --device "$DEV" "$APP"
-for k in EDGEMARK_GITHUB_TOKEN TYPESAFE_API_KEY OPENAI_API_KEY; do
+for k in EDGEMARK_GITHUB_TOKEN TYPESAFE_API_KEY OPENAI_API_KEY EDGEMARK_AGE_IDENTITY; do
   eval "v=\${$k:-}"
   if [ -n "$v" ]; then export "DEVICECTL_CHILD_$k=$v"; fi
 done

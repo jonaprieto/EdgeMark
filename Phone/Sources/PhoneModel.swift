@@ -51,6 +51,7 @@ final class PhoneModel {
         for (name, account) in ["EDGEMARK_GITHUB_TOKEN": "github-token", "TYPESAFE_API_KEY": "typesafe-api-key", "OPENAI_API_KEY": "openai-api-key"] {
             if let value = environment[name], !value.isEmpty { Keychain.set(account, value) }
         }
+        if let secret = environment["EDGEMARK_AGE_IDENTITY"], !secret.isEmpty { AgeVault.store(secret) }
         allowed = Set(UserDefaults.standard.stringArray(forKey: "sync.allowedHashes") ?? [])
         let support = URL.applicationSupportDirectory
         do {

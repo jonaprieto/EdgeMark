@@ -3,7 +3,7 @@ import Foundation
 /// Tags of an encrypted note travel inside the ciphertext, as one line in front of the
 /// text, so the plaintext sidecar (which is pushed to GitHub) never names them.
 /// Foundation only, so the rules are unit tested by the `EdgeStorageLogic` SPM target.
-nonisolated enum EncryptedTags {
+public nonisolated enum EncryptedTags {
     private static let prefix = "<!-- edgemark-tags: "
     private static let suffix = " -->"
 
@@ -19,7 +19,7 @@ nonisolated enum EncryptedTags {
 
     /// The tags of a leading tag line and the text without it; no tags and `text`
     /// unchanged when there is no such line.
-    static func extract(from payload: String) -> (tags: [String], text: String) {
+    public static func extract(from payload: String) -> (tags: [String], text: String) {
         split(payload) ?? ([], payload)
     }
 
