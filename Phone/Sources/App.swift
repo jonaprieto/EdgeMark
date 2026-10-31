@@ -5,7 +5,7 @@ struct EdgeMarkPhoneApp: App {
     @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
-        WindowGroup { NotesRoot() }
+        WindowGroup { RootView() }
             .onChange(of: phase) { _, now in
                 // iOS gives no dependable background time, so sync on the way in and on the way out.
                 switch now {

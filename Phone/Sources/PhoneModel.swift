@@ -1,3 +1,4 @@
+import EdgeJournalLogic
 import EdgePhoneSync
 import EdgeStorageLogic
 import EdgeSync
@@ -128,6 +129,17 @@ final class PhoneModel {
         save("# \(title)\n\n", to: path)
         refresh()
         return path
+    }
+
+    /// Adds a line to today's file. Needs no network; sync carries it when it can.
+    func capture(_ text: String, kind: Journal.Kind, due: Date?) {
+        let now = Date()
+        let path = Journal.path(for: now)
+        let existing = mirror?.exists(path) == true ? self.text(of: path) : Journal.emptyDay(for: now)
+        let entry = Journal.entry(text, kind: kind, at: now, due: due)
+        save(Journal.appending(entry, under: kind, to: existing), to: path)
+        refresh()
+        Task { await sync() }
     }
 
     /// Lets the held file through on the next sync.
