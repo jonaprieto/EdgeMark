@@ -5,6 +5,11 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Added
+
+- An iPhone app opens your notes, edits them and keeps them in sync with the Mac through GitHub.
+  Its files are encrypted while the phone is locked, and stay out of device backups.
+
 ## 2.17.0 (2026-10-19)
 
 ### Added
