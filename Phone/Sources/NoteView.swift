@@ -7,6 +7,7 @@ struct NoteView: View {
     @State private var text = ""
     @State private var editing = false
     @State private var edited = false
+    @State private var dictation = Dictation()
     @FocusState private var focused: Bool
 
     private var model: PhoneModel { .shared }
@@ -34,8 +35,13 @@ struct NoteView: View {
         .navigationTitle(model.note(path)?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if editing {
+                ToolbarItem(placement: .bottomBar) { MicButton(dictation: dictation, text: $text) }
+            }
             if !encrypted {
-                Button(editing ? "Done" : "Edit") { setEditing(!editing) }
+                ToolbarItem(placement: .primaryAction) {
+                    Button(editing ? "Done" : "Edit") { setEditing(!editing) }
+                }
             }
         }
         .onAppear { text = model.text(of: path) }
@@ -49,6 +55,7 @@ struct NoteView: View {
     }
 
     private func setEditing(_ on: Bool) {
+        if !on { Task { await dictation.stop() } }
         editing = on
         model.editing = on ? path : nil
         guard !on, edited else { return }

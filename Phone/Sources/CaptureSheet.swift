@@ -9,6 +9,7 @@ struct CaptureSheet: View {
     @State private var kind = Journal.Kind.idea
     @State private var hasDue = false
     @State private var due = Date()
+    @State private var dictation = Dictation()
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -23,6 +24,11 @@ struct CaptureSheet: View {
                 TextField(prompt, text: $text, axis: .vertical)
                     .lineLimit(3 ... 10)
                     .focused($focused)
+                Section {
+                    MicButton(dictation: dictation, text: $text, startsListening: request.voice)
+                } footer: {
+                    if let problem = dictation.problem { Text(problem) }
+                }
                 if kind == .todo {
                     Toggle("Due date", isOn: $hasDue)
                     if hasDue {
@@ -37,14 +43,14 @@ struct CaptureSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
+                    Button("Save") { Task { await save() } }
                         .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
         .onAppear {
             kind = request.kind
-            focused = true
+            focused = !request.voice
         }
     }
 
@@ -56,7 +62,8 @@ struct CaptureSheet: View {
         }
     }
 
-    private func save() {
+    private func save() async {
+        await dictation.stop()
         PhoneModel.shared.capture(text, kind: kind, due: kind == .todo && hasDue ? due : nil)
         dismiss()
     }

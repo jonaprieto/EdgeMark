@@ -11,6 +11,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   Its files are encrypted while the phone is locked, and stay out of device backups.
 - The iPhone app keeps a journal: capture a meal, idea or todo in seconds, into one Markdown file
   per day in the Journal folder.
+- Dictate on the iPhone with Apple's on-device transcription, in Spanish or English. No audio is
+  kept.
 
 ## 2.17.0 (2026-10-19)
 
