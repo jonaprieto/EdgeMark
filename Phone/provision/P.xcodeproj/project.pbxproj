@@ -5,14 +5,40 @@
 	};
 	objectVersion = 56;
 	objects = {
+        BB0000000000000000000001 = {isa = PBXBuildFile; fileRef = BB0000000000000000000002; };
+        BB0000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Widget/EdgeMarkWidget.swift; sourceTree = SOURCE_ROOT; };
+        BB0000000000000000000003 = {isa = PBXBuildFile; fileRef = BB0000000000000000000004; };
+        BB0000000000000000000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Shared/WidgetSnapshot.swift; sourceTree = SOURCE_ROOT; };
+        BB0000000000000000000005 = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = EdgeMarkWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+        BB0000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (BB0000000000000000000001, BB0000000000000000000003, ); runOnlyForDeploymentPostprocessing = 0; };
+        BB0000000000000000000007 = {isa = PBXNativeTarget; buildConfigurationList = BB0000000000000000000008; buildPhases = (BB0000000000000000000006, ); buildRules = (); dependencies = (); name = EdgeMarkWidget; productName = EdgeMarkWidget; productReference = BB0000000000000000000005; productType = "com.apple.product-type.app-extension"; };
+        BB0000000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (BB0000000000000000000009, ); defaultConfigurationName = Debug; };
+        BB0000000000000000000009 = {isa = XCBuildConfiguration; buildSettings = {
+            APPLICATION_EXTENSION_API_ONLY = YES;
+            ALWAYS_SEARCH_USER_PATHS = NO;
+            CODE_SIGN_STYLE = Automatic;
+            DEVELOPMENT_TEAM = "";
+            GENERATE_INFOPLIST_FILE = YES;
+            INFOPLIST_FILE = ../Widget/Info.plist;
+            IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+            LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+            MARKETING_VERSION = 0.1.0;
+            CURRENT_PROJECT_VERSION = 1;
+            PRODUCT_BUNDLE_IDENTIFIER = io.github.jonaprieto.edgemark.ios.widget;
+            PRODUCT_NAME = EdgeMarkWidget;
+            SDKROOT = iphoneos;
+            SKIP_INSTALL = YES;
+            SWIFT_VERSION = 5.0;
+            TARGETED_DEVICE_FAMILY = 1;
+        }; name = Debug; };
 		AA0000000000000000000001 = {isa = PBXBuildFile; fileRef = AA0000000000000000000002; };
 		AA0000000000000000000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stub.swift; sourceTree = SOURCE_ROOT; };
 		AA0000000000000000000003 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stub.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AA0000000000000000000004 = {isa = PBXGroup; children = (AA0000000000000000000002, AA0000000000000000000005, ); sourceTree = "<group>"; };
-		AA0000000000000000000005 = {isa = PBXGroup; children = (AA0000000000000000000003, ); name = Products; sourceTree = "<group>"; };
+		AA0000000000000000000004 = {isa = PBXGroup; children = (AA0000000000000000000002, BB0000000000000000000002, BB0000000000000000000004, AA0000000000000000000005, ); sourceTree = "<group>"; };
+		AA0000000000000000000005 = {isa = PBXGroup; children = (AA0000000000000000000003, BB0000000000000000000005, ); name = Products; sourceTree = "<group>"; };
 		AA0000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (AA0000000000000000000001, ); runOnlyForDeploymentPostprocessing = 0; };
 		AA0000000000000000000007 = {isa = PBXNativeTarget; buildConfigurationList = AA0000000000000000000009; buildPhases = (AA0000000000000000000006, ); buildRules = (); dependencies = (); name = Stub; productName = Stub; productReference = AA0000000000000000000003; productType = "com.apple.product-type.application"; };
-		AA0000000000000000000008 = {isa = PBXProject; buildConfigurationList = AA000000000000000000000A; compatibilityVersion = "Xcode 14.0"; mainGroup = AA0000000000000000000004; productRefGroup = AA0000000000000000000005; projectDirPath = ""; projectRoot = ""; targets = (AA0000000000000000000007, ); };
+		AA0000000000000000000008 = {isa = PBXProject; buildConfigurationList = AA000000000000000000000A; compatibilityVersion = "Xcode 14.0"; mainGroup = AA0000000000000000000004; productRefGroup = AA0000000000000000000005; projectDirPath = ""; projectRoot = ""; targets = (AA0000000000000000000007, BB0000000000000000000007, ); };
 		AA0000000000000000000009 = {isa = XCConfigurationList; buildConfigurations = (AA000000000000000000000B, ); defaultConfigurationName = Debug; };
 		AA000000000000000000000A = {isa = XCConfigurationList; buildConfigurations = (AA000000000000000000000C, ); defaultConfigurationName = Debug; };
 		AA000000000000000000000B = {isa = XCBuildConfiguration; buildSettings = {

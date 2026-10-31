@@ -32,9 +32,17 @@ build() { EDGEMARK_PHONE=1 swift build -c release --product EdgeMarkPhone --trip
 build
 BIN=$(build --show-bin-path)
 
-rm -rf "$APP" && mkdir -p "$APP"
+# Xcode builds and provisions the WidgetKit extension; the main app stays a Swift package.
+xcodebuild -project Phone/provision/P.xcodeproj -scheme EdgeMarkWidget -configuration Debug \
+  -destination "id=$DEV" -derivedDataPath .build/phone-widget \
+  -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+  MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$VERSION" \
+  SWIFT_OPTIMIZATION_LEVEL=-O build -quiet
+
+rm -rf "$APP" && mkdir -p "$APP/PlugIns"
 cp "$BIN/EdgeMarkPhone" "$APP/"
 find "$BIN" -maxdepth 1 -name '*.bundle' -exec cp -R {} "$APP/" \;
+cp -R .build/phone-widget/Build/Products/Debug-iphoneos/EdgeMarkWidget.appex "$APP/PlugIns/"
 sed "s/VERSION/$VERSION/" Phone/Info.plist > "$APP/Info.plist"
 
 # Icon: one 1024px source; actool renders the sizes and the CFBundleIcons keys.
@@ -51,6 +59,11 @@ PROFILE=$(ls -t ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.mobi
 cp "$PROFILE" "$APP/embedded.mobileprovision"
 security cms -D -i "$PROFILE" > "$T/profile.plist"
 plutil -extract Entitlements xml1 -o "$T/ent.plist" "$T/profile.plist"
+PREFIX=$(plutil -extract ApplicationIdentifierPrefix.0 raw "$T/profile.plist")
+WIDGET_GROUP="$PREFIX.$ID.widget"
+plutil -replace EdgeMarkWidgetAccessGroup -string "$WIDGET_GROUP" "$APP/Info.plist"
+# Preserve the app's default keychain group, so installed tokens remain accessible.
+/usr/libexec/PlistBuddy -c "Add :keychain-access-groups: string $WIDGET_GROUP" "$T/ent.plist"
 
 # Sign with the keychain certificate the profile embeds; the name alone is ambiguous once old ones are revoked.
 VALID=$(security find-identity -v -p codesigning | grep -v REVOKED)

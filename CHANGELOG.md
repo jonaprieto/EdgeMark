@@ -15,6 +15,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   kept.
 - The iPhone app records where you finish a note, rounded to about 110 m, and shows it on a map.
   The positions sit in a log of their own, never in the note text.
+- Widgets for the iPhone: add a meal, idea or todo in one tap, or start dictating from the Home
+  Screen or Lock Screen.
 
 ## 2.17.0 (2026-10-19)
 
