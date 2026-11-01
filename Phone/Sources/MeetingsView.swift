@@ -1,11 +1,13 @@
 import EdgeJournalLogic
+import EventKit
 import SwiftUI
 
 struct MeetingsView: View {
     @State private var path: [Route] = []
     @State private var query = ""
     @State private var adding = false
-    @State private var deleting: PhoneNote?
+    @State private var removing: Meeting.Row?
+    @State private var failure: String?
 
     private var model: PhoneModel { .shared }
 
@@ -60,7 +62,7 @@ struct MeetingsView: View {
                             Button { open(row) } label: {
                                 HStack {
                                     VStack(alignment: .leading) {
-                                        Text(row.name.isEmpty ? row.title : row.name)
+                                        Text(name(row))
                                         let detail = [row.start.map(time), row.place].compactMap(\.self).joined(separator: " · ")
                                         if !detail.isEmpty {
                                             Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
@@ -72,9 +74,7 @@ struct MeetingsView: View {
                             }
                             .buttonStyle(.plain)
                             .swipeActions {
-                                if let note = row.path.flatMap(model.note) {
-                                    Button("Delete Note", systemImage: "trash", role: .destructive) { deleting = note }
-                                }
+                                Button("Delete", systemImage: "trash", role: .destructive) { removing = row }
                             }
                         }
                     } header: {
@@ -103,7 +103,29 @@ struct MeetingsView: View {
                 Button("Add Meeting", systemImage: "plus") { adding = true }
             }
             .sheet(isPresented: $adding) { AddMeetingSheet() }
-            .deleteDialog(for: $deleting)
+            .confirmationDialog(
+                "Delete \(removing.map(name) ?? "meeting")?",
+                isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                titleVisibility: .visible,
+                presenting: removing,
+            ) { row in
+                let note = row.path.flatMap(model.note)
+                let event = model.calendars.event(of: row).flatMap { $0.calendar.allowsContentModifications ? $0 : nil }
+                if let note {
+                    Button("Delete Note", role: .destructive) { model.delete(note.path) }
+                }
+                if let event {
+                    Button("Delete From \(event.calendar.title)", role: .destructive) { delete(event) }
+                }
+                if let note, let event {
+                    Button("Delete Both", role: .destructive) { delete(event, note: note) }
+                }
+            } message: { row in
+                Text(warning(row))
+            }
+            .alert("Could not delete it", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {} message: {
+                Text(failure ?? "")
+            }
             .refreshable {
                 await model.calendars.refresh()
                 await model.sync()
@@ -116,5 +138,37 @@ struct MeetingsView: View {
 
     private func open(_ row: Meeting.Row) {
         if let note = model.notePath(for: row) { path.append(.note(note)) }
+    }
+
+    private func name(_ row: Meeting.Row) -> String {
+        row.name.isEmpty ? row.title : row.name
+    }
+
+    /// Says where each part goes, since an event leaves the calendar it came from.
+    private func warning(_ row: Meeting.Row) -> String {
+        var parts: [String] = []
+        if row.path != nil { parts.append("The note goes from this iPhone and the Mac. Your repository's history keeps a copy.") }
+        if let event = model.calendars.event(of: row) {
+            let calendar = event.calendar.title
+            if !event.calendar.allowsContentModifications {
+                parts.append("\(calendar) cannot be changed from here, so delete the event there.")
+            } else {
+                parts.append("The event goes from \(calendar) on all your devices\(event.hasRecurrenceRules ? ", this date only" : "").")
+                if event.hasAttendees { parts.append("Its guests may be told it is cancelled.") }
+            }
+        }
+        return parts.joined(separator: " ")
+    }
+
+    /// The note goes only once the event has, so a failure leaves both.
+    private func delete(_ event: EKEvent, note: PhoneNote? = nil) {
+        Task {
+            do {
+                try await model.calendars.delete(event)
+                if let note { model.delete(note.path) } else { model.refresh() }
+            } catch {
+                failure = error.localizedDescription
+            }
+        }
     }
 }

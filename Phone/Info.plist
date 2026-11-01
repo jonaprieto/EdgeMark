@@ -20,7 +20,7 @@
 	<key>EdgeMarkWidgetAccessGroup</key><string>WIDGET_ACCESS_GROUP</string>
 	<key>NSCameraUsageDescription</key><string>The camera takes a photo for a note or an idea.</string>
 	<key>NSFaceIDUsageDescription</key><string>Face ID keeps your notes closed to anyone else holding the phone.</string>
-	<key>NSCalendarsFullAccessUsageDescription</key><string>Your calendars list upcoming meetings next to their notes.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key><string>Your calendars list upcoming meetings next to their notes, and a meeting you choose to delete leaves its calendar.</string>
 	<key>NSLocationWhenInUseUsageDescription</key><string>Your location is recorded when you finish a note.</string>
 	<key>NSMicrophoneUsageDescription</key><string>The microphone lets you dictate notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key><string>Speech recognition turns your dictation into text.</string>

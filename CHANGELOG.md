@@ -69,6 +69,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Write a `#tag` in an idea or meal on the iPhone, and Journal's search lists your tags to pick from.
 - The iPhone map shows your ideas and meals by name, meetings where they happen and reminders where you
   set them, each with its own icon, along with the notes you finished.
+- Delete a meeting on the iPhone by swiping it: the dialog says what goes, and an event leaves its original
+  calendar too once you confirm, for that date only if it repeats.
 
 ### Fixed
 

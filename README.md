@@ -261,7 +261,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.
 - Commits from the phone show as unsigned on GitHub.
-- Calendars are read-only: a meeting you add is a note, not a calendar event. Proton through a share link can lag up to 8 hours, and a Full view link puts event details outside Proton's encryption; a Limited view link shows busy times only.
+- A meeting you add is a note, not a calendar event. Deleting a calendar meeting takes it out of that calendar, and only a calendar iOS can change: a subscribed one, like Proton through a share link, must be changed at its source. Proton through a share link can lag up to 8 hours, and a Full view link puts event details outside Proton's encryption; a Limited view link shows busy times only.
 - A meeting note matches its event by date and title, so a moved or renamed meeting loses the link and the note stays.
 - With a Jev key on the phone, the same text as on the Mac is sent to api.typesafe.ai before a push. The position log never is.
 
