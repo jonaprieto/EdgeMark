@@ -126,6 +126,19 @@ final class TreeSyncTests: XCTestCase {
         XCTAssertEqual(try text("Same.md"), "# Same\ntheirs\n")
     }
 
+    func testEncryptedFilesNeverMergeAndTheirCopyStaysIntact() async throws {
+        let armor = { (body: String) in "-----BEGIN AGE ENCRYPTED FILE-----\n\(body)\n-----END AGE ENCRYPTED FILE-----\n" }
+        FakeGitHub.push(["Secret.md.age": armor("base")])
+        try await sync()
+        try edit("Secret.md.age", armor("mine"))
+        FakeGitHub.push(["Secret.md.age": armor("theirs")])
+        let report = try await sync()
+        let copy = "Secret-phone-conflict-\(day).md.age"
+        XCTAssertEqual(report.conflicts, [copy])
+        XCTAssertEqual(FakeGitHub.files["Secret.md.age"], armor("theirs"))
+        XCTAssertEqual(FakeGitHub.files[copy], armor("mine"))
+    }
+
     func testRemoteDeleteKeepsLocalEdit() async throws {
         FakeGitHub.push(["Note.md": "# Note\n"])
         try await sync()

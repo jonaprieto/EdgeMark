@@ -32,7 +32,7 @@ public nonisolated enum Age {
 
     /// `plaintext` as an armored age file readable by `recipient`'s identity. Output is
     /// different on every call (fresh file key, ephemeral key and nonce).
-    static func encrypt(_ plaintext: Data, to recipient: AgeRecipient) -> String {
+    public static func encrypt(_ plaintext: Data, to recipient: AgeRecipient) -> String {
         var generator = SystemRandomNumberGenerator()
         let fileKey = Data((0 ..< 16).map { _ in UInt8.random(in: .min ... .max, using: &generator) })
         let nonce = Data((0 ..< 16).map { _ in UInt8.random(in: .min ... .max, using: &generator) })

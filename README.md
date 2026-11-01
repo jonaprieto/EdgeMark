@@ -146,7 +146,8 @@ The project is set up for one developer. For your own account, replace the team 
 ## How your notes are protected
 
 - On the iPhone, iOS encrypts the notes with a key tied to your passcode, and they stay out of device backups. Face ID opens the app; the encryption comes from iOS.
-- Notes you encrypt on the Mac stay encrypted everywhere. On the iPhone they open read-only, with a key that only Face ID releases.
+- Notes you encrypt on the Mac stay encrypted everywhere. On the iPhone they open with a key that only Face ID releases, and you can edit them there.
+- Mark a new note or capture as Private and it is encrypted the same way, on GitHub too, with no position recorded. Its file name stays readable.
 - On GitHub, other notes are plain text in your private repository.
 - Before a push, EdgeMark looks for keys and passwords and holds back any file that looks wrong, on the Mac and on the iPhone.
 - Your position is rounded to about 110 m and kept in its own log, never in a note, so it cannot reach a gist, an export or OpenAI. That log does stay in your repository's history.
@@ -245,7 +246,8 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 - Notes cannot be deleted or renamed on the phone. Do that on the Mac.
 - Photos are resized to 2048 px and stay in your repository's history for good, deleted or not.
 - Gists are read-only on the phone, and encrypted gists do not open there.
-- Encrypted notes open read-only.
+- An existing plain note cannot be made private on the phone. Its old text would stay in git history anyway.
+- A private capture cannot hold a photo, because photos are plain files.
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.
 - Commits from the phone show as unsigned on GitHub.

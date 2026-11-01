@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 /// An age X25519 recipient: the public key notes are encrypted to. Not secret.
-nonisolated struct AgeRecipient: Equatable, Sendable {
+public nonisolated struct AgeRecipient: Equatable, Sendable {
     /// 32-byte X25519 public key.
     let publicKey: Data
 
@@ -11,7 +11,7 @@ nonisolated struct AgeRecipient: Equatable, Sendable {
     }
 
     /// Parses `age1...`. Nil unless it is valid Bech32 with the `age` prefix and 32 bytes.
-    init?(bech32: String) {
+    public init?(bech32: String) {
         guard let decoded = Bech32.decode(bech32.trimmingCharacters(in: .whitespacesAndNewlines)),
               decoded.hrp == "age", decoded.data.count == 32 else { return nil }
         publicKey = decoded.data

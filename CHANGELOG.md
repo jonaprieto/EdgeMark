@@ -37,7 +37,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Add photos or take one with the camera on the iPhone, in a capture or a note. They sync to the Mac
   with the note, and Ideas shows them next to the text.
 - Notes on the iPhone render highlighted code, math, Mermaid diagrams and images.
-- Notes encrypted on the Mac open read-only on the iPhone after Face ID, and close when you leave.
+- Notes encrypted on the Mac open on the iPhone after Face ID, can be edited there, and close when
+  you leave. Mark a new note or capture as Private to encrypt it, with no position recorded.
 - Widgets for the iPhone: add a meal, idea or todo in one tap, or start dictating from the Home
   Screen or Lock Screen. An agenda widget shows the next meeting and top todos, hidden while the
   phone is locked.

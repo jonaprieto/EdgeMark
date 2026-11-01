@@ -118,6 +118,8 @@ public struct TreeSync: Sendable {
     /// Two files that appeared apart merge only when they are logs of lines. Two notes that happen
     /// to share a name are different notes, so they stay apart in a conflict copy.
     private static func merged(_ path: String, base: String?, mine: String, theirs: String) -> String? {
+        // Ciphertext has no lines to merge: a mixed file would decrypt to nothing.
+        if path.hasSuffix(".age") { return nil }
         if let base { return ThreeWayMerge.merge(base: base, mine: mine, theirs: theirs) }
         guard path.hasPrefix("Journal/") || path == ".edgemark/places.jsonl" else { return nil }
         return ThreeWayMerge.union(mine: mine, theirs: theirs)

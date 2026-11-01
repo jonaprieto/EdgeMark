@@ -15,6 +15,7 @@
 	<key>UILaunchScreen</key><dict/>
 	<key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
 	<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>edgemark</string></array></dict></array>
+	<key>EdgeMarkAgeRecipient</key><string>AGE_RECIPIENT</string>
 	<key>EdgeMarkCommit</key><string>COMMIT</string>
 	<key>EdgeMarkWidgetAccessGroup</key><string>WIDGET_ACCESS_GROUP</string>
 	<key>NSCameraUsageDescription</key><string>The camera takes a photo for a note or an idea.</string>

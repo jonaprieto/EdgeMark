@@ -10,7 +10,7 @@ public nonisolated enum EncryptedTags {
     /// `text` with the tag line in front; `text` unchanged when `tags` is empty, except
     /// that a text which itself starts with a tag-shaped line gets an empty tag line in
     /// front, so reading it back does not mistake that line for the note's tags.
-    static func embed(_ tags: [String], in text: String) -> String {
+    public static func embed(_ tags: [String], in text: String) -> String {
         if tags.isEmpty {
             return split(text) == nil ? text : prefix + suffix + "\n" + text
         }

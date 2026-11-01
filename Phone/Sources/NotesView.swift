@@ -34,7 +34,6 @@ struct NotesList: View {
     @State private var query = ""
     @State private var showSettings = false
     @State private var naming = false
-    @State private var title = ""
 
     private var model: PhoneModel { .shared }
 
@@ -126,13 +125,8 @@ struct NotesList: View {
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
-        .alert("New Note", isPresented: $naming) {
-            TextField("Title", text: $title)
-            Button("Create") {
-                if let note = model.create(title: title, folder: folder) { path.append(.note(note)) }
-                title = ""
-            }
-            Button("Cancel", role: .cancel) { title = "" }
+        .sheet(isPresented: $naming) {
+            NewNoteSheet(folder: folder) { path.append(.note($0)) }
         }
     }
 }

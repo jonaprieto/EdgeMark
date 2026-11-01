@@ -11,6 +11,7 @@ struct CaptureSheet: View {
     @State private var due = Date()
     @State private var dictation = Dictation()
     @State private var photos: [UIImage] = []
+    @State private var isPrivate = false
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -28,8 +29,14 @@ struct CaptureSheet: View {
                     .focused($focused)
                 Section {
                     MicButton(dictation: dictation, text: $text, startsListening: request.voice)
-                    PhotoButtons { photos.append($0) }
-                    if !photos.isEmpty {
+                    if PhoneModel.shared.canEncrypt, kind != .meeting {
+                        Toggle("Private", isOn: $isPrivate)
+                    }
+                    // A photo is a plain file in the repository, so a private capture takes none.
+                    if !isPrivate {
+                        PhotoButtons { photos.append($0) }
+                    }
+                    if !photos.isEmpty, !isPrivate {
                         ScrollView(.horizontal) {
                             HStack {
                                 ForEach(photos.indices, id: \.self) { index in
@@ -41,7 +48,11 @@ struct CaptureSheet: View {
                         }
                     }
                 } footer: {
-                    if let problem = dictation.problem { Text(problem) }
+                    if let problem = dictation.problem {
+                        Text(problem)
+                    } else if isPrivate {
+                        Text("Encrypted, with no position. Opens with Face ID.")
+                    }
                 }
                 if kind == .meeting {
                     Text(PhoneModel.shared.meetings.first?.title ?? "No meeting coming up")
@@ -91,6 +102,10 @@ struct CaptureSheet: View {
     private func save() async {
         await dictation.stop()
         let model = PhoneModel.shared
+        if isPrivate {
+            if model.capturePrivately(text, kind: kind.rawValue) { dismiss() }
+            return
+        }
         let target = kind.journal != nil ? Journal.path(for: Date()) : model.nextMeetingPath
         let images = target.map { path in photos.compactMap { model.attach($0, to: path) } } ?? []
         let line = ([text] + images).filter { !$0.isEmpty }.joined(separator: " ")

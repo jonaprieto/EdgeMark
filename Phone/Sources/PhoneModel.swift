@@ -1,3 +1,4 @@
+import EdgeCrypto
 import EdgeJournalLogic
 import EdgePhoneSupport
 import EdgePhoneSync
@@ -340,6 +341,50 @@ final class PhoneModel {
         Task { await finish() }
     }
 
+    /// The Mac's public age key, set by `scripts/phone.sh`. Writing needs only this, so a private
+    /// note is sealed with no Face ID; reading it back takes the key behind Face ID.
+    private var ageRecipient: AgeRecipient? {
+        (Bundle.main.object(forInfoDictionaryKey: "EdgeMarkAgeRecipient") as? String).flatMap(AgeRecipient.init(bech32:))
+    }
+
+    var canEncrypt: Bool {
+        ageRecipient != nil
+    }
+
+    /// Seals `text` into the age note at `path`, as the Mac reads it.
+    func savePrivate(_ text: String, to path: String) {
+        guard let ageRecipient else { return }
+        save(Data(Age.encrypt(Data(text.utf8), to: ageRecipient).utf8), toFile: path)
+        refresh()
+        Task { await sync() }
+    }
+
+    /// A new encrypted note. It records no position, so nothing about it stays in the clear
+    /// beyond its file name.
+    func createPrivate(title: String, folder: String, text: String) -> String? {
+        guard canEncrypt, let mirror else { return nil }
+        let stem = (folder.isEmpty ? "" : folder + "/") + NoteText.sanitizeForFilename(title)
+        var path = stem + ".md.age"
+        var n = 2
+        while mirror.exists(path) {
+            path = "\(stem)-\(n).md.age"
+            n += 1
+        }
+        savePrivate("# \(title)\n\n\(text)", to: path)
+        return saveError == nil ? path : nil
+    }
+
+    /// A private capture: its own encrypted note, since the day file is plain text.
+    func capturePrivately(_ text: String, kind: String) -> Bool {
+        let now = Date()
+        return createPrivate(title: "\(Journal.day(now)) \(Journal.time(now)) \(kind)", folder: Journal.folder, text: text) != nil
+    }
+
+    /// Private captures, newest first. Only their file names are readable.
+    var privateCaptures: [PhoneNote] {
+        notes.filter { $0.folder == Journal.folder && $0.isEncrypted }
+    }
+
     /// Lets the held file through on the next sync.
     func allow(_ path: String) {
         allowed.insert(NoteGuard.hash(path: path, text: text(of: path)))
@@ -361,7 +406,8 @@ final class PhoneModel {
         let allowed = allowed
         let sync = TreeSync(repo: GitHubRepo(repository: Self.repository, token: token), mirror: mirror) { items in
             // The position log is private and no secret: it never goes to the guard's Jev check.
-            await NoteGuard.held(items.filter { $0.path != PlaceLine.logPath }, jevKey: jevKey, allowed: allowed)
+            // Ciphertext has nothing to check either.
+            await NoteGuard.held(items.filter { $0.path != PlaceLine.logPath && !$0.path.hasSuffix(".age") }, jevKey: jevKey, allowed: allowed)
         }
         do {
             let report = try await sync.run()

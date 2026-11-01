@@ -16,6 +16,8 @@ T=${TMPDIR:-/tmp}/edgemark-phone
 APP=.build/ios/EdgeMark.app
 VERSION=$(grep -m1 'MARKETING_VERSION' EdgeMark.xcodeproj/project.pbxproj | sed 's/.*= //; s/;//')
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo dev)
+# The public half of the Mac's note encryption, so the phone can seal private notes.
+RECIPIENT=$(defaults read io.github.ender-wang.EdgeMark encryption.recipient 2>/dev/null || true)
 rm -rf "$T" && mkdir -p "$T"
 
 xcrun devicectl list devices -q --json-output "$T/dev.json" >/dev/null
@@ -46,7 +48,7 @@ cp "$BIN/EdgeMarkPhone" "$APP/"
 find "$BIN" -maxdepth 1 -name '*.bundle' -exec cp -R {} "$APP/" \;
 cp -R .build/phone-widget/Build/Products/Debug-iphoneos/EdgeMarkWidget.appex "$APP/PlugIns/"
 cp EdgeMark/Resources/Mermaid/mermaid.min.js EdgeMark/Resources/Mermaid/LICENSE-mermaid.txt "$APP/"
-sed -e "s/VERSION/$VERSION/" -e "s/>COMMIT</>$COMMIT</" Phone/Info.plist > "$APP/Info.plist"
+sed -e "s/VERSION/$VERSION/" -e "s/>COMMIT</>$COMMIT</" -e "s/AGE_RECIPIENT/$RECIPIENT/" Phone/Info.plist > "$APP/Info.plist"
 
 # Icon: one 1024px source; actool renders the sizes and the CFBundleIcons keys.
 A="$T/Assets.xcassets/AppIcon.appiconset"

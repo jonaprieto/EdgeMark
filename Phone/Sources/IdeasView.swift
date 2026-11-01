@@ -17,6 +17,15 @@ struct IdeasView: View {
             }
             let days = Dictionary(grouping: shown) { $0.entry.day }
             List {
+                if query.isEmpty, !model.privateCaptures.isEmpty {
+                    Section("Private") {
+                        ForEach(model.privateCaptures) { note in
+                            NavigationLink(value: Route.note(note.path)) {
+                                Label(note.title, systemImage: "lock")
+                            }
+                        }
+                    }
+                }
                 ForEach(days.keys.sorted(by: >), id: \.self) { day in
                     Section(day) {
                         ForEach(days[day] ?? [], id: \.entry) { idea in
