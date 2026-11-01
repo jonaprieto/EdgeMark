@@ -67,6 +67,10 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - A meal on the iPhone is marked Breakfast, Lunch, Dinner or Other, shows the time and place, and takes
   an earlier time when you log it late. Journal lists all three, and searching "lunch" finds them.
 
+### Fixed
+
+- The dictation button in the iPhone note editor stays above the keyboard instead of behind it.
+
 ## 2.17.0 (2026-10-19)
 
 ### Added

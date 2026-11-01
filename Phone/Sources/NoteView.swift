@@ -26,6 +26,8 @@ struct NoteView: View {
                     .focused($focused)
                     .padding(.horizontal, 8)
                     .onAppear { focused = true }
+                    // A bottom bar would sit behind the keyboard.
+                    .safeAreaInset(edge: .bottom) { MicButton(dictation: dictation, text: $text).padding(8) }
             } else {
                 ScrollView {
                     NoteBody(text: text, path: path, imageBase: model.folderURL(of: path))
@@ -38,9 +40,6 @@ struct NoteView: View {
         .navigationTitle(model.note(path)?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if editing {
-                ToolbarItem(placement: .bottomBar) { MicButton(dictation: dictation, text: $text) }
-            }
             if !editing {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Remind Me", systemImage: model.hasReminder(on: path) ? "bell.fill" : "bell") { reminding = true }
