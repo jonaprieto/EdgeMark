@@ -96,7 +96,7 @@ That token can do anything your `gh` login can. A safer one is a [fine-grained t
 scripts/phone.sh provision
 ```
 
-The app opens on your notes. If they do not appear, the line under the list says why.
+The app opens on Today, with your notes in the next tab. If they do not appear, the line under the Notes list says why.
 
 **4. Turn on Face ID.** Touch and hold the EdgeMark icon, then choose Require Face ID. The app cannot do this for you.
 
