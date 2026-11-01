@@ -15,6 +15,7 @@
 	<key>UILaunchScreen</key><dict/>
 	<key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
 	<key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>edgemark</string></array></dict></array>
+	<key>EdgeMarkCommit</key><string>COMMIT</string>
 	<key>EdgeMarkWidgetAccessGroup</key><string>WIDGET_ACCESS_GROUP</string>
 	<key>NSFaceIDUsageDescription</key><string>Face ID keeps your notes closed to anyone else holding the phone.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key><string>Your calendars list upcoming meetings next to their notes.</string>

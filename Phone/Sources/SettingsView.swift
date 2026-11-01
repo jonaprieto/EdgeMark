@@ -19,6 +19,9 @@ struct SettingsView: View {
                     Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { Task { await model.sync() } }
                         .disabled(model.syncing)
                 }
+                Section("About") {
+                    LabeledContent("Version", value: PhoneModel.version)
+                }
                 Section("Dictation") {
                     Picker("Language", selection: $language) {
                         Text("Spanish").tag(VoiceLanguage.es)

@@ -29,6 +29,8 @@ final class PhoneModel {
     private(set) var lastSync: Date?
     private(set) var held: [String: [String]] = [:]
     private(set) var syncing = false
+    /// The last sync could not run or failed; `status` says why.
+    private(set) var syncFailed = false
     private(set) var places: [PlaceLine] = []
     let calendars = Calendars()
     /// Edited since it was last finished. Finishing records the position once.
@@ -61,6 +63,14 @@ final class PhoneModel {
             status = "\(error)"
         }
         refresh()
+    }
+
+    /// `2.17.0 (dca22ca)`: the version and the commit `scripts/phone.sh` built.
+    static var version: String {
+        let info = Bundle.main.infoDictionary
+        let number = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let commit = info?["EdgeMarkCommit"] as? String ?? "?"
+        return "\(number) (\(commit))"
     }
 
     var openAIKey: String? {
@@ -251,6 +261,7 @@ final class PhoneModel {
         guard UIApplication.shared.isProtectedDataAvailable else { return }
         guard let token = Keychain.get("github-token") else {
             status = "Sync is off: no GitHub token on this phone"
+            syncFailed = true
             return
         }
         syncing = true
@@ -264,10 +275,12 @@ final class PhoneModel {
         do {
             let report = try await sync.run()
             lastSync = Date()
+            syncFailed = false
             held = report.held
             status = report.conflicts.isEmpty ? "" : "Kept both versions: \(report.conflicts.joined(separator: ", "))"
         } catch {
             status = "\(error)"
+            syncFailed = true
         }
         refresh()
     }

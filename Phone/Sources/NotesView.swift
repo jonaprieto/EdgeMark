@@ -44,6 +44,21 @@ struct NotesList: View {
         return model.notes.filter { $0.title.localizedCaseInsensitiveContains(query) || $0.text.localizedCaseInsensitiveContains(query) }
     }
 
+    /// Where sync stands, and which build this is.
+    private var syncFooter: some View {
+        VStack(spacing: 4) {
+            if model.syncing {
+                Text("Syncing…")
+            } else if !model.status.isEmpty {
+                Text(model.status)
+            } else if let last = model.lastSync {
+                Text("Synced at \(last.formatted(date: .omitted, time: .shortened))")
+            }
+            Text("EdgeMark \(PhoneModel.version)")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     var body: some View {
         List {
             if query.isEmpty {
@@ -66,6 +81,21 @@ struct NotesList: View {
                     }
                 }
             }
+            if folder.isEmpty, query.isEmpty, !model.notes.isEmpty {
+                Section {} footer: { syncFooter }
+            }
+        }
+        .overlay {
+            if model.notes.isEmpty {
+                ContentUnavailableView {
+                    Label("No notes yet", systemImage: "note.text")
+                } description: {
+                    syncFooter
+                } actions: {
+                    Button("Sync Now") { Task { await model.sync() } }
+                        .disabled(model.syncing)
+                }
+            }
         }
         .navigationTitle(folder.isEmpty ? "Notes" : (folder as NSString).lastPathComponent)
         .searchable(text: $query)
@@ -75,6 +105,7 @@ struct NotesList: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Settings", systemImage: "gearshape") { showSettings = true }
                 }
+                ToolbarItem(placement: .topBarTrailing) { SyncButton() }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("New Note", systemImage: "square.and.pencil") { naming = true }
@@ -89,5 +120,18 @@ struct NotesList: View {
             }
             Button("Cancel", role: .cancel) { title = "" }
         }
+    }
+}
+
+/// Syncs now, and shows at a glance whether sync is working.
+struct SyncButton: View {
+    private var model: PhoneModel { .shared }
+
+    var body: some View {
+        Button("Sync", systemImage: model.syncFailed ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath") {
+            Task { await model.sync() }
+        }
+        .symbolEffect(.rotate, isActive: model.syncing)
+        .disabled(model.syncing)
     }
 }

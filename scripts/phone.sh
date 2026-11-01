@@ -15,6 +15,7 @@ ID=io.github.jonaprieto.edgemark.ios
 T=${TMPDIR:-/tmp}/edgemark-phone
 APP=.build/ios/EdgeMark.app
 VERSION=$(grep -m1 'MARKETING_VERSION' EdgeMark.xcodeproj/project.pbxproj | sed 's/.*= //; s/;//')
+COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo dev)
 rm -rf "$T" && mkdir -p "$T"
 
 xcrun devicectl list devices -q --json-output "$T/dev.json" >/dev/null
@@ -44,7 +45,7 @@ rm -rf "$APP" && mkdir -p "$APP/PlugIns"
 cp "$BIN/EdgeMarkPhone" "$APP/"
 find "$BIN" -maxdepth 1 -name '*.bundle' -exec cp -R {} "$APP/" \;
 cp -R .build/phone-widget/Build/Products/Debug-iphoneos/EdgeMarkWidget.appex "$APP/PlugIns/"
-sed "s/VERSION/$VERSION/" Phone/Info.plist > "$APP/Info.plist"
+sed -e "s/VERSION/$VERSION/" -e "s/>COMMIT</>$COMMIT</" Phone/Info.plist > "$APP/Info.plist"
 
 # Icon: one 1024px source; actool renders the sizes and the CFBundleIcons keys.
 A="$T/Assets.xcassets/AppIcon.appiconset"
