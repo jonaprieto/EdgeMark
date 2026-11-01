@@ -10,6 +10,7 @@ public nonisolated enum MeetingText {
         /// The day, at its hour when `hasTime`. Nil when the sentence names no day or time.
         public var date: Date?
         public var hasTime: Bool
+        public var place: String?
     }
 
     private static let meridiem = #"(am|pm|a\.\s?m\.?|p\.\s?m\.?)"#
@@ -95,6 +96,15 @@ public nonisolated enum MeetingText {
             }
         }
 
+        // A capitalized name after "en" or "at", so "en la oficina del cliente" stays in the name.
+        let place = (try? NSRegularExpression(pattern: #"\b(?:en|at)\s+(\p{Lu}[\p{L}\d'.-]*(?:\s+\p{Lu}[\p{L}\d'.-]*)*)"#)).flatMap { regex -> String? in
+            let source = rest as NSString
+            guard let match = regex.firstMatch(in: rest, range: NSRange(location: 0, length: source.length)) else { return nil }
+            let found = source.substring(with: match.range(at: 1))
+            rest = source.replacingCharacters(in: match.range, with: " ")
+            return found
+        }
+
         var date = day
         if let time {
             let base = day ?? today
@@ -102,7 +112,7 @@ public nonisolated enum MeetingText {
             // A time with no day is the next time that hour comes round.
             date = day == nil && start.map { $0 <= now } == true ? start.flatMap { calendar.date(byAdding: .day, value: 1, to: $0) } : start
         }
-        return Parsed(name: cleaned(rest), date: date, hasTime: time != nil)
+        return Parsed(name: cleaned(rest), date: date, hasTime: time != nil, place: place)
     }
 
     /// 24-hour clock. Without am or pm, 1 to 7 means the afternoon: few meetings are at 3 in the night.

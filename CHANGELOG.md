@@ -39,8 +39,9 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - The iPhone app opens on Today, which has an Edit button for the day's file and lists each place once.
 - Check off a task on the iPhone right where it sits, in a note or in Today, not only in Todos.
 - Meetings on the iPhone are grouped into Today, Tomorrow, This week, Next week and Later.
-- Add a meeting on the iPhone in one sentence, typed or spoken, such as "Felipe martes 3pm": it reads
-  the name, day and hour, and the Meetings tab says which calendars it can see.
+- Add a meeting on the iPhone in one sentence, typed or spoken, such as "Felipe martes 3pm en Juan
+  Valdez": it reads the name, day, hour and place, takes a short note, and the Meetings tab says
+  which calendars it can see.
 - Add photos or take one with the camera on the iPhone, in a capture or a note. They sync to the Mac
   with the note, and Ideas shows them next to the text.
 - Notes on the iPhone render highlighted code, math, Mermaid diagrams and images.

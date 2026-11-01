@@ -64,10 +64,10 @@ final class TodoScanTests: XCTestCase {
         let rows = Meeting.rows(
             events: [Meeting.Event(name: "Felipe", start: start)],
             notes: [
-                (path: "Meetings/2026-10-31-Felipe.md", title: "2026-10-31 Felipe", time: nil),
-                (path: "Meetings/2026-11-03-Ana.md", title: "2026-11-03 Ana", time: "15:30"),
-                (path: "Meetings/2026-01-01-Old.md", title: "2026-01-01 Old", time: nil),
-                (path: "Meetings/Notes.md", title: "Notes", time: nil),
+                (path: "Meetings/2026-10-31-Felipe.md", title: "2026-10-31 Felipe", time: nil, place: nil),
+                (path: "Meetings/2026-11-03-Ana.md", title: "2026-11-03 Ana", time: "15:30", place: "Juan Valdez"),
+                (path: "Meetings/2026-01-01-Old.md", title: "2026-01-01 Old", time: nil, place: nil),
+                (path: "Meetings/Notes.md", title: "Notes", time: nil, place: nil),
             ],
             today: "2026-10-31",
             calendar: calendar,
@@ -76,6 +76,16 @@ final class TodoScanTests: XCTestCase {
         XCTAssertEqual(rows[0].path, "Meetings/2026-10-31-Felipe.md")
         XCTAssertEqual(rows[0].start, start)
         XCTAssertEqual(rows[1].start, start.addingTimeInterval(3 * 86400 + 3 * 3600))
+        XCTAssertEqual(rows[1].place, "Juan Valdez")
+    }
+
+    func testMeetingNoteKeepsItsPlaceAndNote() {
+        let body = Meeting.body(time: "15:30", place: "Juan Valdez", note: " traer el borrador ")
+        XCTAssertEqual(body, "Time: 15:30\nPlace: Juan Valdez\n\ntraer el borrador\n\n## Ideas\n\n")
+        let note = "# 2026-11-03 Ana\n\n" + body
+        XCTAssertEqual(Meeting.time(inNote: note), "15:30")
+        XCTAssertEqual(Meeting.place(inNote: note), "Juan Valdez")
+        XCTAssertEqual(Meeting.body(time: nil, place: "", note: ""), "## Ideas\n\n")
     }
 
     func testMeetingNoteKeepsItsTime() {

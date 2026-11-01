@@ -32,8 +32,8 @@ final class Calendars {
         let now = Date()
         let window = store.predicateForEvents(withStart: now, end: now.addingTimeInterval(Double(Self.days) * 86400), calendars: shown)
         let found = store.events(matching: window).filter { !$0.isAllDay && $0.title != nil }
-        events = found.map { Meeting.Event(name: $0.title, start: $0.startDate) }
-        ends = Dictionary(found.map { (Meeting.Event(name: $0.title, start: $0.startDate), $0.endDate) }) { first, _ in first }
+        events = found.map { Meeting.Event(name: $0.title, start: $0.startDate, place: $0.location) }
+        ends = Dictionary(found.map { (Meeting.Event(name: $0.title, start: $0.startDate, place: $0.location), $0.endDate) }) { first, _ in first }
     }
 
     func setShown(_ on: Bool, _ calendar: EKCalendar) async {

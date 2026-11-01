@@ -51,8 +51,8 @@ struct MeetingsView: View {
                                 HStack {
                                     VStack(alignment: .leading) {
                                         Text(row.name.isEmpty ? row.title : row.name)
-                                        Text(detail(row, in: bucket))
-                                            .font(.caption).foregroundStyle(.secondary)
+                                        Text([detail(row, in: bucket), row.place].compactMap(\.self).joined(separator: " · "))
+                                            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                                     }
                                     Spacer()
                                     if row.path != nil { Image(systemName: "note.text").foregroundStyle(.secondary) }

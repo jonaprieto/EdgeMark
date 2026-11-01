@@ -63,6 +63,16 @@ final class MeetingTextTests: XCTestCase {
         check("planear el viaje", "Planear el viaje", nil)
     }
 
+    func testAPlaceIsACapitalizedNameAfterEnOrAt() {
+        let parse = { (text: String) in MeetingText.parse(text, now: self.now, calendar: self.calendar) }
+        XCTAssertEqual(parse("Felipe martes 3pm en Juan Valdez").place, "Juan Valdez")
+        XCTAssertEqual(parse("Felipe martes 3pm en Juan Valdez").name, "Felipe")
+        XCTAssertEqual(parse("Coffee with Ana at Blue Bottle tomorrow 9am").place, "Blue Bottle")
+        XCTAssertEqual(parse("Coffee with Ana at Blue Bottle tomorrow 9am").name, "Coffee with Ana")
+        XCTAssertNil(parse("revisar en la oficina mañana").place)
+        XCTAssertNil(parse("Felipe martes a las 3 en la tarde").place)
+    }
+
     func testNumbersInANameStay() {
         check("revisar PR 708 mañana", "Revisar PR 708", "2026-11-01")
     }

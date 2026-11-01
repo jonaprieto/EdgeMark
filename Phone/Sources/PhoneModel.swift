@@ -127,7 +127,7 @@ final class PhoneModel {
     private func updateWidgets() {
         let upcoming = meetings.compactMap { row -> WidgetSnapshot.Event? in
             guard let start = row.start else { return nil }
-            let end = calendars.ends[Meeting.Event(name: row.name, start: start)] ?? start.addingTimeInterval(3600)
+            let end = calendars.ends[Meeting.Event(name: row.name, start: start, place: row.place)] ?? start.addingTimeInterval(3600)
             return WidgetSnapshot.Event(title: row.name, start: start, end: end)
         }
         let open = todos
@@ -266,14 +266,14 @@ final class PhoneModel {
     /// Calendar events and meeting notes, soonest first.
     var meetings: [Meeting.Row] {
         let events = calendars.events
-        let inFolder = notes.filter { $0.folder == Meeting.folder }.map { (path: $0.path, title: $0.title, time: Meeting.time(inNote: $0.text)) }
+        let inFolder = notes.filter { $0.folder == Meeting.folder }.map { (path: $0.path, title: $0.title, time: Meeting.time(inNote: $0.text), place: Meeting.place(inNote: $0.text)) }
         return Meeting.rows(events: events, notes: inFolder, today: Journal.day(Date()))
     }
 
     /// A meeting added by hand: a note with its day and hour, shown with the calendar's events.
-    func addMeeting(name: String, on date: Date, hasTime: Bool) {
+    func addMeeting(name: String, on date: Date, hasTime: Bool, place: String, note: String) {
         let title = Meeting.title(day: Journal.day(date), name: name.trimmingCharacters(in: .whitespaces))
-        _ = create(title: title, folder: Meeting.folder, body: Meeting.body(time: hasTime ? Journal.time(date) : nil))
+        _ = create(title: title, folder: Meeting.folder, body: Meeting.body(time: hasTime ? Journal.time(date) : nil, place: place, note: note))
         Task { await sync() }
     }
 

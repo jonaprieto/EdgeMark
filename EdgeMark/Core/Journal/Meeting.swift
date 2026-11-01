@@ -9,10 +9,12 @@ public nonisolated enum Meeting {
     public struct Event: Hashable, Sendable {
         public let name: String
         public let start: Date
+        public let place: String?
 
-        public init(name: String, start: Date) {
+        public init(name: String, start: Date, place: String? = nil) {
             self.name = name
             self.start = start
+            self.place = place
         }
     }
 
@@ -22,6 +24,7 @@ public nonisolated enum Meeting {
         public let name: String
         public let start: Date?
         public let path: String?
+        public var place: String?
 
         public var id: String {
             title
@@ -32,19 +35,31 @@ public nonisolated enum Meeting {
         }
     }
 
-    /// Body of a meeting note added by hand, keeping its hour for the agenda.
-    public static func body(time: String?) -> String {
-        (time.map { "Time: \($0)\n\n" } ?? "") + template
+    /// Body of a meeting note added by hand: its hour and place on lines of their own, a short
+    /// note, then room for ideas.
+    public static func body(time: String?, place: String? = nil, note: String = "") -> String {
+        var head = ""
+        if let time { head += "Time: \(time)\n" }
+        if let place, !place.isEmpty { head += "Place: \(place)\n" }
+        if !head.isEmpty { head += "\n" }
+        let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        return head + (text.isEmpty ? "" : "\(text)\n\n") + template
+    }
+
+    private static func field(_ name: String, inNote text: String) -> String? {
+        text.split(separator: "\n").prefix(4).first { $0.hasPrefix("\(name): ") }.map { String($0.dropFirst(name.count + 2)) }
     }
 
     /// The `HH:mm` a meeting note keeps on its own line, if any.
     public static func time(inNote text: String) -> String? {
-        for line in text.split(separator: "\n").prefix(4) where line.hasPrefix("Time: ") {
-            let value = line.dropFirst(6)
-            let parts = value.split(separator: ":")
-            if parts.count == 2, parts.allSatisfy({ $0.count == 2 && $0.allSatisfy(\.isNumber) }) { return String(value) }
-        }
-        return nil
+        guard let value = field("Time", inNote: text) else { return nil }
+        let parts = value.split(separator: ":")
+        return parts.count == 2 && parts.allSatisfy { $0.count == 2 && $0.allSatisfy(\.isNumber) } ? value : nil
+    }
+
+    /// Where a meeting note says it happens, if it does.
+    public static func place(inNote text: String) -> String? {
+        field("Place", inNote: text)
     }
 
     /// When a meeting falls, for the agenda's sections.
@@ -94,16 +109,16 @@ public nonisolated enum Meeting {
     }
 
     /// Events, plus notes for days from `today` on that match no event, soonest first.
-    public static func rows(events: [Event], notes: [(path: String, title: String, time: String?)], today: String, calendar: Calendar = .current) -> [Row] {
+    public static func rows(events: [Event], notes: [(path: String, title: String, time: String?, place: String?)], today: String, calendar: Calendar = .current) -> [Row] {
         let paths = Dictionary(notes.map { ($0.title, $0.path) }) { first, _ in first }
         var rows = events.map { event -> Row in
             let day = Journal.day(event.start, calendar: calendar)
-            return Row(day: day, name: event.name, start: event.start, path: paths[title(day: day, name: event.name)])
+            return Row(day: day, name: event.name, start: event.start, path: paths[title(day: day, name: event.name)], place: event.place)
         }
         let taken = Set(rows.map(\.title))
         for note in notes where !taken.contains(note.title) {
             guard let (day, name) = parse(title: note.title), day >= today else { continue }
-            rows.append(Row(day: day, name: name, start: start(day: day, time: note.time, calendar: calendar), path: note.path))
+            rows.append(Row(day: day, name: name, start: start(day: day, time: note.time, calendar: calendar), path: note.path, place: note.place))
         }
         return rows.sorted {
             if $0.day != $1.day { return $0.day < $1.day }

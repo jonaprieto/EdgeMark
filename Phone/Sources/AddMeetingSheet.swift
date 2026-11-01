@@ -9,6 +9,8 @@ struct AddMeetingSheet: View {
     @State private var name = ""
     @State private var date = Date()
     @State private var hasTime = false
+    @State private var place = ""
+    @State private var note = ""
     @State private var dictation = Dictation()
     @FocusState private var focused: Bool
 
@@ -30,6 +32,9 @@ struct AddMeetingSheet: View {
                     if hasTime {
                         DatePicker("Starts", selection: $date, displayedComponents: .hourAndMinute)
                     }
+                    TextField("Place", text: $place)
+                    TextField("Short note", text: $note, axis: .vertical)
+                        .lineLimit(1 ... 4)
                 }
             }
             .navigationTitle("New Meeting")
@@ -50,12 +55,13 @@ struct AddMeetingSheet: View {
             name = parsed.name
             hasTime = parsed.hasTime
             if let parsedDate = parsed.date { date = parsedDate }
+            if let parsedPlace = parsed.place { place = parsedPlace }
         }
     }
 
     private func add() async {
         await dictation.stop()
-        PhoneModel.shared.addMeeting(name: name, on: date, hasTime: hasTime)
+        PhoneModel.shared.addMeeting(name: name, on: date, hasTime: hasTime, place: place, note: note)
         if PhoneModel.shared.saveError == nil { dismiss() }
     }
 }
