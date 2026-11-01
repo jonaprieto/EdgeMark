@@ -142,6 +142,23 @@ final class LiveGitHubTests: XCTestCase {
         XCTAssertEqual(try phoneRead("Raced.md"), "# Raced\n")
         try Self.run(["pull", "--rebase", "--autostash"], in: clone)
         XCTAssertTrue(try macRead(journal).contains("- 14:00 racing"))
+
+        // A deletion on the phone reaches the Mac, and an old note's history keeps it.
+        try mirror.delete("Raced.md")
+        report = try await sync()
+        XCTAssertEqual(report.deleted, 1)
+        try Self.run(["pull", "--rebase", "--autostash"], in: clone)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: clone.appendingPathComponent("Raced.md").path))
+        try Self.run(["log", "--format=%h", "--diff-filter=D", "--", "Raced.md"], in: clone)
+        _ = try await sync()
+        XCTAssertFalse(mirror.exists("Raced.md"))
+
+        // A deletion on the Mac reaches the phone.
+        try FileManager.default.removeItem(at: clone.appendingPathComponent("image.png"))
+        try macCommit("mac delete")
+        try Self.run(["push"], in: clone)
+        report = try await sync()
+        XCTAssertFalse(mirror.exists("image.png"))
     }
 }
 
