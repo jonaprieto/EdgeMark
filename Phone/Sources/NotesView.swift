@@ -3,6 +3,9 @@ import SwiftUI
 enum Route: Hashable {
     case folder(String)
     case note(String)
+    case gists
+    case gist(String)
+    case gistFile(String)
 }
 
 struct NotesRoot: View {
@@ -15,6 +18,9 @@ struct NotesRoot: View {
                     switch route {
                     case let .folder(folder): NotesList(folder: folder, path: $path)
                     case let .note(note): NoteView(path: note)
+                    case .gists: GistsView()
+                    case let .gist(id): GistFilesView(id: id)
+                    case let .gistFile(file): GistFileView(path: file)
                     }
                 }
         }
@@ -68,6 +74,11 @@ struct NotesList: View {
                 ForEach(folders, id: \.self) { name in
                     NavigationLink(value: Route.folder(name)) {
                         Label((name as NSString).lastPathComponent, systemImage: "folder")
+                    }
+                }
+                if folder.isEmpty {
+                    NavigationLink(value: Route.gists) {
+                        Label("Gists", systemImage: "folder")
                     }
                 }
             }

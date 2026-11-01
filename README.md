@@ -22,7 +22,7 @@ On the Mac:
 
 On the iPhone:
 
-- Your notes, ready to read and edit, offline too.
+- Your notes, ready to read and edit, offline too, and your gists to read.
 - Quick capture for a meal, idea, todo or meeting thought, typed or dictated in Spanish or English on the device.
 - Upcoming meetings from your calendars, each with a note for its ideas.
 - Every open todo from every note, with due dates.
@@ -87,7 +87,7 @@ cd EdgeMark
 export EDGEMARK_GITHUB_TOKEN="$(gh auth token)"
 ```
 
-That token can do anything your `gh` login can. A safer one is a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with Contents read and write on your notes repository alone. Either way it stays in the phone's Keychain, never in a file.
+That token can do anything your `gh` login can. A safer one is a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with Contents read and write on your notes repository alone, plus Gists read if you want your gists. Either way it stays in the phone's Keychain, never in a file.
 
 **3. Plug in the iPhone, unlock it, and install.** Keep it unlocked until the script ends, because keys reach the app only when the script opens it.
 
@@ -242,6 +242,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 <summary>iPhone</summary>
 
 - Notes cannot be deleted or renamed on the phone, and images are read-only. Do that on the Mac.
+- Gists are read-only on the phone, and encrypted gists do not open there.
 - Encrypted notes open read-only.
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.

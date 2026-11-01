@@ -43,7 +43,11 @@ final class PhoneModel {
     /// The note open in the editor. Sync waits for it, so a pull cannot race the typing.
     var editing: String?
 
+    private(set) var gists: [Gist] = []
+    private(set) var gistError: String?
+
     private let mirror: NotesMirror?
+    private let gistCache: NotesMirror?
     private let position = PositionLog()
     private var allowed: Set<String> {
         didSet { UserDefaults.standard.set(Array(allowed), forKey: "sync.allowedHashes") }
@@ -64,6 +68,9 @@ final class PhoneModel {
             mirror = nil
             status = "\(error)"
         }
+        // Out of the notes mirror, so sync can never upload it.
+        gistCache = try? NotesMirror(root: support.appendingPathComponent("gists"), baseURL: support.appendingPathComponent("gists-unused.json"))
+        if let gistCache { gists = GistLibrary(token: "", cache: gistCache).cached() }
         refresh()
     }
 
@@ -194,6 +201,25 @@ final class PhoneModel {
         save("# \(title)\n\n\(body)", to: path)
         refresh()
         return path
+    }
+
+    func gistText(of path: String) -> String {
+        gistCache.flatMap { try? $0.read(path) }.map { String(decoding: $0, as: UTF8.self) } ?? ""
+    }
+
+    /// Lists your gists and downloads what changed. The cached copy stays readable offline.
+    func refreshGists() async {
+        guard let gistCache else { return }
+        guard let token = Keychain.get("github-token") else {
+            gistError = "No GitHub token on this phone"
+            return
+        }
+        do {
+            gists = try await GistLibrary(token: token, cache: gistCache).refresh()
+            gistError = nil
+        } catch {
+            gistError = "\(error)"
+        }
     }
 
     /// Open todos across every note, soonest first.
