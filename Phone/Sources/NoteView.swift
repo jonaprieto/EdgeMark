@@ -36,6 +36,11 @@ struct NoteView: View {
         .toolbar {
             if editing {
                 ToolbarItem(placement: .bottomBar) { MicButton(dictation: dictation, text: $text) }
+                ToolbarItem(placement: .bottomBar) {
+                    PhotoButtons { photo in
+                        if let image = model.attach(photo, to: path) { text += "\n\n\(image)\n" }
+                    }
+                }
             }
             if !encrypted {
                 ToolbarItem(placement: .primaryAction) {

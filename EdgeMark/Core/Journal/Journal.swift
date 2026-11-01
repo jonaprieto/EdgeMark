@@ -26,6 +26,15 @@ public nonisolated enum Journal {
         public var id: String {
             "\(path) \(time) \(text)"
         }
+
+        /// Paths of the photos in this entry, relative to its file.
+        public var images: [String] {
+            Journal.imagePaths(in: text)
+        }
+
+        public var words: String {
+            Journal.withoutImages(text)
+        }
     }
 
     public static let folder = "Journal"
@@ -96,6 +105,25 @@ public nonisolated enum Journal {
             out.append(Entry(path: path, day: day, time: words[0], kind: kind, text: words[1]))
         }
         return out
+    }
+
+    /// Paths of the Markdown images in `text`, in order.
+    public static func imagePaths(in text: String) -> [String] {
+        let source = text as NSString
+        return imagePattern.matches(in: text, range: NSRange(location: 0, length: source.length)).map {
+            source.substring(with: $0.range(at: 1))
+        }
+    }
+
+    /// `text` with its Markdown images taken out.
+    public static func withoutImages(_ text: String) -> String {
+        imagePattern.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: (text as NSString).length), withTemplate: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    private static var imagePattern: NSRegularExpression {
+        // A fixed pattern, so this cannot fail.
+        try! NSRegularExpression(pattern: #"!\[[^\]]*\]\(([^)\s]+)\)"#)
     }
 
     private static func isTime(_ word: String) -> Bool {

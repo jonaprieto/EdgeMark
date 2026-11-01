@@ -159,12 +159,7 @@ final class PhoneModel {
     }
 
     func save(_ text: String, to path: String) {
-        do {
-            try mirror?.write(Data(text.utf8), to: path)
-            saveError = nil
-        } catch {
-            saveError = "Could not save \(path): \(error)"
-        }
+        save(Data(text.utf8), toFile: path)
     }
 
     /// A change typed in the editor.
@@ -273,13 +268,49 @@ final class PhoneModel {
 
     /// Adds an idea to the next meeting's note. False when no meeting is coming.
     func addMeetingIdea(_ text: String) -> Bool {
-        guard let row = meetings.first, let path = notePath(for: row) else { return false }
+        guard let path = nextMeetingPath else { return false }
         let line = "- " + text.split(whereSeparator: \.isNewline).joined(separator: " ")
         unfinished = path
         save(Journal.appending(line, under: .idea, to: self.text(of: path)), to: path)
         refresh()
         Task { await finish() }
         return true
+    }
+
+    /// Saves a photo where the Mac keeps a note's images, and returns the Markdown that shows it.
+    /// Longest side 2048 px: a full camera photo would sit in the repository's history for good.
+    func attach(_ photo: UIImage, to path: String) -> String? {
+        let scale = min(1, 2048 / max(photo.size.width, photo.size.height, 1))
+        let size = CGSize(width: photo.size.width * scale, height: photo.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let jpeg = UIGraphicsImageRenderer(size: size, format: format).jpegData(withCompressionQuality: 0.75) { _ in
+            photo.draw(in: CGRect(origin: .zero, size: size))
+        }
+        let stem = NoteText.safeAssetStem(((path as NSString).lastPathComponent as NSString).deletingPathExtension)
+        let name = ".\(stem)/IMG-\(UUID().uuidString).jpg"
+        let folder = (path as NSString).deletingLastPathComponent
+        save(jpeg, toFile: folder.isEmpty ? name : "\(folder)/\(name)")
+        return saveError == nil ? "![](\(name))" : nil
+    }
+
+    private func save(_ data: Data, toFile path: String) {
+        do {
+            try mirror?.write(data, to: path)
+            saveError = nil
+        } catch {
+            saveError = "Could not save \(path): \(error)"
+        }
+    }
+
+    /// The file behind an image path written in the note at `path`.
+    func imageURL(_ image: String, in path: String) -> URL? {
+        folderURL(of: path)?.appendingPathComponent(image)
+    }
+
+    /// The note an idea for the next meeting goes to, created on first use.
+    var nextMeetingPath: String? {
+        meetings.first.flatMap(notePath(for:))
     }
 
     /// Adds a line to today's file. Needs no network; sync carries it when it can.

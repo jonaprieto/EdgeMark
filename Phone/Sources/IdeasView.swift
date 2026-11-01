@@ -12,7 +12,7 @@ struct IdeasView: View {
     var body: some View {
         NavigationStack {
             let shown = model.ideas.filter { idea in
-                query.isEmpty || idea.entry.text.localizedCaseInsensitiveContains(query)
+                query.isEmpty || idea.entry.words.localizedCaseInsensitiveContains(query)
                     || idea.place?.place?.localizedCaseInsensitiveContains(query) == true
             }
             let days = Dictionary(grouping: shown) { $0.entry.day }
@@ -21,10 +21,16 @@ struct IdeasView: View {
                     Section(day) {
                         ForEach(days[day] ?? [], id: \.entry) { idea in
                             NavigationLink(value: Route.note(idea.entry.path)) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(idea.entry.text)
-                                    Text([idea.entry.time, idea.place?.place].compactMap(\.self).joined(separator: " · "))
-                                        .font(.caption).foregroundStyle(.secondary)
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if !idea.entry.words.isEmpty { Text(idea.entry.words) }
+                                        Text([idea.entry.time, idea.place?.place].compactMap(\.self).joined(separator: " · "))
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if let image = idea.entry.images.first, let url = model.imageURL(image, in: idea.entry.path) {
+                                        Thumbnail(url: url)
+                                    }
                                 }
                             }
                         }

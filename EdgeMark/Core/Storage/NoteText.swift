@@ -236,7 +236,7 @@ public nonisolated enum NoteText {
 
     /// Stem of a note's hidden image folder: the file name without ".md", with every
     /// character the link patterns cannot handle replaced by "-".
-    static func safeAssetStem(_ stem: String) -> String {
+    public static func safeAssetStem(_ stem: String) -> String {
         String(stem.map { unsafeAssetStemCharacters.contains($0) ? "-" : $0 })
     }
 

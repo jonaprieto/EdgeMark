@@ -80,4 +80,17 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(PlaceLine.place(of: entry, in: [other, late, line])?.place, "Usaquen")
         XCTAssertNil(PlaceLine.place(of: entry, in: [other, late]))
     }
+
+    func testEntriesSeparateWordsFromPhotos() throws {
+        let line = "## Ideas\n\n- 12:30 la pizarra ![](.2026-10-31/IMG-1.jpg) ![foto](.2026-10-31/IMG-2.jpg)\n"
+        let entry = try XCTUnwrap(Journal.entries(in: line, path: "Journal/2026-10-31.md").first)
+        XCTAssertEqual(entry.images, [".2026-10-31/IMG-1.jpg", ".2026-10-31/IMG-2.jpg"])
+        XCTAssertEqual(entry.words, "la pizarra")
+    }
+
+    func testAPhotoAloneMakesAnEntry() throws {
+        let entry = try XCTUnwrap(Journal.entries(in: "## Ideas\n\n- 12:30 ![](.d/IMG.jpg)\n", path: "Journal/2026-10-31.md").first)
+        XCTAssertEqual(entry.images, [".d/IMG.jpg"])
+        XCTAssertEqual(entry.words, "")
+    }
 }

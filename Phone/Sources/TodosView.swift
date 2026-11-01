@@ -97,7 +97,7 @@ struct TodosView: View {
                 .buttonStyle(.borderless)
             NavigationLink(value: Route.note(todo.path)) {
                 VStack(alignment: .leading) {
-                    Text(todo.text)
+                    Text(Journal.withoutImages(todo.text))
                     let detail = [todo.due, order == .note ? nil : model.note(todo.path)?.title].compactMap(\.self)
                     if !detail.isEmpty {
                         Text(detail.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)

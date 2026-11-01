@@ -10,6 +10,7 @@ struct CaptureSheet: View {
     @State private var hasDue = false
     @State private var due = Date()
     @State private var dictation = Dictation()
+    @State private var photos: [UIImage] = []
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -27,6 +28,18 @@ struct CaptureSheet: View {
                     .focused($focused)
                 Section {
                     MicButton(dictation: dictation, text: $text, startsListening: request.voice)
+                    PhotoButtons { photos.append($0) }
+                    if !photos.isEmpty {
+                        ScrollView(.horizontal) {
+                            HStack {
+                                ForEach(photos.indices, id: \.self) { index in
+                                    Image(uiImage: photos[index]).resizable().scaledToFill()
+                                        .frame(width: 64, height: 64)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                            }
+                        }
+                    }
                 } footer: {
                     if let problem = dictation.problem { Text(problem) }
                 }
@@ -72,15 +85,19 @@ struct CaptureSheet: View {
     }
 
     private var cannotSave: Bool {
-        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (kind == .meeting && PhoneModel.shared.meetings.isEmpty)
+        (text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && photos.isEmpty) || (kind == .meeting && PhoneModel.shared.meetings.isEmpty)
     }
 
     private func save() async {
         await dictation.stop()
+        let model = PhoneModel.shared
+        let target = kind.journal != nil ? Journal.path(for: Date()) : model.nextMeetingPath
+        let images = target.map { path in photos.compactMap { model.attach($0, to: path) } } ?? []
+        let line = ([text] + images).filter { !$0.isEmpty }.joined(separator: " ")
         if let journal = kind.journal {
-            PhoneModel.shared.capture(text, kind: journal, due: kind == .todo && hasDue ? due : nil)
+            model.capture(line, kind: journal, due: kind == .todo && hasDue ? due : nil)
         } else {
-            _ = PhoneModel.shared.addMeetingIdea(text)
+            _ = model.addMeetingIdea(line)
         }
         // A failed write keeps the sheet open, with the text still in it.
         if PhoneModel.shared.saveError == nil { dismiss() }

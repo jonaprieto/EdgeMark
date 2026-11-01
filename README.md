@@ -23,7 +23,8 @@ On the Mac:
 On the iPhone:
 
 - Your notes, ready to read and edit, offline too, and your gists to read.
-- Quick capture for a meal, idea, todo or meeting thought, typed or dictated in Spanish or English on the device.
+- Quick capture for a meal, idea, todo or meeting thought, typed, dictated in Spanish or English on the device, or with a photo.
+- Notes that render code, math, Mermaid diagrams and images.
 - Upcoming meetings from your calendars, each with a note for its ideas.
 - Every open todo from every note, with due dates.
 - Home Screen and Lock Screen widgets.
@@ -241,7 +242,8 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 <details>
 <summary>iPhone</summary>
 
-- Notes cannot be deleted or renamed on the phone, and images are read-only. Do that on the Mac.
+- Notes cannot be deleted or renamed on the phone. Do that on the Mac.
+- Photos are resized to 2048 px and stay in your repository's history for good, deleted or not.
 - Gists are read-only on the phone, and encrypted gists do not open there.
 - Encrypted notes open read-only.
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
