@@ -71,6 +71,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 ### Fixed
 
 - The dictation button in the iPhone note editor stays above the keyboard instead of behind it.
+- A photo on a line with text, like one from the iPhone journal, shows below that line in the Mac editor
+  instead of as its file path.
 
 ## 2.17.0 (2026-10-19)
 
