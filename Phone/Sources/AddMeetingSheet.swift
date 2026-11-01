@@ -11,6 +11,7 @@ struct AddMeetingSheet: View {
     @State private var hasTime = false
     @State private var place = ""
     @State private var note = ""
+    @State private var photos: [UIImage] = []
     @State private var dictation = Dictation()
     @FocusState private var focused: Bool
 
@@ -35,6 +36,8 @@ struct AddMeetingSheet: View {
                     TextField("Place", text: $place)
                     TextField("Short note", text: $note, axis: .vertical)
                         .lineLimit(1 ... 4)
+                    PhotoMenu(onPhotos: { photos += $0 }) { Label("Add Photo", systemImage: "camera") }
+                    if !photos.isEmpty { PhotoStrip(photos: photos) }
                 }
             }
             .navigationTitle("New Meeting")
@@ -61,7 +64,7 @@ struct AddMeetingSheet: View {
 
     private func add() async {
         await dictation.stop()
-        PhoneModel.shared.addMeeting(name: name, on: date, hasTime: hasTime, place: place, note: note)
+        PhoneModel.shared.addMeeting(name: name, on: date, hasTime: hasTime, place: place, note: note, photos: photos)
         if PhoneModel.shared.saveError == nil { dismiss() }
     }
 }

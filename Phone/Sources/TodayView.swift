@@ -18,13 +18,14 @@ struct TodayView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         let inBed = SleepTracker.inBed(since: bedAt) != nil
                         tile(inBed ? "Awake" : "Sleep", inBed ? "sunrise" : "moon.zzz") { capture = SleepTracker.capture }
                         addButton("Meal", "fork.knife", .meal)
                         addButton("Idea", "lightbulb", .idea)
                         addButton("Todo", "checkmark.square", .todo)
                         tile("Remind", "bell") { capture = CaptureRequest(kind: .todo, remind: true) }
+                        PhotoMenu(onPhotos: addPhotos) { tileLabel("Photo", "camera") }
                     }
                     if model.notificationsOff {
                         Label("Notifications are off, so reminders will not ring.", systemImage: "bell.slash").font(.subheadline).foregroundStyle(.red)
@@ -89,18 +90,25 @@ struct TodayView: View {
         tile(title, icon) { capture = CaptureRequest(kind: kind) }
     }
 
-    /// One of five equal tiles, so the row fits the smallest iPhone with labels on one line.
+    /// A quick shot goes in with the ideas, with its time and place. Meal takes one too.
+    private func addPhotos(_ photos: [UIImage]) {
+        let images = photos.compactMap { model.attach($0, to: path) }
+        if !images.isEmpty { model.capture(images.joined(separator: " "), kind: .idea, due: nil) }
+    }
+
     private func tile(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: icon).font(.title3)
-                Text(title).font(.footnote.weight(.medium)).lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, minHeight: 64)
-            .contentShape(Rectangle())
+        Button(action: action) { tileLabel(title, icon) }.buttonStyle(.plain)
+    }
+
+    /// One of six equal tiles, so the row fits the smallest iPhone with labels on one line.
+    private func tileLabel(_ title: String, _ icon: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon).font(.title3)
+            Text(title).font(.footnote.weight(.medium)).lineLimit(1).minimumScaleFactor(0.8)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, minHeight: 64)
         .foregroundStyle(.tint)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .contentShape(Rectangle())
     }
 }

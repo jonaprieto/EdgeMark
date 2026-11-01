@@ -61,6 +61,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Widgets for the iPhone: add a meal, idea or todo in one tap, or start dictating from the Home
   Screen or Lock Screen. An agenda widget shows the next meeting and top todos, hidden while the
   phone is locked.
+- Add photos or camera shots from a Today tile, in any note while reading or writing it, and on a new
+  meeting.
 
 ## 2.17.0 (2026-10-19)
 

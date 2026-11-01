@@ -25,6 +25,7 @@ On the iPhone:
 - Your notes, ready to read and edit, offline too, and your gists to read.
 - Quick capture for sleep, a meal, idea, todo or meeting thought, typed, dictated in Spanish or English on the device, or with a photo.
 - Notes that render code, math, Mermaid diagrams and images.
+- Photos and camera shots: a tile on Today, a camera button in any note, and on a new meeting.
 - An agenda: upcoming meetings from your calendars, each with a note for its ideas, and any meeting you add in one sentence, such as "Felipe martes 3pm".
 - Every open todo from every note, with due dates.
 - Reminders: on a note, like the Mac, or typed in one sentence, such as "llamar a mamá mañana a las 3".
@@ -250,7 +251,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 - Photos are resized to 2048 px and stay in your repository's history for good, deleted or not.
 - Gists are read-only on the phone, and encrypted gists do not open there.
 - An existing plain note cannot be made private on the phone. Its old text would stay in git history anyway.
-- A private capture cannot hold a photo, because photos are plain files.
+- A private note or capture cannot hold a photo, because photos are plain files.
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.
 - Commits from the phone show as unsigned on GitHub.

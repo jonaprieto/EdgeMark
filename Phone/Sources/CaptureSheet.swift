@@ -36,18 +36,10 @@ struct CaptureSheet: View {
                     }
                     // A photo is a plain file in the repository, so a private capture takes none.
                     if !isPrivate, kind != .sleep {
-                        PhotoButtons { photos.append($0) }
+                        PhotoMenu(onPhotos: { photos += $0 }) { Label("Add Photo", systemImage: "camera") }
                     }
                     if !photos.isEmpty, !isPrivate {
-                        ScrollView(.horizontal) {
-                            HStack {
-                                ForEach(photos.indices, id: \.self) { index in
-                                    Image(uiImage: photos[index]).resizable().scaledToFill()
-                                        .frame(width: 64, height: 64)
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                }
-                            }
-                        }
+                        PhotoStrip(photos: photos)
                     }
                 } footer: {
                     if let problem = dictation.problem {

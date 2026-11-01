@@ -1,34 +1,56 @@
 import PhotosUI
 import SwiftUI
 
-/// Library and camera buttons for any place that takes a photo.
-struct PhotoButtons: View {
-    let onPhoto: (UIImage) -> Void
+/// Camera and library behind one button, for any place that takes a photo. One pick arrives as one
+/// call, however many photos it holds.
+struct PhotoMenu<Title: View>: View {
+    let onPhotos: ([UIImage]) -> Void
+    @ViewBuilder let title: () -> Title
 
     @State private var picked: [PhotosPickerItem] = []
+    @State private var choosing = false
     @State private var showingCamera = false
 
     var body: some View {
-        HStack {
-            PhotosPicker(selection: $picked, maxSelectionCount: 4, matching: .images) {
-                Label("Photo", systemImage: "photo")
-            }
-            .buttonStyle(.borderless)
+        Menu {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                Button("Camera", systemImage: "camera") { showingCamera = true }
-                    .buttonStyle(.borderless)
+                Button("Take Photo", systemImage: "camera") { showingCamera = true }
             }
+            Button("Choose Photo", systemImage: "photo") { choosing = true }
+        } label: {
+            title()
         }
+        .photosPicker(isPresented: $choosing, selection: $picked, maxSelectionCount: 4, matching: .images)
         .onChange(of: picked) { _, items in
+            guard !items.isEmpty else { return }
             Task {
+                var photos: [UIImage] = []
                 for item in items {
-                    if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) { onPhoto(image) }
+                    if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) { photos.append(image) }
                 }
                 picked = []
+                if !photos.isEmpty { onPhotos(photos) }
             }
         }
         .fullScreenCover(isPresented: $showingCamera) {
-            Camera(onPhoto: onPhoto).ignoresSafeArea()
+            Camera { onPhotos([$0]) }.ignoresSafeArea()
+        }
+    }
+}
+
+/// What a sheet will save, before it does.
+struct PhotoStrip: View {
+    let photos: [UIImage]
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack {
+                ForEach(photos.indices, id: \.self) { index in
+                    Image(uiImage: photos[index]).resizable().scaledToFill()
+                        .frame(width: 64, height: 64)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
         }
     }
 }

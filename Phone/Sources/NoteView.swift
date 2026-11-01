@@ -38,11 +38,6 @@ struct NoteView: View {
         .toolbar {
             if editing {
                 ToolbarItem(placement: .bottomBar) { MicButton(dictation: dictation, text: $text) }
-                ToolbarItem(placement: .bottomBar) {
-                    PhotoButtons { photo in
-                        if let image = model.attach(photo, to: path) { text += "\n\n\(image)\n" }
-                    }
-                }
             }
             if !editing {
                 ToolbarItem(placement: .primaryAction) {
@@ -50,6 +45,10 @@ struct NoteView: View {
                 }
             }
             if !encrypted {
+                // A photo is a plain file in the repository, so a private note takes none.
+                ToolbarItem(placement: .primaryAction) {
+                    PhotoMenu(onPhotos: { model.add($0, to: path) }) { Label("Add Photo", systemImage: "camera") }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button(editing ? "Done" : "Edit") { setEditing(!editing) }
                 }

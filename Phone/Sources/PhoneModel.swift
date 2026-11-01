@@ -324,9 +324,10 @@ final class PhoneModel {
     }
 
     /// A meeting added by hand: a note with its day and hour, shown with the calendar's events.
-    func addMeeting(name: String, on date: Date, hasTime: Bool, place: String, note: String) {
+    func addMeeting(name: String, on date: Date, hasTime: Bool, place: String, note: String, photos: [UIImage]) {
         let title = Meeting.title(day: Journal.day(date), name: name.trimmingCharacters(in: .whitespaces))
-        _ = create(title: title, folder: Meeting.folder, body: Meeting.body(time: hasTime ? Journal.time(date) : nil, place: place, note: note))
+        let path = create(title: title, folder: Meeting.folder, body: Meeting.body(time: hasTime ? Journal.time(date) : nil, place: place, note: note))
+        if let path { add(photos, to: path) }
         Task { await sync() }
     }
 
@@ -361,6 +362,16 @@ final class PhoneModel {
         let folder = (path as NSString).deletingLastPathComponent
         save(jpeg, toFile: folder.isEmpty ? name : "\(folder)/\(name)")
         return saveError == nil ? "![](\(name))" : nil
+    }
+
+    /// Saves photos and puts them at the end of a note, open in the editor or not.
+    func add(_ photos: [UIImage], to path: String) {
+        let images = photos.compactMap { attach($0, to: path) }
+        guard !images.isEmpty else { return }
+        let body = text(of: path).trimmingCharacters(in: .newlines)
+        edit(([body] + images).joined(separator: "\n\n") + "\n", path: path)
+        refresh()
+        Task { await finish() }
     }
 
     private func save(_ data: Data, toFile path: String) {
