@@ -29,7 +29,16 @@ public nonisolated enum MeetingText {
     private static let monthNames = months.keys.sorted { $0.count > $1.count }.joined(separator: "|")
     private static let dayNames = weekdays.keys.sorted { $0.count > $1.count }.joined(separator: "|")
 
-    public static func parse(_ sentence: String, now: Date, calendar: Calendar = .current) -> Parsed {
+    /// A reminder said in one sentence: "recuérdame mañana a las 3 llamar a mamá". Nil when it names
+    /// no day or hour, or nothing to be reminded of. A day with no hour rings at 9.
+    public static func reminder(_ sentence: String, now: Date, calendar: Calendar = .current) -> (text: String, date: Date)? {
+        let bare = sentence.replacingOccurrences(of: #"^\s*(?:recu[eé]rdame|recordarme|recordar|remind me)(?:\s+(?:que|de|to))?\s+"#, with: "", options: [.regularExpression, .caseInsensitive])
+        let parsed = parse(bare, now: now, calendar: calendar, readsPlace: false)
+        guard let date = parsed.date, !parsed.name.isEmpty else { return nil }
+        return (parsed.name, parsed.hasTime ? date : calendar.date(bySettingHour: 9, minute: 0, second: 0, of: date) ?? date)
+    }
+
+    public static func parse(_ sentence: String, now: Date, calendar: Calendar = .current, readsPlace: Bool = true) -> Parsed {
         var rest = " \(sentence) "
         let today = calendar.startOfDay(for: now)
         var day: Date?
@@ -99,7 +108,7 @@ public nonisolated enum MeetingText {
         // A capitalized name after "en" or "at", so "en la oficina del cliente" stays in the name.
         let place = (try? NSRegularExpression(pattern: #"\b(?:en|at)\s+(\p{Lu}[\p{L}\d'.-]*(?:\s+\p{Lu}[\p{L}\d'.-]*)*)"#)).flatMap { regex -> String? in
             let source = rest as NSString
-            guard let match = regex.firstMatch(in: rest, range: NSRange(location: 0, length: source.length)) else { return nil }
+            guard readsPlace, let match = regex.firstMatch(in: rest, range: NSRange(location: 0, length: source.length)) else { return nil }
             let found = source.substring(with: match.range(at: 1))
             rest = source.replacingCharacters(in: match.range, with: " ")
             return found

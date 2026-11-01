@@ -1,6 +1,7 @@
 import Foundation
 
-/// One task line: `- [ ] text due:2026-11-02`, in any note.
+/// One task line: `- [ ] text due:2026-11-02`, in any note. A time, as in `due:2026-11-02T15:30`,
+/// makes it a reminder.
 public nonisolated struct Todo: Hashable, Identifiable, Sendable {
     public let path: String
     /// Zero-based line in the file at scan time.
@@ -11,9 +12,21 @@ public nonisolated struct Todo: Hashable, Identifiable, Sendable {
     public let text: String
     public let done: Bool
     public let due: String?
+    public let time: String?
 
     public var id: String {
         "\(path):\(line)"
+    }
+
+    /// `2026-11-02` or `2026-11-02 15:30`, which sort correctly as text.
+    public var when: String? {
+        due.map { [$0, time].compactMap(\.self).joined(separator: " ") }
+    }
+
+    /// When a reminder rings, nil for a todo with no time.
+    public func ringsAt(calendar: Calendar = .current) -> Date? {
+        guard time != nil, let parts = when?.split(whereSeparator: { "- :".contains($0) }).compactMap({ Int($0) }), parts.count == 5 else { return nil }
+        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2], hour: parts[3], minute: parts[4]))
     }
 }
 
@@ -68,8 +81,8 @@ public nonisolated enum TodoScan {
                 continue
             }
             guard !inFence, let (done, body) = parse(trimmed) else { continue }
-            let (words, due) = splitDue(body)
-            out.append(Todo(path: path, line: index, raw: line, text: words, done: done, due: due))
+            let (words, due, time) = splitDue(body)
+            out.append(Todo(path: path, line: index, raw: line, text: words, done: done, due: due, time: time))
         }
         return out
     }
@@ -86,7 +99,7 @@ public nonisolated enum TodoScan {
             let (a, b) = ($0.element, $1.element)
             let (x, y) = (group(a, today: today), group(b, today: today))
             if x != y { return x < y }
-            if let p = a.due, let q = b.due, p != q { return p < q }
+            if let p = a.when, let q = b.when, p != q { return p < q }
             return $0.offset < $1.offset
         }.map(\.element)
     }
@@ -131,15 +144,13 @@ public nonisolated enum TodoScan {
         return (state != " ", mark.dropFirst(3))
     }
 
-    private static func splitDue(_ body: Substring) -> (text: String, due: String?) {
+    private static func splitDue(_ body: Substring) -> (text: String, due: String?, time: String?) {
         let words = body.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
-        let due = words.last(where: isDueTag).map { String($0.dropFirst(4)) }
-        return (words.filter { !isDueTag($0) }.joined(separator: " "), due)
+        let tag = words.last(where: isDueTag)?.dropFirst(4).split(separator: "T").map(String.init)
+        return (words.filter { !isDueTag($0) }.joined(separator: " "), tag?.first, tag?.dropFirst().first)
     }
 
     private static func isDueTag(_ word: String) -> Bool {
-        guard word.hasPrefix("due:") else { return false }
-        let date = word.dropFirst(4).split(separator: "-", omittingEmptySubsequences: false)
-        return date.map(\.count) == [4, 2, 2] && date.allSatisfy { $0.allSatisfy(\.isNumber) }
+        word.range(of: #"^due:\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$"#, options: .regularExpression) != nil
     }
 }

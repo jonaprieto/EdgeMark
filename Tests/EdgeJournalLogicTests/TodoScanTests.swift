@@ -24,6 +24,24 @@ final class TodoScanTests: XCTestCase {
         XCTAssertNil(scan("- [ ] pay due:soon\n")[0].due)
     }
 
+    func testATimeInTheDueTagMakesAReminder() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Bogota")!
+        let todo = scan("- [ ] call mom due:2026-11-02T15:30\n")[0]
+        XCTAssertEqual(todo.text, "call mom")
+        XCTAssertEqual(todo.due, "2026-11-02")
+        XCTAssertEqual(todo.time, "15:30")
+        XCTAssertEqual(todo.when, "2026-11-02 15:30")
+        XCTAssertEqual(Journal.stamp(try XCTUnwrap(todo.ringsAt(calendar: calendar)), calendar: calendar), "2026-11-02T15:30")
+        XCTAssertNil(scan("- [ ] a due:2026-11-02\n")[0].ringsAt())
+        XCTAssertEqual(scan("- [ ] a due:2026-11-02T9:30\n")[0].text, "a due:2026-11-02T9:30")
+    }
+
+    func testRemindersSortByHourWithinTheDay() {
+        let todos = scan("- [ ] late due:2026-11-02T18:00\n- [ ] early due:2026-11-02T08:00\n- [ ] plain due:2026-11-02\n")
+        XCTAssertEqual(TodoScan.sorted(todos, today: "2026-11-01").map(\.text), ["plain", "early", "late"])
+    }
+
     func testGroupsAndOrder() {
         let todos = scan("- [ ] u\n- [ ] later due:2026-12-01\n- [ ] soon due:2026-11-05\n- [ ] now due:2026-10-31\n- [ ] late due:2026-10-01\n")
         XCTAssertEqual(TodoScan.sorted(todos, today: "2026-10-31").map(\.text), ["late", "now", "soon", "later", "u"])
@@ -48,6 +66,8 @@ final class TodoScanTests: XCTestCase {
         let todo = scan(text)[0]
         XCTAssertEqual(TodoScan.settingDue("2026-02-02", on: todo, in: text), "- [ ] a due:2026-02-02\n")
         XCTAssertEqual(TodoScan.settingDue(nil, on: todo, in: text), "- [ ] a\n")
+        let later = "- [ ] a due:2026-01-01T09:00\n"
+        XCTAssertEqual(TodoScan.settingDue("2026-01-01T10:00", on: scan(later)[0], in: later), "- [ ] a due:2026-01-01T10:00\n")
     }
 
     func testMeetingTitleParsing() throws {

@@ -21,6 +21,20 @@ final class MeetingTextTests: XCTestCase {
         XCTAssertEqual(parsed.date.map(formatter.string(from:)), when, sentence, line: line)
     }
 
+    private func checkReminder(_ sentence: String, _ text: String, _ when: String, line: UInt = #line) throws {
+        let found = try XCTUnwrap(MeetingText.reminder(sentence, now: now, calendar: calendar), sentence, line: line)
+        XCTAssertEqual(found.text, text, sentence, line: line)
+        XCTAssertEqual(Journal.stamp(found.date, calendar: calendar), when, sentence, line: line)
+    }
+
+    func testReminders() throws {
+        try checkReminder("recuérdame mañana a las 3 llamar a mamá", "Llamar a mamá", "2026-11-01T15:00")
+        try checkReminder("remind me to call Ana at Google tomorrow at 10am", "Call Ana at Google", "2026-11-01T10:00")
+        try checkReminder("pagar el arriendo el 15", "Pagar el arriendo", "2026-11-15T09:00")
+        XCTAssertNil(MeetingText.reminder("llamar a mamá", now: now, calendar: calendar))
+        XCTAssertNil(MeetingText.reminder("mañana 3pm", now: now, calendar: calendar))
+    }
+
     func testSpanish() {
         check("Felipe martes 3pm", "Felipe", "2026-11-03 15:00")
         check("Reunion con Felipe el martes a las 3", "Reunion con Felipe", "2026-11-03 15:00")

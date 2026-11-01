@@ -132,7 +132,7 @@ struct CaptureSheet: View {
         let images = target.map { path in photos.compactMap { model.attach($0, to: path) } } ?? []
         let line = ([text] + images).filter { !$0.isEmpty }.joined(separator: " ")
         if let journal = kind.journal {
-            model.capture(line, kind: journal, due: kind == .todo && hasDue ? due : nil)
+            model.capture(line, kind: journal, due: kind == .todo && hasDue ? Journal.day(due) : nil)
         } else {
             _ = model.addMeetingIdea(line)
         }

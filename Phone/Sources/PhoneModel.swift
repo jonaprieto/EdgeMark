@@ -394,7 +394,7 @@ final class PhoneModel {
     }
 
     /// Adds a line to today's file. Needs no network; sync carries it when it can.
-    func capture(_ text: String, kind: Journal.Kind, due: Date?) {
+    func capture(_ text: String, kind: Journal.Kind, due: String?) {
         let now = Date()
         let path = Journal.path(for: now)
         let existing = mirror?.exists(path) == true ? self.text(of: path) : Journal.emptyDay(for: now)

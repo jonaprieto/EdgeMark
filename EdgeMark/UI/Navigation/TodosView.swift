@@ -70,7 +70,7 @@ struct TodosView: View {
                     Text(todo.text)
                         .font(.panel(.body))
                         .multilineTextAlignment(.leading)
-                    Text([todo.due, noteStore.note(at: todo.path)?.title].compactMap(\.self).joined(separator: " · "))
+                    Text([todo.when, noteStore.note(at: todo.path)?.title].compactMap(\.self).joined(separator: " · "))
                         .font(.panel(.caption1))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

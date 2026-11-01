@@ -39,7 +39,7 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(Journal.entry("arepa", kind: .meal, at: date, calendar: calendar), "- 12:30 arepa")
         XCTAssertEqual(Journal.entry(" one\n  two ", kind: .idea, at: date, calendar: calendar), "- 12:30 one two")
         XCTAssertEqual(Journal.entry("call", kind: .todo, at: date, calendar: calendar), "- [ ] call")
-        XCTAssertEqual(Journal.entry("call", kind: .todo, at: date, due: date, calendar: calendar), "- [ ] call due:2026-10-31")
+        XCTAssertEqual(Journal.entry("call", kind: .todo, at: date, due: "2026-10-31", calendar: calendar), "- [ ] call due:2026-10-31")
     }
 
     func testFirstEntryAddsItsSection() {
