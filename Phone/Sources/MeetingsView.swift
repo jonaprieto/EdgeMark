@@ -21,7 +21,11 @@ struct MeetingsView: View {
 
     /// The one way this screen writes a time, whatever the phone's 24-hour setting.
     private func time(_ date: Date) -> String {
-        date.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute())
+        let formatter = DateFormatter()
+        // A fixed locale, since any real one can turn this back into a 24-hour clock.
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
     }
 
     /// `Tuesday, 3 Nov`, with Today or Tomorrow in front.

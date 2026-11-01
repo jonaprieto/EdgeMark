@@ -6,6 +6,7 @@ struct TodayView: View {
 
     @State private var brainstorming = false
     @State private var editing = false
+    @State private var showSettings = false
 
     private var model: PhoneModel { .shared }
     private var path: String { Journal.path(for: Date()) }
@@ -44,13 +45,19 @@ struct TodayView: View {
             .navigationTitle("Today")
             .refreshable { await model.sync() }
             .toolbar {
-                NavigationLink(value: "places") { Label("Places", systemImage: "map") }
-                Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
-                Button("Edit", systemImage: "square.and.pencil") {
-                    model.startToday()
-                    editing = true
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Settings", systemImage: "gearshape") { showSettings = true }
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    NavigationLink(value: "places") { Label("Places", systemImage: "map") }
+                    Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
+                    Button("Edit", systemImage: "square.and.pencil") {
+                        model.startToday()
+                        editing = true
+                    }
                 }
             }
+            .sheet(isPresented: $showSettings) { SettingsView() }
             .navigationDestination(isPresented: $editing) { NoteView(path: path, startsEditing: true) }
             .sheet(isPresented: $brainstorming) { BrainstormView(source: nil) }
             .navigationDestination(for: String.self) { _ in PlacesView() }
