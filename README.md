@@ -25,6 +25,7 @@ On the iPhone:
 - Your notes, ready to read and edit, offline too, and your gists to read.
 - Quick capture for sleep, a meal, idea, todo or meeting thought, typed, dictated in Spanish or English on the device, or with a photo.
 - Meals marked Breakfast, Lunch, Dinner or Other, each with its time and place.
+- `#tags` in an idea or meal, which Journal's search lists for you to pick.
 - Notes that render code, math, Mermaid diagrams and images.
 - Photos and camera shots: a tile on Today, a camera button in any note, and on a new meeting.
 - An agenda: upcoming meetings from your calendars, each with a note for its ideas, and any meeting you add in one sentence, such as "Felipe martes 3pm".
@@ -254,6 +255,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 - Gists are read-only on the phone, and encrypted gists do not open there.
 - An existing plain note cannot be made private on the phone. Its old text would stay in git history anyway.
 - A private note or capture cannot hold a photo, because photos are plain files, and a private note has no Share button.
+- Search cannot find a tag in a private capture, because its text is sealed.
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.
 - Commits from the phone show as unsigned on GitHub.

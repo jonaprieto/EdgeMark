@@ -65,6 +65,14 @@ public nonisolated enum Journal {
         public var words: String {
             Journal.withoutImages(meal.map { String(text.dropFirst($0.prefix.count)) } ?? text)
         }
+
+        /// The `#tags` in its words, lowercased. `#4` is a number, not a tag.
+        public var tags: [String] {
+            words.split(whereSeparator: \.isWhitespace).filter { $0.hasPrefix("#") }.compactMap { word in
+                let tag = word.dropFirst().trimmingCharacters(in: .punctuationCharacters).lowercased()
+                return tag.contains(where: \.isLetter) ? "#\(tag)" : nil
+            }
+        }
     }
 
     /// A private capture, whose text is sealed: what its file name says about it.

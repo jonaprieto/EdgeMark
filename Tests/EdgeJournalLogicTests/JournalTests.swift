@@ -134,6 +134,12 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(entry.words, "la pizarra")
     }
 
+    func testTagsAreReadFromTheWords() throws {
+        let line = "## Ideas\n\n- 12:30 Issue #4: la #Pizarra, del #trabajo-nuevo ![](.d/IMG.jpg) a#b # ##\n"
+        let entry = try XCTUnwrap(Journal.entries(in: line, path: "Journal/2026-10-31.md").first)
+        XCTAssertEqual(entry.tags, ["#pizarra", "#trabajo-nuevo"])
+    }
+
     func testAPhotoAloneMakesAnEntry() throws {
         let entry = try XCTUnwrap(Journal.entries(in: "## Ideas\n\n- 12:30 ![](.d/IMG.jpg)\n", path: "Journal/2026-10-31.md").first)
         XCTAssertEqual(entry.images, [".d/IMG.jpg"])

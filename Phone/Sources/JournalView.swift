@@ -47,6 +47,9 @@ struct JournalView: View {
             }
             .navigationTitle(showsMeals ? "Meals" : "Ideas")
             .searchable(text: $query)
+            .searchSuggestions {
+                ForEach(tags, id: \.self) { Text($0).searchCompletion($0) }
+            }
             .refreshable { await model.sync() }
             .toolbar {
                 Button("Add", systemImage: "plus") { capture = CaptureRequest(kind: showsMeals ? .meal : .idea) }
@@ -99,11 +102,27 @@ struct JournalView: View {
         }
     }
 
+    /// The search when it is a whole tag, which then finds only that tag: not `#casamiento` for `#casa`.
+    private var pickedTag: String? {
+        let typed = query.lowercased()
+        return listed.contains { $0.entry.tags.contains(typed) } ? typed : nil
+    }
+
+    /// The tags that finish what is typed: all of them on an empty search, none for plain words,
+    /// and none once one is picked, so the list shows.
+    private var tags: [String] {
+        guard pickedTag == nil else { return [] }
+        return Set(listed.flatMap { $0.entry.tags }).filter { $0.hasPrefix(query.lowercased()) }.sorted()
+    }
+
     /// Each day holds its entries and private captures together, newest first. A search reaches
-    /// words and places, and "private" finds the sealed ones, whose text cannot be searched.
+    /// words, tags among them, and places, and "private" finds the sealed ones, whose text cannot
+    /// be searched.
     private var groupedByDay: [String: [Row]] {
+        let tag = pickedTag
         let found = listed.filter { item in
-            query.isEmpty || item.entry.words.localizedCaseInsensitiveContains(query)
+            if let tag { return item.entry.tags.contains(tag) }
+            return query.isEmpty || item.entry.words.localizedCaseInsensitiveContains(query)
                 || item.place?.place?.localizedCaseInsensitiveContains(query) == true
                 || item.entry.meal?.rawValue.localizedCaseInsensitiveContains(query) == true
         }.map { Row.entry($0.entry, $0.place) }
