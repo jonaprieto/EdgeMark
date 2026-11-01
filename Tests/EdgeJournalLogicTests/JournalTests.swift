@@ -17,6 +17,16 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(Journal.emptyDay(for: date, calendar: calendar), "# 2026-10-31\n")
     }
 
+    func testPlacesShowBesideEntriesOnly() {
+        let path = "Journal/2026-10-31.md"
+        let text = "# 2026-10-31\n\n## Meals\n\n- 12:30 arroz\n- 12:30 arroz con pollo\n- 19:00 sopa\n\n## Todos\n\n- [ ] 12:30 pan\n"
+        let there = PlaceLine(date: date, path: path, latitude: 4.6, longitude: -74.1, place: "Chapinero", timeZone: calendar.timeZone)
+        let shown = PlaceLine.annotated(text, path: path, lines: [there])
+        XCTAssertEqual(shown, "# 2026-10-31\n\n## Meals\n\n- 12:30 arroz · Chapinero\n- 12:30 arroz con pollo · Chapinero\n- 19:00 sopa\n\n## Todos\n\n- [ ] 12:30 pan\n")
+        // The checkboxes read back from the same lines, so line numbers must not move.
+        XCTAssertEqual(TodoScan.todos(in: shown, path: path).map(\.line), TodoScan.todos(in: text, path: path).map(\.line))
+    }
+
     func testEntries() {
         XCTAssertEqual(Journal.entry("arepa", kind: .meal, at: date, calendar: calendar), "- 12:30 arepa")
         XCTAssertEqual(Journal.entry(" one\n  two ", kind: .idea, at: date, calendar: calendar), "- 12:30 one two")

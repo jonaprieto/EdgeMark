@@ -43,6 +43,18 @@ public nonisolated struct PlaceLine: Codable, Equatable, Hashable, Identifiable,
         }
     }
 
+    /// `text` for reading, with each timed entry's place after it. The note itself stays free of
+    /// places, for the reason above.
+    public static func annotated(_ text: String, path: String, lines places: [PlaceLine]) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        for entry in Journal.entries(in: text, path: path) {
+            guard let place = place(of: entry, in: places)?.place,
+                  let index = lines.firstIndex(of: "- \(entry.time) \(entry.text)") else { continue }
+            lines[index] += " · \(place)"
+        }
+        return lines.joined(separator: "\n")
+    }
+
     private static func minutes(_ time: String) -> Int? {
         let parts = time.split(separator: ":").compactMap { Int($0) }
         return parts.count == 2 ? parts[0] * 60 + parts[1] : nil

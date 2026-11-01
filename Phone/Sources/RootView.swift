@@ -39,7 +39,7 @@ struct RootView: View {
         TabView {
             TodayView(capture: $capture).tabItem { Label("Today", systemImage: "sun.max") }
             NotesRoot().tabItem { Label("Notes", systemImage: "note.text") }
-            IdeasView(capture: $capture).tabItem { Label("Ideas", systemImage: "lightbulb") }
+            JournalView(capture: $capture).tabItem { Label("Journal", systemImage: "book") }
             TodosView().tabItem { Label("Todos", systemImage: "checklist") }
             MeetingsView().tabItem { Label("Meetings", systemImage: "calendar") }
         }

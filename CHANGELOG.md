@@ -23,6 +23,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   recently or by due date, and searchable.
 - An Ideas tab on the iPhone lists your ideas and observations with when and where you wrote them,
   and searches them. Meetings and gists are searchable too.
+- The Ideas tab on the iPhone is now Journal and lists your meals too, and every meal and idea shows
+  when and where it was written, in the list and in the day's note.
 - A Meetings tab on the iPhone lists upcoming events from your calendars, Google and Proton included
   once iOS has them, and opens a note for each one to collect ideas.
 - Todos in the settings menu lists every open task across your notes, soonest first, and checks

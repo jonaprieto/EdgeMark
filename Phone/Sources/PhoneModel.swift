@@ -254,11 +254,11 @@ final class PhoneModel {
         Task { await sync() }
     }
 
-    /// Ideas and observations from every day file, newest first, with where they were written.
-    var ideas: [(entry: Journal.Entry, place: PlaceLine?)] {
+    /// One kind of entry from every day file, newest first, with where each was written.
+    func entries(_ kind: Journal.Kind) -> [(entry: Journal.Entry, place: PlaceLine?)] {
         notes.filter { $0.folder == Journal.folder }
             .flatMap { Journal.entries(in: $0.text, path: $0.path) }
-            .filter { $0.kind == .idea }
+            .filter { $0.kind == kind }
             .sorted { ($0.day, $0.time) > ($1.day, $1.time) }
             .map { ($0, PlaceLine.place(of: $0, in: places)) }
     }

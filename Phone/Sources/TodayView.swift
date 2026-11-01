@@ -38,10 +38,6 @@ struct TodayView: View {
                     } else {
                         NoteBody(text: text, path: path, imageBase: model.folderURL(of: path))
                     }
-                    if !todayPlaces.isEmpty {
-                        Label(todayPlaces.joined(separator: " · "), systemImage: "mappin.and.ellipse")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
@@ -69,12 +65,6 @@ struct TodayView: View {
                 if case let .note(note) = route { NoteView(path: note) }
             }
         }
-    }
-
-    /// Where the day went, each place once, in order. Ideas shows the place of each entry.
-    private var todayPlaces: [String] {
-        var seen = Set<String>()
-        return model.places.filter { $0.at.hasPrefix(Journal.day(Date())) }.compactMap(\.place).filter { seen.insert($0).inserted }
     }
 
     private func addButton(_ title: String, _ icon: String, _ kind: CaptureKind) -> some View {

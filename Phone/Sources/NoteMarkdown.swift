@@ -37,7 +37,8 @@ struct NoteBody: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(TodoScan.segments(of: text, path: path).enumerated()), id: \.offset) { _, segment in
+            let shown = PlaceLine.annotated(text, path: path, lines: PhoneModel.shared.places)
+            ForEach(Array(TodoScan.segments(of: shown, path: path).enumerated()), id: \.offset) { _, segment in
                 switch segment {
                 case let .text(markdown):
                     NoteMarkdown(markdown, imageBase: imageBase)

@@ -1,18 +1,30 @@
 import EdgeJournalLogic
 import SwiftUI
 
-/// Ideas and observations across the days, each with its time and place.
-struct IdeasView: View {
+/// Ideas or meals across the days, each with its time and place.
+struct JournalView: View {
     @Binding var capture: CaptureRequest?
 
+    @AppStorage("journal.kind") private var kind = "idea"
     @State private var query = ""
 
     private var model: PhoneModel { .shared }
+    private var showsMeals: Bool { kind == "meal" }
+    private var listed: [(entry: Journal.Entry, place: PlaceLine?)] { model.entries(showsMeals ? .meal : .idea) }
+    /// A private meal goes with the meals, every other private capture with the ideas.
+    private var sealed: [Journal.PrivateEntry] { model.privateCaptures.filter { ($0.kind == "meal") == showsMeals } }
 
     var body: some View {
         NavigationStack {
             let days = groupedByDay
             List {
+                Picker("Show", selection: $kind) {
+                    Text("Ideas").tag("idea")
+                    Text("Meals").tag("meal")
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
                 ForEach(days.keys.sorted(by: >), id: \.self) { day in
                     Section(day) {
                         ForEach(days[day] ?? []) { row in rowView(row) }
@@ -20,15 +32,19 @@ struct IdeasView: View {
                 }
             }
             .overlay {
-                if model.ideas.isEmpty, model.privateCaptures.isEmpty {
-                    ContentUnavailableView("No ideas yet", systemImage: "lightbulb", description: Text("Ideas and things you notice land here, with when and where."))
+                if listed.isEmpty, sealed.isEmpty {
+                    if showsMeals {
+                        ContentUnavailableView("No meals yet", systemImage: "fork.knife", description: Text("What you eat lands here, with when and where."))
+                    } else {
+                        ContentUnavailableView("No ideas yet", systemImage: "lightbulb", description: Text("Ideas and things you notice land here, with when and where."))
+                    }
                 }
             }
-            .navigationTitle("Ideas")
+            .navigationTitle(showsMeals ? "Meals" : "Ideas")
             .searchable(text: $query)
             .refreshable { await model.sync() }
             .toolbar {
-                Button("Add", systemImage: "plus") { capture = CaptureRequest(kind: .idea) }
+                Button("Add", systemImage: "plus") { capture = CaptureRequest(kind: showsMeals ? .meal : .idea) }
             }
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }
@@ -36,48 +52,48 @@ struct IdeasView: View {
         }
     }
 
-    /// A day's line: an idea in the clear, or a private capture that shows only when it was made.
+    /// A day's line: an entry in the clear, or a private capture that shows only when it was made.
     private enum Row: Identifiable {
-        case idea(Journal.Entry, PlaceLine?)
+        case entry(Journal.Entry, PlaceLine?)
         case sealed(Journal.PrivateEntry)
 
         var id: String {
             switch self {
-            case let .idea(entry, _): entry.id
+            case let .entry(entry, _): entry.id
             case let .sealed(entry): entry.id
             }
         }
 
         var day: String {
             switch self {
-            case let .idea(entry, _): entry.day
+            case let .entry(entry, _): entry.day
             case let .sealed(entry): entry.day
             }
         }
 
         var time: String {
             switch self {
-            case let .idea(entry, _): entry.time
+            case let .entry(entry, _): entry.time
             case let .sealed(entry): entry.time
             }
         }
     }
 
-    /// Each day holds its ideas and private captures together, newest first. A search reaches
-    /// ideas and places, and "private" finds the sealed ones, whose text cannot be searched.
+    /// Each day holds its entries and private captures together, newest first. A search reaches
+    /// words and places, and "private" finds the sealed ones, whose text cannot be searched.
     private var groupedByDay: [String: [Row]] {
-        let ideas = model.ideas.filter { idea in
-            query.isEmpty || idea.entry.words.localizedCaseInsensitiveContains(query)
-                || idea.place?.place?.localizedCaseInsensitiveContains(query) == true
-        }.map { Row.idea($0.entry, $0.place) }
+        let found = listed.filter { item in
+            query.isEmpty || item.entry.words.localizedCaseInsensitiveContains(query)
+                || item.place?.place?.localizedCaseInsensitiveContains(query) == true
+        }.map { Row.entry($0.entry, $0.place) }
         let showSealed = query.isEmpty || "private".localizedCaseInsensitiveContains(query)
-        let sealed = showSealed ? model.privateCaptures.map(Row.sealed) : []
-        return Dictionary(grouping: ideas + sealed, by: \.day).mapValues { rows in rows.sorted { $0.time > $1.time } }
+        let locked = showSealed ? sealed.map(Row.sealed) : []
+        return Dictionary(grouping: found + locked, by: \.day).mapValues { rows in rows.sorted { $0.time > $1.time } }
     }
 
     @ViewBuilder private func rowView(_ row: Row) -> some View {
         switch row {
-        case let .idea(entry, place):
+        case let .entry(entry, place):
             NavigationLink(value: Route.note(entry.path)) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
