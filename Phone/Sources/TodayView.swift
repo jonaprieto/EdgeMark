@@ -5,6 +5,7 @@ struct TodayView: View {
     @Binding var capture: CaptureRequest?
 
     @State private var brainstorming = false
+    @State private var editing = false
 
     private var model: PhoneModel { .shared }
     private var path: String { Journal.path(for: Date()) }
@@ -28,8 +29,8 @@ struct TodayView: View {
                     } else {
                         NoteBody(text: text, path: path, imageBase: model.folderURL(of: path))
                     }
-                    ForEach(todayPlaces) { place in
-                        Label(placeLabel(place), systemImage: "mappin.and.ellipse")
+                    if !todayPlaces.isEmpty {
+                        Label(todayPlaces.joined(separator: " · "), systemImage: "mappin.and.ellipse")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -41,7 +42,12 @@ struct TodayView: View {
             .toolbar {
                 NavigationLink(value: "places") { Label("Places", systemImage: "map") }
                 Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
+                Button("Edit", systemImage: "square.and.pencil") {
+                    model.startToday()
+                    editing = true
+                }
             }
+            .navigationDestination(isPresented: $editing) { NoteView(path: path, startsEditing: true) }
             .sheet(isPresented: $brainstorming) { BrainstormView(source: nil) }
             .navigationDestination(for: String.self) { _ in PlacesView() }
             .navigationDestination(for: Route.self) { route in
@@ -50,12 +56,10 @@ struct TodayView: View {
         }
     }
 
-    private var todayPlaces: [PlaceLine] {
-        model.places.filter { $0.at.hasPrefix(Journal.day(Date())) }
-    }
-
-    private func placeLabel(_ place: PlaceLine) -> String {
-        "\(place.at.dropFirst(11).prefix(5)) \(place.place ?? "\(place.lat), \(place.lon)")"
+    /// Where the day went, each place once, in order. Ideas shows the place of each entry.
+    private var todayPlaces: [String] {
+        var seen = Set<String>()
+        return model.places.filter { $0.at.hasPrefix(Journal.day(Date())) }.compactMap(\.place).filter { seen.insert($0).inserted }
     }
 
     private func addButton(_ title: String, _ icon: String, _ kind: CaptureKind) -> some View {

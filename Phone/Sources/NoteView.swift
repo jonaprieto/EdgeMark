@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NoteView: View {
     let path: String
+    var startsEditing = false
 
     @State private var text = ""
     @State private var editing = false
@@ -52,7 +53,10 @@ struct NoteView: View {
             }
         }
         .sheet(isPresented: $brainstorming) { BrainstormView(source: path) }
-        .onAppear { text = model.text(of: path) }
+        .onAppear {
+            text = model.text(of: path)
+            if startsEditing, !encrypted { setEditing(true) }
+        }
         .onDisappear { setEditing(false) }
         .onChange(of: text) { _, new in
             guard editing else { return }

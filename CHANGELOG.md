@@ -32,6 +32,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - The iPhone notes list has a sync button, says when it last synced or why it could not, and shows
   the app version.
 - Your gists appear in a Gists folder on the iPhone, read-only and available offline.
+- Today on the iPhone has an Edit button for the day's file, and lists each place once.
 - Check off a task on the iPhone right where it sits, in a note or in Today, not only in Todos.
 - Meetings on the iPhone are grouped into Today, Tomorrow, This week, Next week and Later.
 - Add a meeting on the iPhone in one sentence, typed or spoken, such as "Felipe martes 3pm": it reads

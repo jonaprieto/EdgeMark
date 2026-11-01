@@ -329,6 +329,15 @@ final class PhoneModel {
         meetings.first.flatMap(notePath(for:))
     }
 
+    /// Makes sure today's file exists, for writing in it directly.
+    func startToday() {
+        let now = Date()
+        let path = Journal.path(for: now)
+        guard mirror?.exists(path) == false else { return }
+        save(Journal.emptyDay(for: now), to: path)
+        refresh()
+    }
+
     /// Adds a line to today's file. Needs no network; sync carries it when it can.
     func capture(_ text: String, kind: Journal.Kind, due: Date?) {
         let now = Date()
