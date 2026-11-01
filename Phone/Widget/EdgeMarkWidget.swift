@@ -7,6 +7,7 @@ struct EdgeMarkWidgets: WidgetBundle {
         CaptureWidget()
         VoiceWidget()
         AgendaWidget()
+        RemindersWidget()
     }
 }
 
@@ -95,7 +96,7 @@ struct AgendaEntry: TimelineEntry {
     let snapshot: WidgetSnapshot?
 }
 
-/// The app is not running when a meeting ends, so the timeline moves on by itself.
+/// The app is not running when a meeting ends or a reminder rings, so the timeline moves on by itself.
 struct AgendaProvider: TimelineProvider {
     func placeholder(in context: Context) -> AgendaEntry {
         let now = Date()
@@ -104,6 +105,7 @@ struct AgendaProvider: TimelineProvider {
             events: [.init(title: "Next meeting", start: now, end: now.addingTimeInterval(3600))],
             todos: ["Open todo"],
             openTodos: 1,
+            reminders: [.init(title: "Next reminder", start: now, end: now)],
         ))
     }
 
@@ -114,8 +116,8 @@ struct AgendaProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<AgendaEntry>) -> Void) {
         let now = Date()
         let snapshot = WidgetSnapshot.load()
-        let ends = (snapshot?.events ?? []).map(\.end).filter { $0 > now }
-        let entries = ([now] + ends).map { AgendaEntry(date: $0, snapshot: snapshot) }
+        let changes = (snapshot?.events ?? []).map(\.end) + (snapshot?.reminders ?? []).map(\.start)
+        let entries = ([now] + changes.filter { $0 > now }.sorted()).map { AgendaEntry(date: $0, snapshot: snapshot) }
         completion(Timeline(entries: entries, policy: .never))
     }
 }
@@ -168,5 +170,67 @@ struct AgendaWidgetView: View {
 
     private var todos: [String] {
         Array((entry.snapshot?.todos ?? []).prefix(family == .systemSmall ? 2 : 3))
+    }
+}
+
+struct RemindersWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "EdgeMarkReminders", provider: AgendaProvider()) { entry in
+            RemindersWidgetView(entry: entry)
+                .containerBackground(.background, for: .widget)
+                .widgetURL(URL(string: "edgemark://reminders"))
+        }
+        .configurationDisplayName("Reminders")
+        .description("What rings next.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+struct RemindersWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: AgendaEntry
+
+    private var coming: [WidgetSnapshot.Event] {
+        (entry.snapshot?.reminders ?? []).filter { $0.start > entry.date }
+    }
+
+    private func when(_ reminder: WidgetSnapshot.Event) -> String {
+        WidgetSnapshot.when(reminder.start, now: entry.date)
+    }
+
+    var body: some View {
+        switch family {
+        case .accessoryInline:
+            Label(coming.first.map { "\(when($0)) \($0.title)" } ?? "No reminders", systemImage: "bell").privacySensitive()
+        case .accessoryRectangular:
+            VStack(alignment: .leading) {
+                Text(coming.first?.title ?? "No reminders").font(.headline).lineLimit(1).privacySensitive()
+                if let next = coming.first { Text(when(next)).font(.caption) }
+            }
+        default:
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Label("Reminders", systemImage: "bell").font(.caption.weight(.semibold)).foregroundStyle(.tint)
+                    Spacer()
+                    if family == .systemMedium {
+                        Link(destination: captureLink("kind=todo&remind=1")) { Image(systemName: "plus") }
+                    }
+                }
+                if coming.isEmpty {
+                    Text("No reminders").font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(coming.prefix(family == .systemSmall ? 3 : 4), id: \.self) { reminder in
+                    HStack {
+                        Text(reminder.title).font(.caption).lineLimit(1).privacySensitive()
+                        Spacer(minLength: 4)
+                        if family == .systemMedium {
+                            Text(when(reminder)).font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }

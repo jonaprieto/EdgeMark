@@ -31,6 +31,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Reminders on the iPhone: the bell on a note offers the same times as the Mac with Jev's suggestion,
   and a todo can ring at a time, with Done and In 1 hour on its notification. Say it in one sentence,
   and see what will ring in Today and Todos.
+- A Reminders widget on the iPhone shows what rings next, on the Home Screen and Lock Screen.
 - A Meetings tab on the iPhone lists upcoming events from your calendars, Google and Proton included
   once iOS has them, and opens a note for each one to collect ideas.
 - Todos in the settings menu lists every open task across your notes, soonest first, and checks
