@@ -28,6 +28,36 @@ public nonisolated enum TodoScan {
         }
     }
 
+    /// A stretch of a note: Markdown to read, or a task to tick.
+    public enum Segment: Hashable, Sendable {
+        case text(String)
+        case task(Todo)
+    }
+
+    /// The note cut around its tasks, in order, so a reader can draw each one as a checkbox.
+    public static func segments(of text: String, path: String) -> [Segment] {
+        let tasks = Dictionary(uniqueKeysWithValues: todos(in: text, path: path).map { ($0.line, $0) })
+        var out: [Segment] = []
+        var pending: [String] = []
+
+        func flush() {
+            let chunk = pending.joined(separator: "\n")
+            if !chunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { out.append(.text(chunk)) }
+            pending = []
+        }
+
+        for (index, line) in lines(text).enumerated() {
+            if let task = tasks[index] {
+                flush()
+                out.append(.task(task))
+            } else {
+                pending.append(line)
+            }
+        }
+        flush()
+        return out
+    }
+
     public static func todos(in text: String, path: String) -> [Todo] {
         var out: [Todo] = []
         var inFence = false

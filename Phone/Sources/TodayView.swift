@@ -26,7 +26,7 @@ struct TodayView: View {
                     if text.isEmpty {
                         Text("Nothing yet today.").foregroundStyle(.secondary)
                     } else {
-                        NoteMarkdown(text, imageBase: model.folderURL(of: path))
+                        NoteBody(text: text, path: path, imageBase: model.folderURL(of: path))
                     }
                     ForEach(todayPlaces) { place in
                         Label(placeLabel(place), systemImage: "mappin.and.ellipse")

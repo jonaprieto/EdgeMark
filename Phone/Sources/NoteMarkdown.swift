@@ -1,3 +1,4 @@
+import EdgeJournalLogic
 import MarkdownUI
 import SwiftUI
 
@@ -25,6 +26,54 @@ struct NoteMarkdown: View {
             })
             .markdownInlineImageProvider(InlineImages(mathSize: mathSize))
             .markdownImageProvider(BlockImages(mathSize: mathSize))
+    }
+}
+
+/// A note you can act on: its text as Markdown, its tasks as checkboxes that write to the file.
+struct NoteBody: View {
+    let text: String
+    let path: String
+    var imageBase: URL?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(TodoScan.segments(of: text, path: path).enumerated()), id: \.offset) { _, segment in
+                switch segment {
+                case let .text(markdown):
+                    NoteMarkdown(markdown, imageBase: imageBase)
+                case let .task(todo):
+                    TaskRow(todo: todo, imageBase: imageBase)
+                }
+            }
+        }
+    }
+}
+
+struct TaskRow: View {
+    let todo: Todo
+    var imageBase: URL?
+
+    /// Sub-tasks keep their place under the task above.
+    private var indent: CGFloat {
+        CGFloat(todo.raw.prefix { $0 == " " || $0 == "\t" }.count) * 8
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Button(todo.done ? "Mark as not done" : "Mark as done", systemImage: todo.done ? "checkmark.square.fill" : "square") {
+                PhoneModel.shared.toggle(todo)
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+            VStack(alignment: .leading, spacing: 2) {
+                NoteMarkdown(todo.text, imageBase: imageBase)
+                    .opacity(todo.done ? 0.5 : 1)
+                if let due = todo.due {
+                    Label(due, systemImage: "calendar").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.leading, indent)
     }
 }
 

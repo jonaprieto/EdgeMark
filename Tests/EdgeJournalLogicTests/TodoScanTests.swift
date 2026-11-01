@@ -84,6 +84,24 @@ final class TodoScanTests: XCTestCase {
         XCTAssertNil(Meeting.time(inNote: "# A\n\nTime: soon\n"))
     }
 
+    func testSegmentsCutTheNoteAroundItsTasks() {
+        let text = "# Note\n\nintro\n\n- [ ] one\n  - [x] two\n\nafter\n\n```\n- [ ] in code\n```\n"
+        let segments = TodoScan.segments(of: text, path: "n.md")
+        XCTAssertEqual(segments.count, 4)
+        guard case let .text(first) = segments[0], case let .task(one) = segments[1], case let .task(two) = segments[2], case let .text(last) = segments[3] else {
+            return XCTFail("unexpected shape")
+        }
+        XCTAssertEqual(first, "# Note\n\nintro\n")
+        XCTAssertEqual(one.text, "one")
+        XCTAssertEqual(two.line, 5)
+        XCTAssertTrue(two.done)
+        XCTAssertTrue(last.contains("- [ ] in code"))
+    }
+
+    func testANoteWithoutTasksIsOneSegment() {
+        XCTAssertEqual(TodoScan.segments(of: "# Note\n\nbody\n", path: "n.md"), [.text("# Note\n\nbody\n")])
+    }
+
     func testMeetingBuckets() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "America/Bogota")!

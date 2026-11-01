@@ -24,7 +24,7 @@ struct NoteView: View {
                     .onAppear { focused = true }
             } else {
                 ScrollView {
-                    NoteMarkdown(text, imageBase: model.folderURL(of: path))
+                    NoteBody(text: text, path: path, imageBase: model.folderURL(of: path))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
