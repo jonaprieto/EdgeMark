@@ -47,6 +47,30 @@ public nonisolated enum Meeting {
         return nil
     }
 
+    /// When a meeting falls, for the agenda's sections.
+    public enum Bucket: Int, CaseIterable, Comparable, Sendable {
+        case today, tomorrow, thisWeek, nextWeek, later
+
+        public static func < (a: Bucket, b: Bucket) -> Bool {
+            a.rawValue < b.rawValue
+        }
+    }
+
+    /// Tomorrow beats the week it falls in, and a past day counts as today so nothing goes missing.
+    public static func bucket(day: String, now: Date, calendar: Calendar = .current) -> Bucket {
+        let today = Journal.day(now, calendar: calendar)
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now),
+              let week = calendar.dateInterval(of: .weekOfYear, for: now),
+              let nextWeekEnd = calendar.date(byAdding: .day, value: 7, to: week.end) else { return .later }
+        // The interval's end is the first day after the week, so both compare as "before".
+        let weekEnd = Journal.day(week.end, calendar: calendar)
+        let nextEnd = Journal.day(nextWeekEnd, calendar: calendar)
+        if day <= today { return .today }
+        if day == Journal.day(tomorrow, calendar: calendar) { return .tomorrow }
+        if day < weekEnd { return .thisWeek }
+        return day < nextEnd ? .nextWeek : .later
+    }
+
     public static func title(day: String, name: String) -> String {
         "\(day) \(name)"
     }

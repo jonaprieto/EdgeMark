@@ -6,7 +6,8 @@ import Foundation
 /// subscribed share link. Read-only: the app never writes an event.
 @MainActor @Observable
 final class Calendars {
-    static let days = 14
+    /// Far enough that Next week is always whole.
+    static let days = 28
 
     private let store = EKEventStore()
     private(set) var events: [Meeting.Event] = []

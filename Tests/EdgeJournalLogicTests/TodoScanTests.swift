@@ -83,4 +83,31 @@ final class TodoScanTests: XCTestCase {
         XCTAssertNil(Meeting.time(inNote: "# 2026-11-03 Ana\n\n" + Meeting.body(time: nil)))
         XCTAssertNil(Meeting.time(inNote: "# A\n\nTime: soon\n"))
     }
+
+    func testMeetingBuckets() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Bogota")!
+        calendar.firstWeekday = 2 // Monday
+        // Wednesday 2026-11-04 at noon in Bogota.
+        let now = Date(timeIntervalSince1970: 1_793_811_600)
+        XCTAssertEqual(Journal.day(now, calendar: calendar), "2026-11-04")
+        let expected: [(String, Meeting.Bucket)] = [
+            ("2026-11-03", .today), ("2026-11-04", .today), ("2026-11-05", .tomorrow), ("2026-11-06", .thisWeek), ("2026-11-08", .thisWeek),
+            ("2026-11-09", .nextWeek), ("2026-11-15", .nextWeek), ("2026-11-16", .later), ("2026-12-01", .later),
+        ]
+        for (day, bucket) in expected {
+            XCTAssertEqual(Meeting.bucket(day: day, now: now, calendar: calendar), bucket, day)
+        }
+    }
+
+    func testTomorrowWinsAtTheEndOfTheWeek() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Bogota")!
+        calendar.firstWeekday = 2
+        // Sunday 2026-11-08 at noon: tomorrow is already next week.
+        let now = Date(timeIntervalSince1970: 1_794_157_200)
+        XCTAssertEqual(Journal.day(now, calendar: calendar), "2026-11-08")
+        XCTAssertEqual(Meeting.bucket(day: "2026-11-09", now: now, calendar: calendar), .tomorrow)
+        XCTAssertEqual(Meeting.bucket(day: "2026-11-10", now: now, calendar: calendar), .nextWeek)
+    }
 }

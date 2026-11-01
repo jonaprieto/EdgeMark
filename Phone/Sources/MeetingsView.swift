@@ -8,6 +8,26 @@ struct MeetingsView: View {
 
     private var model: PhoneModel { .shared }
 
+    private func title(_ bucket: Meeting.Bucket) -> String {
+        switch bucket {
+        case .today: "Today"
+        case .tomorrow: "Tomorrow"
+        case .thisWeek: "This week"
+        case .nextWeek: "Next week"
+        case .later: "Later"
+        }
+    }
+
+    /// The hour alone when the section already says the day, the weekday when it does not.
+    private func detail(_ row: Meeting.Row, in bucket: Meeting.Bucket) -> String {
+        guard let start = row.start else { return row.day }
+        switch bucket {
+        case .today, .tomorrow: return start.formatted(date: .omitted, time: .shortened)
+        case .thisWeek, .nextWeek: return start.formatted(.dateTime.weekday(.wide).hour().minute())
+        case .later: return start.formatted(date: .abbreviated, time: .shortened)
+        }
+    }
+
     /// Only accounts iOS holds reach EventKit, so the screen says which those are.
     private var sources: String {
         let names = Set(model.calendars.all.map(\.source.title)).sorted()
@@ -21,19 +41,25 @@ struct MeetingsView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                ForEach(rows) { row in
-                    Button { open(row) } label: {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(row.name.isEmpty ? row.title : row.name)
-                                Text(row.start?.formatted(date: .abbreviated, time: .shortened) ?? row.day)
-                                    .font(.caption).foregroundStyle(.secondary)
+                let now = Date()
+                let groups = Dictionary(grouping: rows) { Meeting.bucket(day: $0.day, now: now) }
+                ForEach(Meeting.Bucket.allCases.filter { groups[$0] != nil }, id: \.self) { bucket in
+                    Section(title(bucket)) {
+                        ForEach(groups[bucket] ?? []) { row in
+                            Button { open(row) } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(row.name.isEmpty ? row.title : row.name)
+                                        Text(detail(row, in: bucket))
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if row.path != nil { Image(systemName: "note.text").foregroundStyle(.secondary) }
+                                }
                             }
-                            Spacer()
-                            if row.path != nil { Image(systemName: "note.text").foregroundStyle(.secondary) }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .buttonStyle(.plain)
                 }
                 if !model.calendars.all.isEmpty {
                     Section {} footer: { Text(sources) }
