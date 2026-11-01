@@ -79,6 +79,14 @@ final class TodoScanTests: XCTestCase {
         XCTAssertEqual(rows[1].place, "Juan Valdez")
     }
 
+    func testMeetingDayReadsBack() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Bogota")!
+        let date = try XCTUnwrap(Meeting.date(day: "2026-11-03", calendar: calendar))
+        XCTAssertEqual(Journal.day(date, calendar: calendar), "2026-11-03")
+        XCTAssertEqual(calendar.component(.weekday, from: date), 3) // Tuesday
+    }
+
     func testMeetingNoteKeepsItsPlaceAndNote() {
         let body = Meeting.body(time: "15:30", place: "Juan Valdez", note: " traer el borrador ")
         XCTAssertEqual(body, "Time: 15:30\nPlace: Juan Valdez\n\ntraer el borrador\n\n## Ideas\n\n")

@@ -38,7 +38,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   repository's history keeps a copy. A calendar event stays in its calendar.
 - The iPhone app opens on Today, which has an Edit button for the day's file and lists each place once.
 - Check off a task on the iPhone right where it sits, in a note or in Today, not only in Todos.
-- Meetings on the iPhone are grouped into Today, Tomorrow, This week, Next week and Later.
+- Meetings on the iPhone are listed day by day under This week, Next week and Later, with one date
+  and time format throughout.
 - Add a meeting on the iPhone in one sentence, typed or spoken, such as "Felipe martes 3pm en Juan
   Valdez": it reads the name, day, hour and place, takes a short note, and the Meetings tab says
   which calendars it can see.

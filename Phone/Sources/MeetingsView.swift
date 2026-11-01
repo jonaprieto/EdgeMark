@@ -19,13 +19,17 @@ struct MeetingsView: View {
         }
     }
 
-    /// The hour alone when the section already says the day, the weekday when it does not.
-    private func detail(_ row: Meeting.Row, in bucket: Meeting.Bucket) -> String {
-        guard let start = row.start else { return row.day }
+    /// The one way this screen writes a time, whatever the phone's 24-hour setting.
+    private func time(_ date: Date) -> String {
+        date.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute())
+    }
+
+    /// `Tuesday, 3 Nov`, with Today or Tomorrow in front.
+    private func dayTitle(_ day: String, _ bucket: Meeting.Bucket) -> String {
+        let date = Meeting.date(day: day)?.formatted(.dateTime.weekday(.wide).day().month(.abbreviated)) ?? day
         switch bucket {
-        case .today, .tomorrow: return start.formatted(date: .omitted, time: .shortened)
-        case .thisWeek, .nextWeek: return start.formatted(.dateTime.weekday(.wide).hour().minute())
-        case .later: return start.formatted(date: .abbreviated, time: .shortened)
+        case .today, .tomorrow: return "\(title(bucket)) · \(date)"
+        default: return date
         }
     }
 
@@ -43,16 +47,20 @@ struct MeetingsView: View {
         NavigationStack(path: $path) {
             List {
                 let now = Date()
-                let groups = Dictionary(grouping: rows) { Meeting.bucket(day: $0.day, now: now) }
-                ForEach(Meeting.Bucket.allCases.filter { groups[$0] != nil }, id: \.self) { bucket in
-                    Section(title(bucket)) {
-                        ForEach(groups[bucket] ?? []) { row in
+                let days = Dictionary(grouping: rows, by: \.day)
+                let order = days.keys.sorted()
+                ForEach(order, id: \.self) { day in
+                    let bucket = Meeting.bucket(day: day, now: now)
+                    Section {
+                        ForEach(days[day] ?? []) { row in
                             Button { open(row) } label: {
                                 HStack {
                                     VStack(alignment: .leading) {
                                         Text(row.name.isEmpty ? row.title : row.name)
-                                        Text([detail(row, in: bucket), row.place].compactMap(\.self).joined(separator: " · "))
-                                            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                        let detail = [row.start.map(time), row.place].compactMap(\.self).joined(separator: " · ")
+                                        if !detail.isEmpty {
+                                            Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                        }
                                     }
                                     Spacer()
                                     if row.path != nil { Image(systemName: "note.text").foregroundStyle(.secondary) }
@@ -65,6 +73,15 @@ struct MeetingsView: View {
                                 }
                             }
                         }
+                    } header: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            // The first day of a week names the week.
+                            if bucket > .tomorrow, order.first(where: { Meeting.bucket(day: $0, now: now) == bucket }) == day {
+                                Text(title(bucket)).font(.headline).foregroundStyle(.primary)
+                            }
+                            Text(dayTitle(day, bucket))
+                        }
+                        .textCase(nil)
                     }
                 }
                 if !model.calendars.all.isEmpty {

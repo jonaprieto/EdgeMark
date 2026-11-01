@@ -99,6 +99,11 @@ public nonisolated enum Meeting {
         return (day, parts.count > 1 ? parts[1] : "")
     }
 
+    /// The day of a `yyyy-MM-dd` string, for showing it.
+    public static func date(day: String, calendar: Calendar = .current) -> Date? {
+        start(day: day, time: "12:00", calendar: calendar)
+    }
+
     private static func start(day: String, time: String?, calendar: Calendar) -> Date? {
         guard let time else { return nil }
         let formatter = DateFormatter()
