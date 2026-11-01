@@ -329,6 +329,23 @@ final class PhoneModel {
         meetings.first.flatMap(notePath(for:))
     }
 
+    /// Deletes a note and its images from every device. It stays in the repository's history.
+    func delete(_ path: String) {
+        guard let mirror else { return }
+        let name = ((path as NSString).lastPathComponent as NSString).deletingPathExtension
+        let folder = (path as NSString).deletingLastPathComponent
+        let images = (folder.isEmpty ? "" : folder + "/") + ".\(NoteText.safeAssetStem(name))/"
+        do {
+            for file in try mirror.paths() where file == path || file.hasPrefix(images) {
+                try mirror.delete(file)
+            }
+        } catch {
+            saveError = "Could not delete \(path): \(error)"
+        }
+        refresh()
+        Task { await sync() }
+    }
+
     /// Makes sure today's file exists, for writing in it directly.
     func startToday() {
         let now = Date()

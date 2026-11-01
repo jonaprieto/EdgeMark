@@ -4,8 +4,19 @@ import Foundation
 public struct SyncBase: Codable, Equatable, Sendable {
     public var commit = ""
     public var blobs: [String: String] = [:]
+    /// Paths deleted here and not yet deleted on GitHub. A file merely missing comes back from
+    /// the remote, so a deletion has to be on record to go the other way.
+    public var deleted: Set<String> = []
 
     public init() {}
+
+    /// Base files written before `deleted` existed still load, or every note would look new.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        commit = try c.decode(String.self, forKey: .commit)
+        blobs = try c.decode([String: String].self, forKey: .blobs)
+        deleted = try c.decodeIfPresent(Set<String>.self, forKey: .deleted) ?? []
+    }
 }
 
 /// The phone's copy of the tracked files. iOS keeps it encrypted while the device is locked,
@@ -69,6 +80,14 @@ public struct NotesMirror: Sendable {
 
     public func remove(_ path: String) throws {
         try FileManager.default.removeItem(at: url(for: path))
+    }
+
+    /// Removes a file for good: the next sync deletes it on GitHub too.
+    public func delete(_ path: String) throws {
+        var base = loadBase()
+        base.deleted.insert(path)
+        try saveBase(base)
+        try remove(path)
     }
 
     public func modified(_ path: String) -> Date? {

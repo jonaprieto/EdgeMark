@@ -3,6 +3,7 @@ import Foundation
 public struct SyncReport: Equatable, Sendable {
     public var pulled = 0
     public var pushed = 0
+    public var deleted = 0
     /// Conflict copies written this run.
     public var conflicts: [String] = []
     /// Paths kept on the phone, with why.
@@ -47,11 +48,23 @@ public struct TreeSync: Sendable {
 
         var report = SyncReport()
         var uploads: [String: Data] = [:]
+        var removals: Set<String> = []
         var blobs = base.blobs
 
         for path in Set(base.blobs.keys).union(remote.keys).union(local.keys).sorted() {
             let (b, l, r) = (base.blobs[path], local[path], remote[path])
-            if l == r {
+            if base.deleted.contains(path) {
+                if let r, r != b {
+                    // Changed elsewhere after it was deleted here: that newer text is kept.
+                    try mirror.write(try await repo.blob(r), to: path)
+                    blobs[path] = r
+                    report.pulled += 1
+                } else if r != nil {
+                    removals.insert(path)
+                } else {
+                    blobs[path] = nil
+                }
+            } else if l == r {
                 blobs[path] = r
             } else if l == b || l == nil || Self.macOnly.contains(path) {
                 if let r {
@@ -74,16 +87,19 @@ public struct TreeSync: Sendable {
         for path in report.held.keys { uploads[path] = nil }
 
         var commit = head.commit
-        if !uploads.isEmpty {
+        if !uploads.isEmpty || !removals.isEmpty {
             let stamp = Self.stamp("yyyy-MM-dd HH:mm", now())
-            let made = try await repo.commit(files: uploads, parent: head.commit, baseTree: head.tree, message: "notes: phone \(stamp)")
+            let made = try await repo.commit(files: uploads, removed: removals, parent: head.commit, baseTree: head.tree, message: "notes: phone \(stamp)")
             guard try await repo.moveHead(to: made.commit) else { return nil }
             commit = made.commit
             blobs.merge(made.blobs) { $1 }
+            for path in removals { blobs[path] = nil }
             report.pushed = uploads.count
+            report.deleted = removals.count
         }
         base.commit = commit
         base.blobs = blobs
+        base.deleted = []
         try mirror.saveBase(base)
         return report
     }

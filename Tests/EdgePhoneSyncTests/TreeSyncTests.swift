@@ -139,6 +139,44 @@ final class TreeSyncTests: XCTestCase {
         XCTAssertEqual(FakeGitHub.files[copy], armor("mine"))
     }
 
+    func testADeletionReachesGitHubInOneCommit() async throws {
+        FakeGitHub.push(["Meetings/Old.md": "# Old\n", "Keep.md": "# Keep\n"])
+        try await sync()
+        try mirror.delete("Meetings/Old.md")
+        try edit("Keep.md", "# Keep\n\nmore\n")
+        let report = try await sync()
+        XCTAssertEqual(report.deleted, 1)
+        XCTAssertEqual(report.pushed, 1)
+        XCTAssertNil(FakeGitHub.files["Meetings/Old.md"])
+        XCTAssertEqual(FakeGitHub.files["Keep.md"], "# Keep\n\nmore\n")
+        XCTAssertFalse(mirror.exists("Meetings/Old.md"))
+
+        let writes = FakeGitHub.with { $0.writes }
+        try await sync()
+        XCTAssertEqual(FakeGitHub.with { $0.writes }, writes)
+        XCTAssertEqual(mirror.loadBase().deleted, [])
+    }
+
+    func testAnEditElsewhereBeatsADeletionHere() async throws {
+        FakeGitHub.push(["Note.md": "# Note\n"])
+        try await sync()
+        try mirror.delete("Note.md")
+        FakeGitHub.push(["Note.md": "# Note\n\nfrom the mac\n"])
+        let report = try await sync()
+        XCTAssertEqual(report.deleted, 0)
+        XCTAssertEqual(try text("Note.md"), "# Note\n\nfrom the mac\n")
+    }
+
+    func testDeletedOnBothSidesIsNothingToDo() async throws {
+        FakeGitHub.push(["Note.md": "a\n", "Other.md": "b\n"])
+        try await sync()
+        try mirror.delete("Note.md")
+        FakeGitHub.push(["Note.md": nil])
+        let report = try await sync()
+        XCTAssertEqual(report.deleted, 0)
+        XCTAssertEqual(mirror.loadBase().blobs["Note.md"], nil)
+    }
+
     func testRemoteDeleteKeepsLocalEdit() async throws {
         FakeGitHub.push(["Note.md": "# Note\n"])
         try await sync()

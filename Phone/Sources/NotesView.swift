@@ -34,6 +34,7 @@ struct NotesList: View {
     @State private var query = ""
     @State private var showSettings = false
     @State private var naming = false
+    @State private var deleting: PhoneNote?
 
     private var model: PhoneModel { .shared }
 
@@ -93,6 +94,9 @@ struct NotesList: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                .swipeActions {
+                    Button("Delete", systemImage: "trash", role: .destructive) { deleting = note }
+                }
             }
             if folder.isEmpty, query.isEmpty, !model.notes.isEmpty {
                 Section {} footer: { syncFooter }
@@ -125,6 +129,7 @@ struct NotesList: View {
             }
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .deleteDialog(for: $deleting)
         .sheet(isPresented: $naming) {
             NewNoteSheet(folder: folder) { path.append(.note($0)) }
         }
@@ -141,5 +146,21 @@ struct SyncButton: View {
         }
         .symbolEffect(.rotate, isActive: model.syncing)
         .disabled(model.syncing)
+    }
+}
+
+extension View {
+    /// Asks before a note goes, and says where it goes.
+    func deleteDialog(for note: Binding<PhoneNote?>) -> some View {
+        confirmationDialog(
+            "Delete \(note.wrappedValue?.title ?? "note")?",
+            isPresented: Binding(get: { note.wrappedValue != nil }, set: { if !$0 { note.wrappedValue = nil } }),
+            titleVisibility: .visible,
+            presenting: note.wrappedValue,
+        ) { target in
+            Button("Delete", role: .destructive) { PhoneModel.shared.delete(target.path) }
+        } message: { _ in
+            Text("It goes from this iPhone and the Mac. Your repository's history keeps a copy.")
+        }
     }
 }

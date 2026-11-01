@@ -32,6 +32,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - The iPhone notes list has a sync button, says when it last synced or why it could not, and shows
   the app version.
 - Your gists appear in a Gists folder on the iPhone, read-only and available offline.
+- Swipe to delete a note or a meeting's note on the iPhone. It goes from both devices, and your
+  repository's history keeps a copy. A calendar event stays in its calendar.
 - The iPhone app opens on Today, which has an Edit button for the day's file and lists each place once.
 - Check off a task on the iPhone right where it sits, in a note or in Today, not only in Todos.
 - Meetings on the iPhone are grouped into Today, Tomorrow, This week, Next week and Later.

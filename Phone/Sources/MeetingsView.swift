@@ -5,6 +5,7 @@ struct MeetingsView: View {
     @State private var path: [Route] = []
     @State private var query = ""
     @State private var adding = false
+    @State private var deleting: PhoneNote?
 
     private var model: PhoneModel { .shared }
 
@@ -58,6 +59,11 @@ struct MeetingsView: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .swipeActions {
+                                if let note = row.path.flatMap(model.note) {
+                                    Button("Delete Note", systemImage: "trash", role: .destructive) { deleting = note }
+                                }
+                            }
                         }
                     }
                 }
@@ -76,6 +82,7 @@ struct MeetingsView: View {
                 Button("Add Meeting", systemImage: "plus") { adding = true }
             }
             .sheet(isPresented: $adding) { AddMeetingSheet() }
+            .deleteDialog(for: $deleting)
             .refreshable {
                 await model.calendars.refresh()
                 await model.sync()

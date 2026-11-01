@@ -243,7 +243,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 <details>
 <summary>iPhone</summary>
 
-- Notes cannot be deleted or renamed on the phone. Do that on the Mac.
+- Notes cannot be renamed on the phone. Deleting one removes it from both devices. It goes to no Trash on the phone, but git history keeps it, and if the Mac edited it first the edit wins.
 - Photos are resized to 2048 px and stay in your repository's history for good, deleted or not.
 - Gists are read-only on the phone, and encrypted gists do not open there.
 - An existing plain note cannot be made private on the phone. Its old text would stay in git history anyway.

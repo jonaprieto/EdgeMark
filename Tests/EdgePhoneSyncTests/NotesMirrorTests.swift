@@ -53,6 +53,15 @@ final class NotesMirrorTests: XCTestCase {
         XCTAssertEqual(try mirror.root.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
     }
 
+    func testABaseFromBeforeDeletionsStillLoads() throws {
+        let mirror = try makeMirror()
+        try Data(#"{"commit":"abc","blobs":{"a.md":"123"}}"#.utf8).write(to: dir.appendingPathComponent("base.json"))
+        let base = mirror.loadBase()
+        XCTAssertEqual(base.commit, "abc")
+        XCTAssertEqual(base.blobs, ["a.md": "123"])
+        XCTAssertEqual(base.deleted, [])
+    }
+
     func testBaseRoundTrips() throws {
         let mirror = try makeMirror()
         XCTAssertEqual(mirror.loadBase(), SyncBase())

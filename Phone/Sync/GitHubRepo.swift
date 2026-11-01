@@ -41,8 +41,8 @@ public struct GitHubRepo: Sendable {
         return data
     }
 
-    /// Creates a commit on top of `parent` holding `files`. Moves nothing yet.
-    func commit(files: [String: Data], parent: String, baseTree: String, message: String) async throws -> (commit: String, blobs: [String: String]) {
+    /// Creates a commit on top of `parent` with `files` written and `removed` gone. Moves nothing yet.
+    func commit(files: [String: Data], removed: Set<String> = [], parent: String, baseTree: String, message: String) async throws -> (commit: String, blobs: [String: String]) {
         var blobs: [String: String] = [:]
         var entries: [[String: Any]] = []
         for (path, data) in files.sorted(by: { $0.key < $1.key }) {
@@ -51,6 +51,8 @@ public struct GitHubRepo: Sendable {
             blobs[path] = sha
             entries.append(["path": path, "mode": "100644", "type": "blob", "sha": sha])
         }
+        // A null SHA is how the trees API deletes a path.
+        entries += removed.sorted().map { ["path": $0, "mode": "100644", "type": "blob", "sha": NSNull()] }
         let tree = try await json("POST", "trees", body: ["base_tree": baseTree, "tree": entries], expect: 201)
         guard let treeSHA = tree["sha"] as? String else { throw unreadable() }
         let commit = try await json("POST", "commits", body: ["message": message, "tree": treeSHA, "parents": [parent]], expect: 201)
