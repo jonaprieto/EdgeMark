@@ -15,7 +15,7 @@ struct TodayView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack {
+                    HStack(spacing: 10) {
                         addButton("Sleep", "moon.zzz", .sleep)
                         addButton("Meal", "fork.knife", .meal)
                         addButton("Idea", "lightbulb", .idea)
@@ -66,9 +66,20 @@ struct TodayView: View {
         return model.places.filter { $0.at.hasPrefix(Journal.day(Date())) }.compactMap(\.place).filter { seen.insert($0).inserted }
     }
 
+    /// One of four equal tiles, so the row fits the smallest iPhone with labels on one line.
     private func addButton(_ title: String, _ icon: String, _ kind: CaptureKind) -> some View {
-        Button(title, systemImage: icon) { capture = CaptureRequest(kind: kind) }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+        Button {
+            capture = CaptureRequest(kind: kind)
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: icon).font(.title3)
+                Text(title).font(.footnote.weight(.medium)).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, minHeight: 64)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.tint)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
     }
 }

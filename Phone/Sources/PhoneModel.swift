@@ -376,8 +376,9 @@ final class PhoneModel {
         let nights = recentNights
         guard let average = Sleep.average(nights) else { return nil }
         let today = note(Journal.path(for: Date())).flatMap { Sleep.entries(in: $0.text).first }
-        return [today.map { "Last night \(Sleep.duration($0.minutes))" }, "\(nights.count)-day average \(Sleep.duration(average))"]
-            .compactMap(\.self).joined(separator: " · ")
+        let mean = nights.count > 1 ? "\(nights.count)-day average \(Sleep.duration(average))" : nil
+        let parts = [today.map { "Last night \(Sleep.duration($0.minutes))" }, mean].compactMap(\.self)
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// Adds a line to today's file. Needs no network; sync carries it when it can.
