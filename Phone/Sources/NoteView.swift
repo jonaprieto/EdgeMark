@@ -1,3 +1,4 @@
+import EdgeJournalLogic
 import SwiftUI
 
 struct NoteView: View {
@@ -10,6 +11,7 @@ struct NoteView: View {
     @State private var dictation = Dictation()
     @State private var brainstorming = false
     @State private var reminding = false
+    @State private var sharing = false
     @FocusState private var focused: Bool
 
     private var model: PhoneModel { .shared }
@@ -53,11 +55,15 @@ struct NoteView: View {
                     Button(editing ? "Done" : "Edit") { setEditing(!editing) }
                 }
                 ToolbarItem(placement: .secondaryAction) {
+                    Button("Share", systemImage: "square.and.arrow.up") { sharing = true }
+                }
+                ToolbarItem(placement: .secondaryAction) {
                     Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
                 }
             }
         }
         .sheet(isPresented: $brainstorming) { BrainstormView(source: path) }
+        .sheet(isPresented: $sharing) { ShareSheet(items: shared).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $reminding) {
             if let note = model.note(path) { ReminderSheet(note: note) }
         }
@@ -74,6 +80,13 @@ struct NoteView: View {
         .onChange(of: model.revision) { text = model.text(of: path) }
     }
 
+    /// The words, then the photos as files: a path in the note means nothing to whoever gets it.
+    private var shared: [Any] {
+        let photos: [Any] = Journal.imagePaths(in: text).compactMap { model.imageURL($0, in: path) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        return [Journal.withoutImages(text).trimmingCharacters(in: .whitespacesAndNewlines)] + photos
+    }
+
     private func setEditing(_ on: Bool) {
         if !on { Task { await dictation.stop() } }
         editing = on
@@ -82,4 +95,14 @@ struct NoteView: View {
         edited = false
         Task { await model.finish() }
     }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context _: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
 }

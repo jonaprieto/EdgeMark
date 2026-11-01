@@ -63,6 +63,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   phone is locked.
 - Add photos or camera shots from a Today tile, in any note while reading or writing it, and on a new
   meeting.
+- Share a note from its ... menu, with its photos, to any app on the iPhone.
 
 ## 2.17.0 (2026-10-19)
 

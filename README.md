@@ -28,6 +28,7 @@ On the iPhone:
 - Photos and camera shots: a tile on Today, a camera button in any note, and on a new meeting.
 - An agenda: upcoming meetings from your calendars, each with a note for its ideas, and any meeting you add in one sentence, such as "Felipe martes 3pm".
 - Every open todo from every note, with due dates.
+- Share a note, photos included, to any app.
 - Reminders: on a note, like the Mac, or typed in one sentence, such as "llamar a mamá mañana a las 3".
 - Home Screen and Lock Screen widgets.
 - Brainstorming with OpenAI from any note.
@@ -251,7 +252,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 - Photos are resized to 2048 px and stay in your repository's history for good, deleted or not.
 - Gists are read-only on the phone, and encrypted gists do not open there.
 - An existing plain note cannot be made private on the phone. Its old text would stay in git history anyway.
-- A private note or capture cannot hold a photo, because photos are plain files.
+- A private note or capture cannot hold a photo, because photos are plain files, and a private note has no Share button.
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.
 - Commits from the phone show as unsigned on GitHub.
