@@ -28,6 +28,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - The iPhone notes list has a sync button, says when it last synced or why it could not, and shows
   the app version.
 - Your gists appear in a Gists folder on the iPhone, read-only and available offline.
+- Notes on the iPhone render highlighted code, math, Mermaid diagrams and images.
 - Notes encrypted on the Mac open read-only on the iPhone after Face ID, and close when you leave.
 - Widgets for the iPhone: add a meal, idea or todo in one tap, or start dictating from the Home
   Screen or Lock Screen. An agenda widget shows the next meeting and top todos, hidden while the

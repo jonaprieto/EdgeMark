@@ -1,6 +1,5 @@
 import EdgeCrypto
 import EdgeStorageLogic
-import MarkdownUI
 import SwiftUI
 
 /// An age note, read-only. The text lives in this view alone and goes when the view or the
@@ -16,7 +15,7 @@ struct EncryptedNoteView: View {
         Group {
             if let text {
                 ScrollView {
-                    Markdown(text)
+                    NoteMarkdown(text)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()

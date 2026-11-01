@@ -53,10 +53,11 @@ let package = Package(
 // `swift build` on macOS leaves it and MarkdownUI out.
 if phone {
     package.dependencies.append(.package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.4.1"))
+    package.dependencies.append(.package(url: "https://github.com/mgriebling/SwiftMath", from: "1.7.3"))
     package.targets.append(.target(name: "EdgePhoneSupport", path: "Phone/Shared"))
     package.targets.append(.executableTarget(
         name: "EdgeMarkPhone",
-        dependencies: ["EdgeCrypto", "EdgeJournalLogic", "EdgePhoneSupport", "EdgePhoneSync", "EdgeSync", "EdgeStorageLogic", .product(name: "MarkdownUI", package: "swift-markdown-ui")],
+        dependencies: ["EdgeCrypto", "EdgeJournalLogic", "EdgePhoneSupport", "EdgePhoneSync", "EdgeSync", "EdgeStorageLogic", .product(name: "MarkdownUI", package: "swift-markdown-ui"), .product(name: "SwiftMath", package: "SwiftMath")],
         path: "Phone/Sources"
     ))
 }

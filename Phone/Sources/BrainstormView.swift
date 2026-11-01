@@ -30,9 +30,9 @@ struct BrainstormView: View {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         ForEach(messages.indices, id: \.self) { index in
                             let message = messages[index]
-                            Text(LocalizedStringKey(message.content))
+                            NoteMarkdown(message.content)
                                 .textSelection(.enabled)
-                                .foregroundStyle(message.role == .user ? .secondary : .primary)
+                                .opacity(message.role == .user ? 0.6 : 1)
                         }
                         if waiting { ProgressView() }
                         if let failure { Text(failure).font(.caption).foregroundStyle(.red) }

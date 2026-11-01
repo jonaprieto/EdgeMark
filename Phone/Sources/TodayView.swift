@@ -1,5 +1,4 @@
 import EdgeJournalLogic
-import MarkdownUI
 import SwiftUI
 
 struct TodayView: View {
@@ -27,7 +26,7 @@ struct TodayView: View {
                     if text.isEmpty {
                         Text("Nothing yet today.").foregroundStyle(.secondary)
                     } else {
-                        Markdown(text)
+                        NoteMarkdown(text, imageBase: model.folderURL(of: path))
                     }
                     ForEach(todayPlaces) { place in
                         Label(placeLabel(place), systemImage: "mappin.and.ellipse")

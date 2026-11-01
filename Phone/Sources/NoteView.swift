@@ -1,4 +1,3 @@
-import MarkdownUI
 import SwiftUI
 
 struct NoteView: View {
@@ -25,8 +24,7 @@ struct NoteView: View {
                     .onAppear { focused = true }
             } else {
                 ScrollView {
-                    Markdown(text, imageBaseURL: model.folderURL(of: path))
-                        .markdownImageProvider(LocalImages())
+                    NoteMarkdown(text, imageBase: model.folderURL(of: path))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
@@ -66,14 +64,5 @@ struct NoteView: View {
         guard !on, edited else { return }
         edited = false
         Task { await model.finish() }
-    }
-}
-
-/// Images live next to the note, in the mirror.
-struct LocalImages: ImageProvider {
-    @ViewBuilder func makeImage(url: URL?) -> some View {
-        if let url, let image = UIImage(contentsOfFile: url.path) {
-            Image(uiImage: image).resizable().scaledToFit()
-        }
     }
 }

@@ -1,5 +1,4 @@
 import EdgePhoneSync
-import MarkdownUI
 import SwiftUI
 
 /// Your gists, read-only: they are edited on the Mac.
@@ -71,7 +70,7 @@ struct GistFileView: View {
                 ScrollView {
                     Group {
                         if name.hasSuffix(".md") {
-                            Markdown(text)
+                            NoteMarkdown(text)
                         } else {
                             Text(text).font(.system(.footnote, design: .monospaced))
                         }

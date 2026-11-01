@@ -45,6 +45,7 @@ rm -rf "$APP" && mkdir -p "$APP/PlugIns"
 cp "$BIN/EdgeMarkPhone" "$APP/"
 find "$BIN" -maxdepth 1 -name '*.bundle' -exec cp -R {} "$APP/" \;
 cp -R .build/phone-widget/Build/Products/Debug-iphoneos/EdgeMarkWidget.appex "$APP/PlugIns/"
+cp EdgeMark/Resources/Mermaid/mermaid.min.js EdgeMark/Resources/Mermaid/LICENSE-mermaid.txt "$APP/"
 sed -e "s/VERSION/$VERSION/" -e "s/>COMMIT</>$COMMIT</" Phone/Info.plist > "$APP/Info.plist"
 
 # Icon: one 1024px source; actool renders the sizes and the CFBundleIcons keys.
