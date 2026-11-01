@@ -156,6 +156,7 @@ The project is set up for one developer. For your own account, replace the team 
 - On GitHub, other notes are plain text in your private repository.
 - Before a push, EdgeMark looks for keys and passwords and holds back any file that looks wrong, on the Mac and on the iPhone.
 - Your position is rounded to about 110 m and kept in its own log, never in a note, so it cannot reach a gist, an export or OpenAI. That log does stay in your repository's history.
+- The map looks up each meeting's place in Apple Maps, so Apple sees those words. A todo's words go in the position log when you write it.
 
 ## Features in detail
 
@@ -256,6 +257,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 - An existing plain note cannot be made private on the phone. Its old text would stay in git history anyway.
 - A private note or capture cannot hold a photo, because photos are plain files, and a private note has no Share button.
 - Search cannot find a tag in a private capture, because its text is sealed.
+- A meeting shows on the map only when Apple Maps finds that place, and a video call never does. A reminder written on the Mac has no spot until its note is finished on the phone.
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.
 - Commits from the phone show as unsigned on GitHub.

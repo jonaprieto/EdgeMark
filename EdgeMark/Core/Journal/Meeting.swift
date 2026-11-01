@@ -62,6 +62,25 @@ public nonisolated enum Meeting {
         field("Place", inNote: text)
     }
 
+    /// A place that is a link or a video call, which no map can show.
+    public static func isOnline(_ place: String) -> Bool {
+        let text = place.lowercased()
+        return ["://", "zoom", "google meet", "microsoft teams", "webex"].contains { text.contains($0) }
+    }
+
+    /// Whether what a map search found is `place` and not just a word of it: most of the found
+    /// name must be in `place`, so `Parque 93` is `Parque de la 93, Bogotá` and `Calle 93` is not.
+    public static func isSamePlace(_ found: String, as place: String) -> Bool {
+        func words(_ text: String) -> [String] {
+            text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+                .split { !$0.isLetter && !$0.isNumber }.map(String.init)
+                .filter { !["de", "del", "la", "las", "el", "los", "the", "of"].contains($0) }
+        }
+        let name = words(found)
+        let asked = Set(words(place))
+        return name.filter(asked.contains).count * 2 > name.count
+    }
+
     /// When a meeting falls, for the agenda's sections.
     public enum Bucket: Int, CaseIterable, Comparable, Sendable {
         case today, tomorrow, thisWeek, nextWeek, later

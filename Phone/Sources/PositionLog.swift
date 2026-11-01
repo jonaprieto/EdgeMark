@@ -1,4 +1,5 @@
 import CoreLocation
+import EdgeJournalLogic
 import MapKit
 
 /// One position fix when a note is finished. No background tracking: a fix that does not come
@@ -45,6 +46,20 @@ final class PositionLog: NSObject, @preconcurrency CLLocationManagerDelegate {
     private func finish(_ location: CLLocation?) {
         waiting?.resume(returning: location)
         waiting = nil
+    }
+
+    /// Finds a place from its words, near `center` if given, or nil rather than somewhere else.
+    /// Apple Maps gets the words. The city can pull the search to a street, so it tries without.
+    static func find(_ place: String, near center: CLLocationCoordinate2D?) async -> CLLocationCoordinate2D? {
+        let head = String(place.prefix { $0 != "," })
+        for words in head == place ? [place] : [place, head] {
+            let request = MKLocalSearch.Request()
+            request.naturalLanguageQuery = words
+            if let center { request.region = MKCoordinateRegion(center: center, latitudinalMeters: 50000, longitudinalMeters: 50000) }
+            let items = try? await MKLocalSearch(request: request).start().mapItems
+            if let item = items?.first(where: { Meeting.isSamePlace($0.name ?? "", as: place) }) { return item.location.coordinate }
+        }
+        return nil
     }
 
     private static func placeName(of location: CLLocation) async -> String? {

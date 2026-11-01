@@ -10,13 +10,15 @@ public nonisolated struct PlaceLine: Codable, Equatable, Hashable, Identifiable,
     public var lat: Double
     public var lon: Double
     public var place: String?
+    /// The words of the todo written with this line. A todo has no time to match it by.
+    public var todo: String?
 
     public var id: String {
         at + path
     }
 
     /// Rounds to 3 decimals, about 110 m: the log stays in git history for good.
-    public init(date: Date, path: String, latitude: Double, longitude: Double, place: String?, timeZone: TimeZone = .current) {
+    public init(date: Date, path: String, latitude: Double, longitude: Double, place: String?, todo: String? = nil, timeZone: TimeZone = .current) {
         let formatter = ISO8601DateFormatter()
         formatter.timeZone = timeZone
         at = formatter.string(from: date)
@@ -24,6 +26,7 @@ public nonisolated struct PlaceLine: Codable, Equatable, Hashable, Identifiable,
         lat = (latitude * 1000).rounded() / 1000
         lon = (longitude * 1000).rounded() / 1000
         self.place = place
+        self.todo = todo
     }
 
     /// One JSON object, no line break.
@@ -41,6 +44,13 @@ public nonisolated struct PlaceLine: Codable, Equatable, Hashable, Identifiable,
             guard line.path == entry.path, line.at.hasPrefix(entry.day), let logged = minutes(String(line.at.dropFirst(11).prefix(5))) else { return false }
             return (0 ... 2).contains(logged - minute)
         }
+    }
+
+    /// Where a todo was written, or else where its file was last finished: reminders set before
+    /// todos were logged, and reminders on a whole note, have nothing closer.
+    public static func place(ofTodo todo: String?, path: String, in lines: [PlaceLine]) -> PlaceLine? {
+        let here = lines.filter { $0.path == path }
+        return here.last { todo != nil && $0.todo == todo } ?? here.last
     }
 
     /// `text` for reading, with each timed entry's place after it. The note itself stays free of

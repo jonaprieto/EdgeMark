@@ -94,6 +94,35 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(Journal.appending("- a", under: .idea, to: "# Day\n\n## Ideas\n"), "# Day\n\n## Ideas\n\n- a\n")
     }
 
+    func testATodoFindsThePlaceItWasWritten() {
+        let path = "Journal/2026-10-31.md"
+        let there = PlaceLine(date: date, path: path, latitude: 4.6, longitude: -74.1, place: "Chapinero", todo: "llamar al banco")
+        let later = PlaceLine(date: date.addingTimeInterval(3600), path: path, latitude: 4.7, longitude: -74.0, place: "Usaquen")
+        XCTAssertEqual(PlaceLine.all(in: there.text + "\n"), [there])
+        XCTAssertFalse(later.text.contains("todo"))
+        XCTAssertEqual(PlaceLine.place(ofTodo: "llamar al banco", path: path, in: [there, later]), there)
+        XCTAssertEqual(PlaceLine.place(ofTodo: "otra cosa", path: path, in: [there, later]), later)
+        XCTAssertEqual(PlaceLine.place(ofTodo: nil, path: path, in: [there, later]), later)
+        XCTAssertNil(PlaceLine.place(ofTodo: "llamar al banco", path: "Plan.md", in: [there, later]))
+    }
+
+    func testOnlineMeetingsHaveNoPlace() {
+        XCTAssertTrue(Meeting.isOnline("https://meet.example.com/abc"))
+        XCTAssertTrue(Meeting.isOnline("Zoom Meeting"))
+        XCTAssertTrue(Meeting.isOnline("Microsoft Teams Meeting"))
+        XCTAssertFalse(Meeting.isOnline("Parque de la 93, Bogotá"))
+    }
+
+    func testAMapSearchMustFindThePlaceAsked() {
+        XCTAssertTrue(Meeting.isSamePlace("Parque 93", as: "Parque de la 93, Bogotá"))
+        XCTAssertTrue(Meeting.isSamePlace("Cafe Cultor", as: "Café Cultor"))
+        XCTAssertTrue(Meeting.isSamePlace("Unicentro", as: "Unicentro Bogotá"))
+        XCTAssertTrue(Meeting.isSamePlace("Calle 93A 11-27", as: "Calle 93 #11-27, Bogotá"))
+        XCTAssertFalse(Meeting.isSamePlace("Calle 93", as: "Parque de la 93, Bogotá"))
+        XCTAssertFalse(Meeting.isSamePlace("MERAKI", as: "Crux Gran Pared"))
+        XCTAssertFalse(Meeting.isSamePlace("", as: "Oficina"))
+    }
+
     func testPlaceRoundsToThreeDecimals() {
         let line = PlaceLine(date: date, path: "Journal/2026-10-31.md", latitude: 4.70249, longitude: -74.04251, place: "Usaquen", timeZone: calendar.timeZone)
         XCTAssertEqual(line.lat, 4.702)

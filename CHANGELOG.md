@@ -67,6 +67,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - A meal on the iPhone is marked Breakfast, Lunch, Dinner or Other, shows the time and place, and takes
   an earlier time when you log it late. Journal lists all three, and searching "lunch" finds them.
 - Write a `#tag` in an idea or meal on the iPhone, and Journal's search lists your tags to pick from.
+- The iPhone map shows your ideas and meals by name, meetings where they happen and reminders where you
+  set them, each with its own icon, along with the notes you finished.
 
 ### Fixed
 

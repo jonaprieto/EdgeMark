@@ -40,6 +40,7 @@ final class PhoneModel {
     private var unfinished: String?
     /// When the unfinished note says it was written, if that is not now.
     private var writtenAt: Date?
+    private var writtenTodo: String?
     private var lastSnapshot: WidgetSnapshot?
     /// Bumped when files changed under the views, which then read them again.
     private(set) var revision = 0
@@ -217,16 +218,18 @@ final class PhoneModel {
     func finish(inBackground: Bool = false) async {
         if let path = unfinished {
             let date = writtenAt ?? Date()
+            let todo = writtenTodo
             unfinished = nil
             writtenAt = nil
-            await recordPosition(of: path, at: date)
+            writtenTodo = nil
+            await recordPosition(of: path, at: date, todo: todo)
         }
         await sync(inBackground: inBackground)
     }
 
-    private func recordPosition(of path: String, at date: Date) async {
+    private func recordPosition(of path: String, at date: Date, todo: String?) async {
         guard let fix = await position.fix() else { return }
-        let line = PlaceLine(date: date, path: path, latitude: fix.location.coordinate.latitude, longitude: fix.location.coordinate.longitude, place: fix.place)
+        let line = PlaceLine(date: date, path: path, latitude: fix.location.coordinate.latitude, longitude: fix.location.coordinate.longitude, place: fix.place, todo: todo)
         save(text(of: PlaceLine.logPath) + line.text + "\n", to: PlaceLine.logPath)
     }
 
@@ -464,6 +467,7 @@ final class PhoneModel {
         unfinished = path
         // The position goes by this time too, or a meal logged late would lose its place.
         writtenAt = now
+        writtenTodo = TodoScan.todos(in: entry, path: path).first.map { Journal.withoutImages($0.text) }
         refresh()
         Task { await finish() }
     }
