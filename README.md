@@ -25,7 +25,7 @@ On the iPhone:
 - Your notes, ready to read and edit, offline too, and your gists to read.
 - Quick capture for a meal, idea, todo or meeting thought, typed, dictated in Spanish or English on the device, or with a photo.
 - Notes that render code, math, Mermaid diagrams and images.
-- Upcoming meetings from your calendars, each with a note for its ideas.
+- An agenda: upcoming meetings from your calendars, each with a note for its ideas, and any meeting you add in one sentence, such as "Felipe martes 3pm".
 - Every open todo from every note, with due dates.
 - Home Screen and Lock Screen widgets.
 - Brainstorming with OpenAI from any note.
@@ -100,7 +100,7 @@ The app opens on your notes. If they do not appear, the line under the list says
 
 **4. Turn on Face ID.** Touch and hold the EdgeMark icon, then choose Require Face ID. The app cannot do this for you.
 
-**5. Add the rest.** Add the EdgeMark widgets to the Home Screen or Lock Screen. For calendars, add your Google account in iOS Settings, or subscribe to a Proton Calendar share link in the Calendar app.
+**5. Add the rest.** Add the EdgeMark widgets to the Home Screen or Lock Screen. EdgeMark sees only the calendars on your iPhone, so add your Google account under Settings > Apps > Calendar > Calendar Accounts, and subscribe to a Proton Calendar share link in the Calendar app. The Meetings tab lists the accounts it can read.
 
 **Every 7 days**, a free Apple account's signing expires and the app stops opening. Plug in and run `scripts/phone.sh provision` again. Your notes and token stay on the phone, so there is nothing to export this time. A paid Apple Developer account lasts a year.
 
@@ -249,7 +249,7 @@ Data-loss and speed fixes: existing front matter and horizontal rules are kept w
 - iOS gives no dependable background time, so the phone syncs when you use it, not on a schedule.
 - A free Apple account means reinstalling every 7 days.
 - Commits from the phone show as unsigned on GitHub.
-- Calendars are read-only. Proton through a share link can lag up to 8 hours, and a Full view link puts event details outside Proton's encryption; a Limited view link shows busy times only.
+- Calendars are read-only: a meeting you add is a note, not a calendar event. Proton through a share link can lag up to 8 hours, and a Full view link puts event details outside Proton's encryption; a Limited view link shows busy times only.
 - A meeting note matches its event by date and title, so a moved or renamed meeting loses the link and the note stays.
 - With a Jev key on the phone, the same text as on the Mac is sent to api.typesafe.ai before a push. The position log never is.
 

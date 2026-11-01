@@ -64,10 +64,10 @@ final class TodoScanTests: XCTestCase {
         let rows = Meeting.rows(
             events: [Meeting.Event(name: "Felipe", start: start)],
             notes: [
-                (path: "Meetings/2026-10-31-Felipe.md", title: "2026-10-31 Felipe"),
-                (path: "Meetings/2026-11-03-Ana.md", title: "2026-11-03 Ana"),
-                (path: "Meetings/2026-01-01-Old.md", title: "2026-01-01 Old"),
-                (path: "Meetings/Notes.md", title: "Notes"),
+                (path: "Meetings/2026-10-31-Felipe.md", title: "2026-10-31 Felipe", time: nil),
+                (path: "Meetings/2026-11-03-Ana.md", title: "2026-11-03 Ana", time: "15:30"),
+                (path: "Meetings/2026-01-01-Old.md", title: "2026-01-01 Old", time: nil),
+                (path: "Meetings/Notes.md", title: "Notes", time: nil),
             ],
             today: "2026-10-31",
             calendar: calendar,
@@ -75,6 +75,12 @@ final class TodoScanTests: XCTestCase {
         XCTAssertEqual(rows.map(\.title), ["2026-10-31 Felipe", "2026-11-03 Ana"])
         XCTAssertEqual(rows[0].path, "Meetings/2026-10-31-Felipe.md")
         XCTAssertEqual(rows[0].start, start)
-        XCTAssertNil(rows[1].start)
+        XCTAssertEqual(rows[1].start, start.addingTimeInterval(3 * 86400 + 3 * 3600))
+    }
+
+    func testMeetingNoteKeepsItsTime() {
+        XCTAssertEqual(Meeting.time(inNote: "# 2026-11-03 Ana\n\n" + Meeting.body(time: "15:30")), "15:30")
+        XCTAssertNil(Meeting.time(inNote: "# 2026-11-03 Ana\n\n" + Meeting.body(time: nil)))
+        XCTAssertNil(Meeting.time(inNote: "# A\n\nTime: soon\n"))
     }
 }

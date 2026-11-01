@@ -32,6 +32,21 @@ public nonisolated enum Meeting {
         }
     }
 
+    /// Body of a meeting note added by hand, keeping its hour for the agenda.
+    public static func body(time: String?) -> String {
+        (time.map { "Time: \($0)\n\n" } ?? "") + template
+    }
+
+    /// The `HH:mm` a meeting note keeps on its own line, if any.
+    public static func time(inNote text: String) -> String? {
+        for line in text.split(separator: "\n").prefix(4) where line.hasPrefix("Time: ") {
+            let value = line.dropFirst(6)
+            let parts = value.split(separator: ":")
+            if parts.count == 2, parts.allSatisfy({ $0.count == 2 && $0.allSatisfy(\.isNumber) }) { return String(value) }
+        }
+        return nil
+    }
+
     public static func title(day: String, name: String) -> String {
         "\(day) \(name)"
     }
@@ -45,8 +60,17 @@ public nonisolated enum Meeting {
         return (day, parts.count > 1 ? parts[1] : "")
     }
 
+    private static func start(day: String, time: String?, calendar: Calendar) -> Date? {
+        guard let time else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.date(from: "\(day) \(time)")
+    }
+
     /// Events, plus notes for days from `today` on that match no event, soonest first.
-    public static func rows(events: [Event], notes: [(path: String, title: String)], today: String, calendar: Calendar = .current) -> [Row] {
+    public static func rows(events: [Event], notes: [(path: String, title: String, time: String?)], today: String, calendar: Calendar = .current) -> [Row] {
         let paths = Dictionary(notes.map { ($0.title, $0.path) }) { first, _ in first }
         var rows = events.map { event -> Row in
             let day = Journal.day(event.start, calendar: calendar)
@@ -55,7 +79,7 @@ public nonisolated enum Meeting {
         let taken = Set(rows.map(\.title))
         for note in notes where !taken.contains(note.title) {
             guard let (day, name) = parse(title: note.title), day >= today else { continue }
-            rows.append(Row(day: day, name: name, start: nil, path: note.path))
+            rows.append(Row(day: day, name: name, start: start(day: day, time: note.time, calendar: calendar), path: note.path))
         }
         return rows.sorted {
             if $0.day != $1.day { return $0.day < $1.day }

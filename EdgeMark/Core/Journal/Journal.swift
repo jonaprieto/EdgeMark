@@ -44,6 +44,11 @@ public nonisolated enum Journal {
         format("yyyy-MM-dd", date, calendar)
     }
 
+    /// `15:30`, in the calendar's time zone.
+    public static func time(_ date: Date, calendar: Calendar = .current) -> String {
+        format("HH:mm", date, calendar)
+    }
+
     public static func path(for date: Date, calendar: Calendar = .current) -> String {
         "\(folder)/\(day(date, calendar: calendar)).md"
     }
@@ -56,7 +61,7 @@ public nonisolated enum Journal {
     /// One line of a day file. Dictation can run over lines, an entry cannot.
     public static func entry(_ text: String, kind: Kind, at date: Date, due: Date? = nil, calendar: Calendar = .current) -> String {
         let flat = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
-        guard kind == .todo else { return "- \(format("HH:mm", date, calendar)) \(flat)" }
+        guard kind == .todo else { return "- \(time(date, calendar: calendar)) \(flat)" }
         let dueTag = due.map { " due:\(day($0, calendar: calendar))" } ?? ""
         return "- [ ] \(flat)\(dueTag)"
     }

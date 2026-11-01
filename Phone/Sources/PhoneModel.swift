@@ -257,8 +257,15 @@ final class PhoneModel {
     /// Calendar events and meeting notes, soonest first.
     var meetings: [Meeting.Row] {
         let events = calendars.events
-        let inFolder = notes.filter { $0.folder == Meeting.folder }.map { (path: $0.path, title: $0.title) }
+        let inFolder = notes.filter { $0.folder == Meeting.folder }.map { (path: $0.path, title: $0.title, time: Meeting.time(inNote: $0.text)) }
         return Meeting.rows(events: events, notes: inFolder, today: Journal.day(Date()))
+    }
+
+    /// A meeting added by hand: a note with its day and hour, shown with the calendar's events.
+    func addMeeting(name: String, on date: Date, hasTime: Bool) {
+        let title = Meeting.title(day: Journal.day(date), name: name.trimmingCharacters(in: .whitespaces))
+        _ = create(title: title, folder: Meeting.folder, body: Meeting.body(time: hasTime ? Journal.time(date) : nil))
+        Task { await sync() }
     }
 
     /// The note of a meeting, created on first use.
