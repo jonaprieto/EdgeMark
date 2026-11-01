@@ -16,12 +16,16 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
+                        addButton("Sleep", "moon.zzz", .sleep)
                         addButton("Meal", "fork.knife", .meal)
                         addButton("Idea", "lightbulb", .idea)
                         addButton("Todo", "checkmark.square", .todo)
                     }
                     if let error = model.saveError {
                         Text(error).foregroundStyle(.red)
+                    }
+                    if let summary = model.sleepSummary {
+                        Label(summary, systemImage: "moon.zzz").font(.subheadline).foregroundStyle(.secondary)
                     }
                     let text = model.text(of: path)
                     if text.isEmpty {
@@ -65,5 +69,6 @@ struct TodayView: View {
     private func addButton(_ title: String, _ icon: String, _ kind: CaptureKind) -> some View {
         Button(title, systemImage: icon) { capture = CaptureRequest(kind: kind) }
             .buttonStyle(.bordered)
+            .controlSize(.small)
     }
 }

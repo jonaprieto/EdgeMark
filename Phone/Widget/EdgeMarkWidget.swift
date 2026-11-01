@@ -37,6 +37,7 @@ struct CaptureWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "EdgeMarkCapture", provider: PlainProvider()) { _ in
             HStack(spacing: 8) {
+                button("Sleep", "moon.zzz", "kind=sleep")
                 button("Meal", "fork.knife", "kind=meal")
                 button("Idea", "lightbulb", "kind=idea")
                 button("Todo", "checkmark.square", "kind=todo")

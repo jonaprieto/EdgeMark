@@ -4,6 +4,24 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("brainstorm.model") private var modelName = "gpt-6.1-sol"
     @AppStorage("voice.language") private var language = VoiceLanguage.es
+    @AppStorage("sleep.reminder") private var sleepReminder = false
+    @AppStorage("sleep.reminderTime") private var sleepTime = Self.defaultSleepTime
+
+    private static var defaultSleepTime: Double {
+        Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date())?.timeIntervalSinceReferenceDate ?? 0
+    }
+
+    private var sleepDate: Binding<Date> {
+        Binding(get: { Date(timeIntervalSinceReferenceDate: sleepTime) }, set: { sleepTime = $0.timeIntervalSinceReferenceDate })
+    }
+
+    private func updateReminder() async {
+        if sleepReminder {
+            sleepReminder = await SleepReminder.schedule(at: sleepDate.wrappedValue)
+        } else {
+            SleepReminder.cancel()
+        }
+    }
 
     private var model: PhoneModel { .shared }
 
@@ -22,6 +40,14 @@ struct SettingsView: View {
                 Section("About") {
                     LabeledContent("Version", value: PhoneModel.version)
                 }
+                Section("Sleep") {
+                    Toggle("Morning reminder", isOn: $sleepReminder)
+                    if sleepReminder {
+                        DatePicker("Time", selection: sleepDate, displayedComponents: .hourAndMinute)
+                    }
+                }
+                .onChange(of: sleepReminder) { Task { await updateReminder() } }
+                .onChange(of: sleepTime) { Task { await updateReminder() } }
                 Section("Dictation") {
                     Picker("Language", selection: $language) {
                         Text("Spanish").tag(VoiceLanguage.es)

@@ -32,6 +32,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - The iPhone notes list has a sync button, says when it last synced or why it could not, and shows
   the app version.
 - Your gists appear in a Gists folder on the iPhone, read-only and available offline.
+- Log your sleep on the iPhone in one sentence, such as "dormí de 11 a 7, regular". Today shows last
+  night and your average, and a morning reminder is optional in Settings.
 - Swipe to delete a note or a meeting's note on the iPhone. It goes from both devices, and your
   repository's history keeps a copy. A calendar event stays in its calendar.
 - The iPhone app opens on Today, which has an Edit button for the day's file and lists each place once.

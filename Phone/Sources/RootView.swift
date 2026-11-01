@@ -3,7 +3,7 @@ import SwiftUI
 
 /// What a capture adds to: today's file, or the next meeting's note.
 enum CaptureKind: String, CaseIterable {
-    case meal, idea, todo, meeting
+    case sleep, meal, idea, todo, meeting
 
     var journal: Journal.Kind? {
         Journal.Kind(rawValue: rawValue)

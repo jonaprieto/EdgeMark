@@ -355,6 +355,31 @@ final class PhoneModel {
         refresh()
     }
 
+    /// Adds last night to today's file. It records no position: nobody finishes a note asleep.
+    func capture(_ sleep: Sleep) {
+        let now = Date()
+        let path = Journal.path(for: now)
+        let existing = mirror?.exists(path) == true ? text(of: path) : Journal.emptyDay(for: now)
+        save(Journal.appending(sleep.line, under: .sleep, to: existing), to: path)
+        refresh()
+        Task { await sync() }
+    }
+
+    /// One night per day file, newest first, from the last seven days.
+    private var recentNights: [Sleep] {
+        let week = (0 ..< 7).compactMap { Calendar.current.date(byAdding: .day, value: -$0, to: Date()) }.map { Journal.path(for: $0) }
+        return week.compactMap { path in note(path).flatMap { Sleep.entries(in: $0.text).first } }
+    }
+
+    /// `Last night 8h · 7 days 7h20`, nil before anything is logged.
+    var sleepSummary: String? {
+        let nights = recentNights
+        guard let average = Sleep.average(nights) else { return nil }
+        let today = note(Journal.path(for: Date())).flatMap { Sleep.entries(in: $0.text).first }
+        return [today.map { "Last night \(Sleep.duration($0.minutes))" }, "\(nights.count)-day average \(Sleep.duration(average))"]
+            .compactMap(\.self).joined(separator: " · ")
+    }
+
     /// Adds a line to today's file. Needs no network; sync carries it when it can.
     func capture(_ text: String, kind: Journal.Kind, due: Date?) {
         let now = Date()

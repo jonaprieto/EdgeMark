@@ -18,6 +18,7 @@ struct CaptureSheet: View {
         NavigationStack {
             Form {
                 Picker("Kind", selection: $kind) {
+                    Text("Sleep").tag(CaptureKind.sleep)
                     Text("Meal").tag(CaptureKind.meal)
                     Text("Idea").tag(CaptureKind.idea)
                     Text("Todo").tag(CaptureKind.todo)
@@ -29,11 +30,11 @@ struct CaptureSheet: View {
                     .focused($focused)
                 Section {
                     MicButton(dictation: dictation, text: $text, startsListening: request.voice)
-                    if PhoneModel.shared.canEncrypt, kind != .meeting {
+                    if PhoneModel.shared.canEncrypt, kind != .meeting, kind != .sleep {
                         Toggle("Private", isOn: $isPrivate)
                     }
                     // A photo is a plain file in the repository, so a private capture takes none.
-                    if !isPrivate {
+                    if !isPrivate, kind != .sleep {
                         PhotoButtons { photos.append($0) }
                     }
                     if !photos.isEmpty, !isPrivate {
@@ -53,6 +54,10 @@ struct CaptureSheet: View {
                     } else if isPrivate {
                         Text("Encrypted, with no position. Opens with Face ID.")
                     }
+                }
+                if kind == .sleep {
+                    Text(Sleep.parse(text).map { "Reads as \($0.line.dropFirst(2))" } ?? "Say when you slept, or for how long.")
+                        .foregroundStyle(.secondary)
                 }
                 if kind == .meeting {
                     Text(PhoneModel.shared.meetings.first?.title ?? "No meeting coming up")
@@ -88,6 +93,7 @@ struct CaptureSheet: View {
 
     private var prompt: String {
         switch kind {
+        case .sleep: "De 11 a 7, regular"
         case .meal: "What did you eat?"
         case .idea: "An idea, or something you noticed"
         case .todo: "What needs doing?"
@@ -96,12 +102,18 @@ struct CaptureSheet: View {
     }
 
     private var cannotSave: Bool {
-        (text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && photos.isEmpty) || (kind == .meeting && PhoneModel.shared.meetings.isEmpty)
+        if kind == .sleep { return Sleep.parse(text) == nil }
+        return (text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && photos.isEmpty) || (kind == .meeting && PhoneModel.shared.meetings.isEmpty)
     }
 
     private func save() async {
         await dictation.stop()
         let model = PhoneModel.shared
+        if kind == .sleep {
+            if let sleep = Sleep.parse(text) { model.capture(sleep) }
+            dismiss()
+            return
+        }
         if isPrivate {
             if model.capturePrivately(text, kind: kind.rawValue) { dismiss() }
             return

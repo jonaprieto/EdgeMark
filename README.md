@@ -23,7 +23,7 @@ On the Mac:
 On the iPhone:
 
 - Your notes, ready to read and edit, offline too, and your gists to read.
-- Quick capture for a meal, idea, todo or meeting thought, typed, dictated in Spanish or English on the device, or with a photo.
+- Quick capture for sleep, a meal, idea, todo or meeting thought, typed, dictated in Spanish or English on the device, or with a photo.
 - Notes that render code, math, Mermaid diagrams and images.
 - An agenda: upcoming meetings from your calendars, each with a note for its ideas, and any meeting you add in one sentence, such as "Felipe martes 3pm".
 - Every open todo from every note, with due dates.

@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct EdgeMarkPhoneApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
