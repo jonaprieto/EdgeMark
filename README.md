@@ -27,6 +27,7 @@ On the iPhone:
 - Notes that render code, math, Mermaid diagrams and images.
 - An agenda: upcoming meetings from your calendars, each with a note for its ideas, and any meeting you add in one sentence, such as "Felipe martes 3pm".
 - Every open todo from every note, with due dates.
+- Reminders: on a note, like the Mac, or typed in one sentence, such as "llamar a mamá mañana a las 3".
 - Home Screen and Lock Screen widgets.
 - Brainstorming with OpenAI from any note.
 - A map of where you finished each note.
@@ -162,7 +163,7 @@ Everything is Markdown, so the Mac reads it with no special support.
 - Each day is one file, `Journal/2026-10-31.md`, with Meals, Ideas and Todos sections.
 - A meeting is one note, `Meetings/2026-11-03-Felipe.md`, with its ideas inside.
 - A brainstorm you save is a note in `Brainstorms/` that links back to where it started.
-- A todo is any `- [ ]` line in any note, with an optional `due:2026-11-02`. Existing notes work unchanged.
+- A todo is any `- [ ]` line in any note, with an optional `due:2026-11-02`, or `due:2026-11-02T15:30` to ring as a reminder. Existing notes work unchanged.
 - Positions are lines in `.edgemark/places.jsonl`.
 
 For journals to merge on the Mac too, add this as `.gitattributes` in your notes folder:
@@ -226,6 +227,8 @@ When `~/.claude` exists, EdgeMark listens on localhost the way the VS Code exten
 <summary>Reminders</summary>
 
 Remind Me, in a note's menu in the list or the bell in the editor header, schedules a macOS notification: in 1 or 3 hours, tonight at 20:00, tomorrow at 9:00, every weekday at 9:00, or a custom date and time. Clicking it opens the note; notes with a pending reminder show a bell in the list, and moving a note to Trash cancels its reminder. With a TypeSafe key, opening the bell asks Jev which option fits the note and marks it as Suggested; nothing is sent for encrypted notes. Reminders live in the macOS notification center, so they stay on the Mac that set them.
+
+The iPhone has the same bell on a note, with the same options, and those reminders stay on the iPhone. A todo with a time is different: it is a line of text, so it syncs, and the iPhone rings it wherever it was written, once it has synced. Its notification offers Done and In 1 hour. Todos > Reminders lists all that will ring, and the Reminders widget shows what comes next.
 
 </details>
 

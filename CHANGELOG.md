@@ -28,6 +28,9 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Swipe an idea, meal or private capture in Journal on the iPhone to delete it from both devices,
   with its photos.
 - A todo can carry a time, as in `due:2026-11-02T15:30`, and Todos sorts by it on both devices.
+- Reminders on the iPhone: the bell on a note offers the same times as the Mac with Jev's suggestion,
+  and a todo can ring at a time, with Done and In 1 hour on its notification. Say it in one sentence,
+  and see what will ring in Today and Todos.
 - A Meetings tab on the iPhone lists upcoming events from your calendars, Google and Proton included
   once iOS has them, and opens a note for each one to collect ideas.
 - Todos in the settings menu lists every open task across your notes, soonest first, and checks

@@ -1,10 +1,10 @@
 import Foundation
 import Security
 
-/// What the widgets show: the next meetings and the top todos. The app writes it after each sync;
+/// What the widgets show: the next meetings, reminders and top todos. The app writes it after each sync;
 /// only this crosses into the widget's Keychain group, tokens and keys stay in the app's own.
 public struct WidgetSnapshot: Codable, Equatable {
-    public struct Event: Codable, Equatable {
+    public struct Event: Codable, Hashable {
         public var title: String
         public var start: Date
         public var end: Date
@@ -20,12 +20,24 @@ public struct WidgetSnapshot: Codable, Equatable {
     public var events: [Event]
     public var todos: [String]
     public var openTodos: Int
+    public var reminders: [Event]
 
-    public init(date: Date, events: [Event], todos: [String], openTodos: Int) {
+    public init(date: Date, events: [Event], todos: [String], openTodos: Int, reminders: [Event] = []) {
         self.date = date
         self.events = events
         self.todos = todos
         self.openTodos = openTodos
+        self.reminders = reminders
+    }
+
+    /// `3:30 PM` today, `Tue 3:30 PM` this week, `Nov 12 3:30 PM` later: one format everywhere.
+    public static func when(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: now), to: calendar.startOfDay(for: date)).day ?? 0
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = days == 0 ? "h:mm a" : (1 ..< 7).contains(days) ? "EEE h:mm a" : "MMM d h:mm a"
+        return formatter.string(from: date)
     }
 
     private static var query: [String: Any]? {

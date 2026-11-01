@@ -2,7 +2,7 @@ import Foundation
 
 /// Asks Jev which of the offered reminders fits a note: one typed choice, with `none`
 /// when nothing in the note says when to come back to it.
-enum ReminderSuggestion {
+public enum ReminderSuggestion {
     static let endpoint = URL(string: "https://api.typesafe.ai/v1/systemone")!
     /// Probability the choice needs before it is marked; a starting point to tune on real notes.
     static let threshold = 0.5
@@ -52,7 +52,7 @@ enum ReminderSuggestion {
     }
 
     /// Jev's pick, or nil without a key, on any error, or when nothing fits.
-    static func suggest(title: String, text: String, now: Date, options: [ReminderOption], apiKey: String?) async -> ReminderOption? {
+    public static func suggest(title: String, text: String, now: Date, options: [ReminderOption], apiKey: String?) async -> ReminderOption? {
         guard let key = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty,
               let body = try? requestBody(title: title, text: text, now: describe(now), options: options)
         else { return nil }

@@ -9,6 +9,7 @@ struct NoteView: View {
     @State private var edited = false
     @State private var dictation = Dictation()
     @State private var brainstorming = false
+    @State private var reminding = false
     @FocusState private var focused: Bool
 
     private var model: PhoneModel { .shared }
@@ -43,6 +44,11 @@ struct NoteView: View {
                     }
                 }
             }
+            if !editing {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Remind Me", systemImage: model.hasReminder(on: path) ? "bell.fill" : "bell") { reminding = true }
+                }
+            }
             if !encrypted {
                 ToolbarItem(placement: .primaryAction) {
                     Button(editing ? "Done" : "Edit") { setEditing(!editing) }
@@ -53,6 +59,9 @@ struct NoteView: View {
             }
         }
         .sheet(isPresented: $brainstorming) { BrainstormView(source: path) }
+        .sheet(isPresented: $reminding) {
+            if let note = model.note(path) { ReminderSheet(note: note) }
+        }
         .onAppear {
             text = model.text(of: path)
             if startsEditing, !encrypted { setEditing(true) }

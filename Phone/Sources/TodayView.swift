@@ -1,4 +1,5 @@
 import EdgeJournalLogic
+import EdgePhoneSupport
 import SwiftUI
 
 struct TodayView: View {
@@ -23,6 +24,10 @@ struct TodayView: View {
                         addButton("Meal", "fork.knife", .meal)
                         addButton("Idea", "lightbulb", .idea)
                         addButton("Todo", "checkmark.square", .todo)
+                        tile("Remind", "bell") { capture = CaptureRequest(kind: .todo, remind: true) }
+                    }
+                    if model.notificationsOff {
+                        Label("Notifications are off, so reminders will not ring.", systemImage: "bell.slash").font(.subheadline).foregroundStyle(.red)
                     }
                     if let error = model.saveError {
                         Text(error).foregroundStyle(.red)
@@ -31,6 +36,13 @@ struct TodayView: View {
                         Label("In bed since \(Journal.time(bed))", systemImage: "bed.double").font(.subheadline).foregroundStyle(.secondary)
                     } else if let summary = model.sleepSummary {
                         Label(summary, systemImage: "moon.zzz").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    ForEach(soon) { reminder in
+                        NavigationLink(value: Route.note(reminder.path)) {
+                            Label("\(WidgetSnapshot.when(reminder.date))  \(reminder.title)", systemImage: "bell")
+                                .font(.subheadline).lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
                     }
                     let text = model.text(of: path)
                     if text.isEmpty {
@@ -67,11 +79,17 @@ struct TodayView: View {
         }
     }
 
+    /// What rings by the end of tomorrow. Today's own todos already show in the note below.
+    private var soon: [Reminder] {
+        let end = Calendar.current.date(byAdding: .day, value: 2, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+        return Array(model.reminders.filter { $0.date < end && !($0.path == path && $0.raw != nil) }.prefix(4))
+    }
+
     private func addButton(_ title: String, _ icon: String, _ kind: CaptureKind) -> some View {
         tile(title, icon) { capture = CaptureRequest(kind: kind) }
     }
 
-    /// One of four equal tiles, so the row fits the smallest iPhone with labels on one line.
+    /// One of five equal tiles, so the row fits the smallest iPhone with labels on one line.
     private func tile(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {

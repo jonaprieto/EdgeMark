@@ -44,6 +44,13 @@ final class PhoneModel {
     /// The note open in the editor. Sync waits for it, so a pull cannot race the typing.
     var editing: String?
 
+    /// All that iOS will ring, soonest first.
+    private(set) var reminders: [Reminder] = []
+    /// iOS refused some of the todos waiting to ring.
+    private(set) var notificationsOff = false
+    private var lastReminders: [Todo]?
+    private var scheduling: Task<Void, Never>?
+
     private(set) var gists: [Gist] = []
     private(set) var gistError: String?
     private(set) var refreshingGists = false
@@ -102,7 +109,8 @@ final class PhoneModel {
 
     // ponytail: keeps every note's text in memory for search, fine for tens of notes.
     func refresh() {
-        guard let mirror, let paths = try? mirror.paths() else { return }
+        // Locked, every file reads as empty, which would cancel the reminders.
+        guard UIApplication.shared.isProtectedDataAvailable, let mirror, let paths = try? mirror.paths() else { return }
         let dates = sidecarDates()
         let base = mirror.loadBase().blobs
         let local = (try? mirror.shas()) ?? [:]
@@ -120,10 +128,42 @@ final class PhoneModel {
         }.sorted { $0.modified > $1.modified }
         places = PlaceLine.all(in: text(of: PlaceLine.logPath))
         revision += 1
-        updateWidgets()
+        updateReminders()
     }
 
-    /// Hands the widgets the next meetings and todos, only when they changed: iOS rations reloads.
+    /// Hands iOS the todos still to ring and reads back all that is pending. A sync can add or
+    /// remove any of them, so this follows every refresh. One run at a time, so an older list
+    /// cannot land after a newer one.
+    private func updateReminders() {
+        let now = Date()
+        let coming = Array(todos.filter { ($0.ringsAt() ?? .distantPast) > now }.prefix(Reminders.limit))
+        let changed = coming != lastReminders
+        lastReminders = coming
+        let paths = Set(notes.map(\.path))
+        let previous = scheduling
+        scheduling = Task {
+            await previous?.value
+            if changed {
+                notificationsOff = await !Reminders.schedule(coming)
+                // Try again on the next refresh rather than let a reminder go silent.
+                if notificationsOff { lastReminders = nil }
+            }
+            await Reminders.cancelNotes { !paths.contains($0) }
+            reminders = await Reminders.pending()
+            updateWidgets()
+        }
+    }
+
+    func hasReminder(on path: String) -> Bool {
+        reminders.contains { $0.path == path && $0.raw == nil }
+    }
+
+    /// The task whose line reads `raw` in the file as it stands now.
+    func todo(at path: String, raw: String) -> Todo? {
+        TodoScan.todos(in: text(of: path), path: path).first { $0.raw == raw }
+    }
+
+    /// Hands the widgets the next meetings, reminders and todos, only when they changed: iOS rations reloads.
     private func updateWidgets() {
         let upcoming = meetings.compactMap { row -> WidgetSnapshot.Event? in
             guard let start = row.start else { return nil }
@@ -131,7 +171,8 @@ final class PhoneModel {
             return WidgetSnapshot.Event(title: row.name, start: start, end: end)
         }
         let open = todos
-        var snapshot = WidgetSnapshot(date: lastSnapshot?.date ?? Date(), events: Array(upcoming.prefix(3)), todos: open.prefix(5).map(\.text), openTodos: open.count)
+        let ringing = reminders.prefix(8).map { WidgetSnapshot.Event(title: $0.title, start: $0.date, end: $0.date) }
+        var snapshot = WidgetSnapshot(date: lastSnapshot?.date ?? Date(), events: Array(upcoming.prefix(3)), todos: open.prefix(5).map(\.text), openTodos: open.count, reminders: ringing)
         guard snapshot != lastSnapshot else { return }
         snapshot.date = Date()
         lastSnapshot = snapshot
@@ -239,19 +280,19 @@ final class PhoneModel {
         return TodoScan.sorted(open, today: Journal.day(Date()))
     }
 
-    func toggle(_ todo: Todo) {
+    @discardableResult func toggle(_ todo: Todo) -> Task<Void, Never> {
         write(TodoScan.toggled(todo, in: text(of: todo.path)), to: todo.path)
     }
 
-    func setDue(_ due: String?, on todo: Todo) {
+    @discardableResult func setDue(_ due: String?, on todo: Todo) -> Task<Void, Never> {
         write(TodoScan.settingDue(due, on: todo, in: text(of: todo.path)), to: todo.path)
     }
 
     /// Nil means the line changed since the scan: reread instead of writing over it.
-    private func write(_ text: String?, to path: String) {
+    @discardableResult private func write(_ text: String?, to path: String) -> Task<Void, Never> {
         if let text { save(text, to: path) }
         refresh()
-        Task { await sync() }
+        return Task { await sync() }
     }
 
     /// One kind of entry from every day file, newest first, with where each was written.

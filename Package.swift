@@ -57,7 +57,7 @@ if phone {
     package.targets.append(.target(name: "EdgePhoneSupport", path: "Phone/Shared"))
     package.targets.append(.executableTarget(
         name: "EdgeMarkPhone",
-        dependencies: ["EdgeCrypto", "EdgeJournalLogic", "EdgePhoneSupport", "EdgePhoneSync", "EdgeSync", "EdgeStorageLogic", .product(name: "MarkdownUI", package: "swift-markdown-ui"), .product(name: "SwiftMath", package: "SwiftMath")],
+        dependencies: ["EdgeCrypto", "EdgeJournalLogic", "EdgePhoneSupport", "EdgePhoneSync", "EdgeReminderLogic", "EdgeSync", "EdgeStorageLogic", .product(name: "MarkdownUI", package: "swift-markdown-ui"), .product(name: "SwiftMath", package: "SwiftMath")],
         path: "Phone/Sources"
     ))
 }

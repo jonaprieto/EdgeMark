@@ -58,10 +58,10 @@ enum SleepReminder {
             actions: [UNNotificationAction(identifier: imUp, title: "I'm up", options: [.foreground])],
             intentIdentifiers: [],
         )
-        UNUserNotificationCenter.current().setNotificationCategories([bed, wake])
+        UNUserNotificationCenter.current().setNotificationCategories([bed, wake, Reminders.todoCategory])
     }
 
-    /// False when notifications are not allowed.
+    /// False when it could not be set.
     static func schedule(_ id: String, title: String, at time: Date) async -> Bool {
         let center = UNUserNotificationCenter.current()
         guard (try? await center.requestAuthorization(options: [.alert, .sound])) == true else { return false }
@@ -71,8 +71,7 @@ enum SleepReminder {
         content.categoryIdentifier = id
         let parts = Calendar.current.dateComponents([.hour, .minute], from: time)
         let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: true)
-        try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
-        return true
+        return (try? await center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))) != nil
     }
 
     static func cancel(_ id: String) {
@@ -80,7 +79,7 @@ enum SleepReminder {
     }
 }
 
-/// Handles the sleep notifications.
+/// Handles the notifications.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
@@ -90,6 +89,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        if response.notification.request.content.userInfo["path"] != nil {
+            await Reminders.handle(response)
+            return
+        }
         // Tapping the notification itself means the same as its button.
         if response.notification.request.content.categoryIdentifier == SleepReminder.bedTime {
             guard response.actionIdentifier != UNNotificationDismissActionIdentifier else { return }

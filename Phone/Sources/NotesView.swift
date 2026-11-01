@@ -35,6 +35,7 @@ struct NotesList: View {
     @State private var showSettings = false
     @State private var naming = false
     @State private var deleting: PhoneNote?
+    @State private var reminding: PhoneNote?
 
     private var model: PhoneModel { .shared }
 
@@ -90,12 +91,16 @@ struct NotesList: View {
                         } icon: {
                             if note.isEncrypted { Image(systemName: "lock") }
                         }
-                        Text(note.modified, format: .dateTime.day().month().hour().minute())
-                            .font(.caption).foregroundStyle(.secondary)
+                        HStack(spacing: 4) {
+                            Text(note.modified, format: .dateTime.day().month().hour().minute())
+                            if model.hasReminder(on: note.path) { Image(systemName: "bell.fill") }
+                        }
+                        .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 .swipeActions {
                     Button("Delete", systemImage: "trash", role: .destructive) { deleting = note }
+                    Button("Remind Me", systemImage: "bell") { reminding = note }.tint(.orange)
                 }
             }
             if folder.isEmpty, query.isEmpty, !model.notes.isEmpty {
@@ -130,6 +135,7 @@ struct NotesList: View {
         }
         .sheet(isPresented: $showSettings) { SettingsView() }
         .deleteDialog(for: $deleting)
+        .sheet(item: $reminding) { ReminderSheet(note: $0) }
         .sheet(isPresented: $naming) {
             NewNoteSheet(folder: folder) { path.append(.note($0)) }
         }

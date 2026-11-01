@@ -9,6 +9,7 @@ struct CaptureSheet: View {
     @State private var kind = CaptureKind.idea
     @State private var hasDue = false
     @State private var due = Date()
+    @State private var remind = false
     @State private var dictation = Dictation()
     @State private var photos: [UIImage] = []
     @State private var isPrivate = false
@@ -30,7 +31,7 @@ struct CaptureSheet: View {
                     .focused($focused)
                 Section {
                     MicButton(dictation: dictation, text: $text, startsListening: request.voice)
-                    if PhoneModel.shared.canEncrypt, kind != .meeting, kind != .sleep {
+                    if PhoneModel.shared.canEncrypt, kind != .meeting, kind != .sleep, !rings {
                         Toggle("Private", isOn: $isPrivate)
                     }
                     // A photo is a plain file in the repository, so a private capture takes none.
@@ -72,9 +73,15 @@ struct CaptureSheet: View {
                 if let error = PhoneModel.shared.saveError {
                     Text(error).foregroundStyle(.red)
                 }
-                if kind == .todo {
-                    Toggle("Due date", isOn: $hasDue)
-                    if hasDue {
+                // A private todo is sealed, so nothing could read its date or ring it.
+                if kind == .todo, !isPrivate {
+                    Toggle("Remind me", isOn: $remind)
+                    if !remind {
+                        Toggle("Due date", isOn: $hasDue)
+                    }
+                    if remind {
+                        DatePicker("When", selection: $due, in: Date()...)
+                    } else if hasDue {
                         DatePicker("Due", selection: $due, displayedComponents: .date)
                     }
                 }
@@ -94,8 +101,23 @@ struct CaptureSheet: View {
         .onAppear {
             kind = request.kind
             text = request.text
+            remind = request.remind
             focused = !request.voice
         }
+        .onChange(of: text) { readWhen() }
+        .onChange(of: remind) {
+            if remind { due = Date().addingTimeInterval(3600) }
+            readWhen()
+        }
+    }
+
+    private var rings: Bool {
+        kind == .todo && remind
+    }
+
+    /// "Llamar a mamá mañana a las 3" sets the picker, which still has the last word.
+    private func readWhen() {
+        if rings, let found = MeetingText.reminder(text, now: Date()) { due = found.date }
     }
 
     private var prompt: String {
@@ -103,13 +125,14 @@ struct CaptureSheet: View {
         case .sleep: "23:00 07:00 regular"
         case .meal: "What did you eat?"
         case .idea: "An idea, or something you noticed"
-        case .todo: "What needs doing?"
+        case .todo: remind ? "Call mom tomorrow at 3" : "What needs doing?"
         case .meeting: "What should you bring up?"
         }
     }
 
     private var cannotSave: Bool {
         if kind == .sleep { return Sleep.parse(text) == nil }
+        if rings, due <= Date() { return true }
         return (text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && photos.isEmpty) || (kind == .meeting && PhoneModel.shared.meetings.isEmpty)
     }
 
@@ -130,9 +153,10 @@ struct CaptureSheet: View {
         }
         let target = kind.journal != nil ? Journal.path(for: Date()) : model.nextMeetingPath
         let images = target.map { path in photos.compactMap { model.attach($0, to: path) } } ?? []
-        let line = ([text] + images).filter { !$0.isEmpty }.joined(separator: " ")
+        let words = rings ? MeetingText.reminder(text, now: Date())?.text ?? text : text
+        let line = ([words] + images).filter { !$0.isEmpty }.joined(separator: " ")
         if let journal = kind.journal {
-            model.capture(line, kind: journal, due: kind == .todo && hasDue ? Journal.day(due) : nil)
+            model.capture(line, kind: journal, due: rings ? Journal.stamp(due) : kind == .todo && hasDue ? Journal.day(due) : nil)
         } else {
             _ = model.addMeetingIdea(line)
         }

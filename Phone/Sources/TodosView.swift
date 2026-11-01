@@ -1,23 +1,28 @@
 import EdgeJournalLogic
+import EdgePhoneSupport
 import SwiftUI
 
 enum TodoOrder: String, CaseIterable {
-    case note, recent, due
+    case note, recent, due, reminders
 
     var title: String {
         switch self {
         case .note: "Note"
         case .recent: "Recent"
         case .due: "Due"
+        case .reminders: "Reminders"
         }
     }
 }
 
 struct TodosView: View {
+    @Binding var capture: CaptureRequest?
+
     @AppStorage("todos.order") private var order = TodoOrder.note
     @State private var query = ""
     @State private var dating: Todo?
     @State private var due = Date()
+    @State private var remind = false
 
     private var model: PhoneModel { .shared }
 
@@ -47,10 +52,20 @@ struct TodosView: View {
             let thisWeek = sorted.filter { !calendar.isDateInToday(modified($0)) && modified($0) >= week }
             let earlier = sorted.filter { !calendar.isDateInToday(modified($0)) && modified($0) < week }
             return [("Today", today), ("This week", thisWeek), ("Earlier", earlier)].filter { !$0.1.isEmpty }
-        case .due:
+        case .due, .reminders:
             let groups = Dictionary(grouping: todos) { TodoScan.group($0, today: Journal.day(Date())) }
             return TodoScan.Group.allCases.compactMap { group in groups[group].map { (title(group), $0) } }
         }
+    }
+
+    /// What will ring, by day.
+    private var reminderSections: [(title: String, reminders: [Reminder])] {
+        let calendar = Calendar.current
+        let found = model.reminders.filter { query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) }
+        let today = found.filter { calendar.isDateInToday($0.date) }
+        let tomorrow = found.filter { calendar.isDateInTomorrow($0.date) }
+        let later = found.filter { !calendar.isDateInToday($0.date) && !calendar.isDateInTomorrow($0.date) }
+        return [("Today", today), ("Tomorrow", tomorrow), ("Later", later)].filter { !$0.1.isEmpty }
     }
 
     private func title(_ group: TodoScan.Group) -> String {
@@ -71,18 +86,36 @@ struct TodosView: View {
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
-                ForEach(sections, id: \.title) { section in
-                    Section(section.title) {
-                        ForEach(section.todos) { todo in row(todo) }
+                if order == .reminders {
+                    if model.notificationsOff {
+                        Label("Notifications are off, so reminders will not ring.", systemImage: "bell.slash").foregroundStyle(.red)
+                    }
+                    ForEach(reminderSections, id: \.title) { section in
+                        Section(section.title) {
+                            ForEach(section.reminders) { reminder in row(reminder) }
+                        }
+                    }
+                } else {
+                    ForEach(sections, id: \.title) { section in
+                        Section(section.title) {
+                            ForEach(section.todos) { todo in row(todo) }
+                        }
                     }
                 }
             }
             .overlay {
-                if model.todos.isEmpty { ContentUnavailableView("No open todos", systemImage: "checkmark.circle") }
+                if order == .reminders, model.reminders.isEmpty {
+                    ContentUnavailableView("No reminders", systemImage: "bell", description: Text("Add one here, or with the bell on a note."))
+                } else if order != .reminders, model.todos.isEmpty {
+                    ContentUnavailableView("No open todos", systemImage: "checkmark.circle")
+                }
             }
             .navigationTitle("Todos")
             .searchable(text: $query)
             .refreshable { await model.sync() }
+            .toolbar {
+                Button("Remind me", systemImage: "bell") { capture = CaptureRequest(kind: .todo, remind: true) }
+            }
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }
             }
@@ -98,7 +131,7 @@ struct TodosView: View {
             NavigationLink(value: Route.note(todo.path)) {
                 VStack(alignment: .leading) {
                     Text(Journal.withoutImages(todo.text))
-                    let detail = [todo.due, order == .note ? nil : model.note(todo.path)?.title].compactMap(\.self)
+                    let detail = [todo.dueLabel, order == .note ? nil : model.note(todo.path)?.title].compactMap(\.self)
                     if !detail.isEmpty {
                         Text(detail.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
@@ -107,8 +140,34 @@ struct TodosView: View {
         }
         .swipeActions {
             Button("Date", systemImage: "calendar") {
-                due = Date()
+                due = todo.ringsAt() ?? Date()
+                remind = todo.time != nil
                 dating = todo
+            }
+        }
+    }
+
+    private func row(_ reminder: Reminder) -> some View {
+        NavigationLink(value: Route.note(reminder.path)) {
+            VStack(alignment: .leading) {
+                Text(reminder.title).lineLimit(2)
+                let detail = [WidgetSnapshot.when(reminder.date), reminder.repeats ? "Every weekday" : nil, model.note(reminder.path)?.title]
+                Text(detail.compactMap(\.self).joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .swipeActions {
+            if let raw = reminder.raw {
+                Button("Done", systemImage: "checkmark") {
+                    if let todo = model.todo(at: reminder.path, raw: raw) { model.toggle(todo) }
+                }
+                .tint(.green)
+            } else {
+                Button("Cancel Reminder", systemImage: "bell.slash", role: .destructive) {
+                    Task {
+                        await Reminders.cancelNotes { $0 == reminder.path }
+                        model.refresh()
+                    }
+                }
             }
         }
     }
@@ -116,7 +175,8 @@ struct TodosView: View {
     private func dueSheet(_ todo: Todo) -> some View {
         NavigationStack {
             Form {
-                DatePicker("Due", selection: $due, displayedComponents: .date).datePickerStyle(.graphical)
+                DatePicker("Due", selection: $due, displayedComponents: remind ? [.date, .hourAndMinute] : .date).datePickerStyle(.graphical)
+                Toggle("Remind me", isOn: $remind)
                 if todo.due != nil {
                     Button("Remove date", role: .destructive) {
                         model.setDue(nil, on: todo)
@@ -130,7 +190,7 @@ struct TodosView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dating = nil } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Set") {
-                        model.setDue(Journal.day(due), on: todo)
+                        model.setDue(remind ? Journal.stamp(due) : Journal.day(due), on: todo)
                         dating = nil
                     }
                 }

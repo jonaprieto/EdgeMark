@@ -69,8 +69,8 @@ struct TaskRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 NoteMarkdown(todo.text, imageBase: imageBase)
                     .opacity(todo.done ? 0.5 : 1)
-                if let due = todo.due {
-                    Label(due, systemImage: "calendar").font(.caption).foregroundStyle(.secondary)
+                if let due = todo.dueLabel {
+                    Label(due, systemImage: todo.time == nil ? "calendar" : "bell").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
