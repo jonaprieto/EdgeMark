@@ -31,6 +31,8 @@ final class PhoneModel {
     private(set) var syncing = false
     /// The last sync could not run or failed; `status` says why.
     private(set) var syncFailed = false
+    /// The last write to a note failed. Kept apart from `status`, which a sync overwrites.
+    private(set) var saveError: String?
     private(set) var places: [PlaceLine] = []
     let calendars = Calendars()
     /// Edited since it was last finished. Finishing records the position once.
@@ -152,8 +154,9 @@ final class PhoneModel {
     func save(_ text: String, to path: String) {
         do {
             try mirror?.write(Data(text.utf8), to: path)
+            saveError = nil
         } catch {
-            status = "Could not save: \(error)"
+            saveError = "Could not save \(path): \(error)"
         }
     }
 
@@ -277,12 +280,20 @@ final class PhoneModel {
             lastSync = Date()
             syncFailed = false
             held = report.held
-            status = report.conflicts.isEmpty ? "" : "Kept both versions: \(report.conflicts.joined(separator: ", "))"
+            status = Self.summary(of: report)
         } catch {
             status = "\(error)"
             syncFailed = true
         }
         refresh()
+    }
+
+    /// What a finished sync must tell you. A held note has not left the phone, whatever else went well.
+    private static func summary(of report: SyncReport) -> String {
+        var parts: [String] = []
+        if !report.held.isEmpty { parts.append("Held on this phone, see Settings: \(report.held.keys.sorted().joined(separator: ", "))") }
+        if !report.conflicts.isEmpty { parts.append("Kept both versions: \(report.conflicts.joined(separator: ", "))") }
+        return parts.joined(separator: "\n")
     }
 
     /// Uses the short time iOS grants, so a note reaches GitHub without reopening the app.

@@ -34,6 +34,9 @@ struct CaptureSheet: View {
                     Text(PhoneModel.shared.meetings.first?.title ?? "No meeting coming up")
                         .foregroundStyle(.secondary)
                 }
+                if let error = PhoneModel.shared.saveError {
+                    Text(error).foregroundStyle(.red)
+                }
                 if kind == .todo {
                     Toggle("Due date", isOn: $hasDue)
                     if hasDue {
@@ -79,6 +82,7 @@ struct CaptureSheet: View {
         } else {
             _ = PhoneModel.shared.addMeetingIdea(text)
         }
-        dismiss()
+        // A failed write keeps the sheet open, with the text still in it.
+        if PhoneModel.shared.saveError == nil { dismiss() }
     }
 }

@@ -20,6 +20,9 @@ struct TodayView: View {
                         addButton("Idea", "lightbulb", .idea)
                         addButton("Todo", "checkmark.square", .todo)
                     }
+                    if let error = model.saveError {
+                        Text(error).foregroundStyle(.red)
+                    }
                     let text = model.text(of: path)
                     if text.isEmpty {
                         Text("Nothing yet today.").foregroundStyle(.secondary)

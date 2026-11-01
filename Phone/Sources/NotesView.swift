@@ -47,6 +47,9 @@ struct NotesList: View {
     /// Where sync stands, and which build this is.
     private var syncFooter: some View {
         VStack(spacing: 4) {
+            if let error = model.saveError {
+                Text(error).foregroundStyle(.red)
+            }
             if model.syncing {
                 Text("Syncing…")
             } else if !model.status.isEmpty {
@@ -128,7 +131,7 @@ struct SyncButton: View {
     private var model: PhoneModel { .shared }
 
     var body: some View {
-        Button("Sync", systemImage: model.syncFailed ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath") {
+        Button("Sync", systemImage: model.syncFailed || !model.held.isEmpty ? "exclamationmark.arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath") {
             Task { await model.sync() }
         }
         .symbolEffect(.rotate, isActive: model.syncing)
