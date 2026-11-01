@@ -24,6 +24,7 @@ On the iPhone:
 
 - Your notes, ready to read and edit, offline too, and your gists to read.
 - Quick capture for sleep, a meal, idea, todo or meeting thought, typed, dictated in Spanish or English on the device, or with a photo.
+- Meals marked Breakfast, Lunch, Dinner or Other, each with its time and place.
 - Notes that render code, math, Mermaid diagrams and images.
 - Photos and camera shots: a tile on Today, a camera button in any note, and on a new meeting.
 - An agenda: upcoming meetings from your calendars, each with a note for its ideas, and any meeting you add in one sentence, such as "Felipe martes 3pm".

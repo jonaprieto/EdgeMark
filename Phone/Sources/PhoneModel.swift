@@ -38,6 +38,8 @@ final class PhoneModel {
     let calendars = Calendars()
     /// Edited since it was last finished. Finishing records the position once.
     private var unfinished: String?
+    /// When the unfinished note says it was written, if that is not now.
+    private var writtenAt: Date?
     private var lastSnapshot: WidgetSnapshot?
     /// Bumped when files changed under the views, which then read them again.
     private(set) var revision = 0
@@ -214,16 +216,23 @@ final class PhoneModel {
     /// A note is done: records where, then syncs. Without a position the note still syncs.
     func finish(inBackground: Bool = false) async {
         if let path = unfinished {
+            let date = writtenAt ?? Date()
             unfinished = nil
-            await recordPosition(of: path)
+            writtenAt = nil
+            await recordPosition(of: path, at: date)
         }
         await sync(inBackground: inBackground)
     }
 
-    private func recordPosition(of path: String) async {
+    private func recordPosition(of path: String, at date: Date) async {
         guard let fix = await position.fix() else { return }
-        let line = PlaceLine(date: Date(), path: path, latitude: fix.location.coordinate.latitude, longitude: fix.location.coordinate.longitude, place: fix.place)
+        let line = PlaceLine(date: date, path: path, latitude: fix.location.coordinate.latitude, longitude: fix.location.coordinate.longitude, place: fix.place)
         save(text(of: PlaceLine.logPath) + line.text + "\n", to: PlaceLine.logPath)
+    }
+
+    /// Where this phone is now, to show before saving.
+    func currentPlace() async -> String? {
+        await position.fix()?.place
     }
 
     /// Creates a note whose first line is the title, as the Mac expects, and returns its path.
@@ -445,14 +454,16 @@ final class PhoneModel {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// Adds a line to today's file. Needs no network; sync carries it when it can.
-    func capture(_ text: String, kind: Journal.Kind, due: String?) {
-        let now = Date()
+    /// Adds a line to today's file, at `now` unless it says otherwise. Needs no network; sync
+    /// carries it when it can.
+    func capture(_ text: String, kind: Journal.Kind, due: String?, at now: Date = Date()) {
         let path = Journal.path(for: now)
         let existing = mirror?.exists(path) == true ? self.text(of: path) : Journal.emptyDay(for: now)
         let entry = Journal.entry(text, kind: kind, at: now, due: due)
         save(Journal.appending(entry, under: kind, to: existing), to: path)
         unfinished = path
+        // The position goes by this time too, or a meal logged late would lose its place.
+        writtenAt = now
         refresh()
         Task { await finish() }
     }

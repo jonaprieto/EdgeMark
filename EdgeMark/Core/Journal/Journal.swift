@@ -16,6 +16,30 @@ public nonisolated enum Journal {
         }
     }
 
+    /// Which meal an entry is. It leads the line: `- 13:10 Lunch: bandeja paisa`.
+    public enum Meal: String, CaseIterable, Sendable {
+        case breakfast = "Breakfast", lunch = "Lunch", dinner = "Dinner", other = "Other"
+
+        /// The likely one at this hour.
+        public init(at date: Date, calendar: Calendar = .current) {
+            switch calendar.component(.hour, from: date) {
+            case 5 ..< 11: self = .breakfast
+            case 11 ..< 16: self = .lunch
+            case 18 ..< 22: self = .dinner
+            default: self = .other
+            }
+        }
+
+        var prefix: String {
+            "\(rawValue): "
+        }
+
+        /// `text` as the line writes it.
+        public func labeled(_ text: String) -> String {
+            prefix + text
+        }
+    }
+
     /// One timed line of a day file.
     public struct Entry: Hashable, Identifiable, Sendable {
         public let path: String
@@ -33,8 +57,13 @@ public nonisolated enum Journal {
             Journal.imagePaths(in: text)
         }
 
+        /// Nil for anything but a meal, and for a meal written before meals had a name.
+        public var meal: Meal? {
+            kind == .meal ? Meal.allCases.first { text.hasPrefix($0.prefix) } : nil
+        }
+
         public var words: String {
-            Journal.withoutImages(text)
+            Journal.withoutImages(meal.map { String(text.dropFirst($0.prefix.count)) } ?? text)
         }
     }
 

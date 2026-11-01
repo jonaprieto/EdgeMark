@@ -64,6 +64,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Add photos or camera shots from a Today tile, in any note while reading or writing it, and on a new
   meeting.
 - Share a note from its ... menu, with its photos, to any app on the iPhone.
+- A meal on the iPhone is marked Breakfast, Lunch, Dinner or Other, shows the time and place, and takes
+  an earlier time when you log it late. Journal lists all three, and searching "lunch" finds them.
 
 ## 2.17.0 (2026-10-19)
 

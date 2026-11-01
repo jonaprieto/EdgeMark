@@ -10,6 +10,9 @@ struct CaptureSheet: View {
     @State private var hasDue = false
     @State private var due = Date()
     @State private var remind = false
+    @State private var meal = Journal.Meal(at: Date())
+    @State private var eaten = Date()
+    @State private var place: String?
     @State private var dictation = Dictation()
     @State private var photos: [UIImage] = []
     @State private var isPrivate = false
@@ -26,6 +29,12 @@ struct CaptureSheet: View {
                     Text("Meeting").tag(CaptureKind.meeting)
                 }
                 .pickerStyle(.segmented)
+                if kind == .meal {
+                    Picker("Meal", selection: $meal) {
+                        ForEach(Journal.Meal.allCases, id: \.self) { Text($0.rawValue) }
+                    }
+                    .pickerStyle(.segmented)
+                }
                 TextField(prompt, text: $text, axis: .vertical)
                     .lineLimit(3 ... 10)
                     .focused($focused)
@@ -65,6 +74,11 @@ struct CaptureSheet: View {
                 if let error = PhoneModel.shared.saveError {
                     Text(error).foregroundStyle(.red)
                 }
+                // A private capture keeps the time it was made and records no position.
+                if kind == .meal, !isPrivate {
+                    DatePicker("Time", selection: $eaten, in: ...Date(), displayedComponents: .hourAndMinute)
+                    LabeledContent("Place", value: place ?? "From GPS when saved")
+                }
                 // A private todo is sealed, so nothing could read its date or ring it.
                 if kind == .todo, !isPrivate {
                     Toggle("Remind me", isOn: $remind)
@@ -95,6 +109,9 @@ struct CaptureSheet: View {
             text = request.text
             remind = request.remind
             focused = !request.voice
+        }
+        .task(id: kind) {
+            if kind == .meal, place == nil { place = await PhoneModel.shared.currentPlace() }
         }
         .onChange(of: text) { readWhen() }
         .onChange(of: remind) {
@@ -140,7 +157,7 @@ struct CaptureSheet: View {
             return
         }
         if isPrivate {
-            if model.capturePrivately(text, kind: kind.rawValue) { dismiss() }
+            if model.capturePrivately(kind == .meal ? meal.labeled(text) : text, kind: kind.rawValue) { dismiss() }
             return
         }
         let target = kind.journal != nil ? Journal.path(for: Date()) : model.nextMeetingPath
@@ -148,7 +165,12 @@ struct CaptureSheet: View {
         let words = rings ? MeetingText.reminder(text, now: Date())?.text ?? text : text
         let line = ([words] + images).filter { !$0.isEmpty }.joined(separator: " ")
         if let journal = kind.journal {
-            model.capture(line, kind: journal, due: rings ? Journal.stamp(due) : kind == .todo && hasDue ? Journal.day(due) : nil)
+            let due = rings ? Journal.stamp(due) : kind == .todo && hasDue ? Journal.day(due) : nil
+            if kind == .meal {
+                model.capture(meal.labeled(line), kind: journal, due: due, at: eaten)
+            } else {
+                model.capture(line, kind: journal, due: due)
+            }
         } else {
             _ = model.addMeetingIdea(line)
         }

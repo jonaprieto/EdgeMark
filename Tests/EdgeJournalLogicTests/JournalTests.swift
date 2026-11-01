@@ -25,6 +25,34 @@ final class JournalTests: XCTestCase {
         XCTAssertNil(Journal.removing(entry, from: "# 2026-10-31\n"))
     }
 
+    func testMealLeadsItsLine() {
+        let text = """
+        ## Meals
+
+        - 08:00 Breakfast: arepa
+        - 13:10 Lunch: ![](.day/a.jpg)
+        - 16:00 cafe
+
+        ## Ideas
+
+        - 09:00 Lunch: with Ana
+        """
+        let entries = Journal.entries(in: text, path: "Journal/2026-11-01.md")
+        XCTAssertEqual(entries.map(\.meal), [.breakfast, .lunch, nil, nil])
+        XCTAssertEqual(entries.map(\.words), ["arepa", "", "cafe", "Lunch: with Ana"])
+        XCTAssertEqual(entries[1].images, [".day/a.jpg"])
+        XCTAssertEqual(Journal.Meal.other.labeled("x"), "Other: x")
+    }
+
+    func testMealGuessFollowsTheHour() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let day = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 1)))
+        let guessed = try [8, 13, 17, 19, 23].map { hour in
+            try Journal.Meal(at: XCTUnwrap(calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day)), calendar: calendar)
+        }
+        XCTAssertEqual(guessed, [.breakfast, .lunch, .other, .dinner, .other])
+    }
+
     func testPlacesShowBesideEntriesOnly() {
         let path = "Journal/2026-10-31.md"
         let text = "# 2026-10-31\n\n## Meals\n\n- 12:30 arroz\n- 12:30 arroz con pollo\n- 19:00 sopa\n\n## Todos\n\n- [ ] 12:30 pan\n"

@@ -105,6 +105,7 @@ struct JournalView: View {
         let found = listed.filter { item in
             query.isEmpty || item.entry.words.localizedCaseInsensitiveContains(query)
                 || item.place?.place?.localizedCaseInsensitiveContains(query) == true
+                || item.entry.meal?.rawValue.localizedCaseInsensitiveContains(query) == true
         }.map { Row.entry($0.entry, $0.place) }
         let showSealed = query.isEmpty || "private".localizedCaseInsensitiveContains(query)
         let locked = showSealed ? sealed.map(Row.sealed) : []
@@ -118,7 +119,7 @@ struct JournalView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         if !entry.words.isEmpty { Text(entry.words) }
-                        Text([entry.time, place?.place].compactMap(\.self).joined(separator: " · "))
+                        Text([entry.meal?.rawValue, entry.time, place?.place].compactMap(\.self).joined(separator: " · "))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
