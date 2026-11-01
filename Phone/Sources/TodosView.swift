@@ -23,8 +23,23 @@ struct TodosView: View {
     @State private var dating: Todo?
     @State private var due = Date()
     @State private var remind = false
+    @State private var stopping: Stopping?
 
     private var model: PhoneModel { .shared }
+
+    /// A reminder that waits for a yes before it stops ringing.
+    private struct Stopping {
+        let title: String
+        let stop: () async -> Void
+    }
+
+    private func stopping(_ note: Reminder) -> Stopping {
+        Stopping(title: note.title) { await Reminders.cancelNotes { $0 == note.path } }
+    }
+
+    private func stopping(_ prompt: SleepPrompt) -> Stopping {
+        Stopping(title: prompt.title) { SleepReminder.turnOff(prompt.id) }
+    }
 
     private func modified(_ todo: Todo) -> Date {
         model.note(todo.path)?.modified ?? .distantPast
@@ -95,6 +110,19 @@ struct TodosView: View {
                             ForEach(section.reminders) { reminder in row(reminder) }
                         }
                     }
+                    if !model.sleepPrompts.isEmpty {
+                        Section("Every day") {
+                            ForEach(model.sleepPrompts) { prompt in
+                                VStack(alignment: .leading) {
+                                    Text(prompt.title)
+                                    Text(prompt.date.formatted(date: .omitted, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                                }
+                                .swipeActions {
+                                    Button("Delete", systemImage: "trash", role: .destructive) { stopping = stopping(prompt) }
+                                }
+                            }
+                        }
+                    }
                 } else {
                     ForEach(sections, id: \.title) { section in
                         Section(section.title) {
@@ -104,7 +132,7 @@ struct TodosView: View {
                 }
             }
             .overlay {
-                if order == .reminders, model.reminders.isEmpty {
+                if order == .reminders, model.reminders.isEmpty, model.sleepPrompts.isEmpty {
                     ContentUnavailableView("No reminders", systemImage: "bell", description: Text("Add one here, or with the bell on a note."))
                 } else if order != .reminders, model.todos.isEmpty {
                     ContentUnavailableView("No open todos", systemImage: "checkmark.circle")
@@ -120,6 +148,21 @@ struct TodosView: View {
                 if case let .note(note) = route { NoteView(path: note) }
             }
             .sheet(item: $dating) { todo in dueSheet(todo) }
+            .confirmationDialog(
+                "Delete \"\(stopping?.title ?? "reminder")\"?",
+                isPresented: Binding(get: { stopping != nil }, set: { if !$0 { stopping = nil } }),
+                titleVisibility: .visible,
+                presenting: stopping,
+            ) { reminder in
+                Button("Delete Reminder", role: .destructive) {
+                    Task {
+                        await reminder.stop()
+                        model.refresh()
+                    }
+                }
+            } message: { _ in
+                Text("It stops ringing on this iPhone. Your notes stay as they are.")
+            }
         }
     }
 
@@ -162,12 +205,7 @@ struct TodosView: View {
                 }
                 .tint(.green)
             } else {
-                Button("Cancel Reminder", systemImage: "bell.slash", role: .destructive) {
-                    Task {
-                        await Reminders.cancelNotes { $0 == reminder.path }
-                        model.refresh()
-                    }
-                }
+                Button("Delete", systemImage: "trash", role: .destructive) { stopping = stopping(reminder) }
             }
         }
     }

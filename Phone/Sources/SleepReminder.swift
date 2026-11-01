@@ -39,6 +39,13 @@ enum SleepTracker {
     }
 }
 
+/// An evening or morning prompt set to ring every day.
+struct SleepPrompt: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let date: Date
+}
+
 /// Optional evening and morning prompts. Local, so they need no account or server.
 enum SleepReminder {
     static let bedTime = "sleep.bed"
@@ -76,6 +83,21 @@ enum SleepReminder {
 
     static func cancel(_ id: String) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+    }
+
+    /// Stops a prompt for good, which turns off its switch in Settings too.
+    static func turnOff(_ id: String) {
+        cancel(id)
+        UserDefaults.standard.set(false, forKey: id == bedTime ? "sleep.bedReminder" : "sleep.reminder")
+    }
+
+    static func pending() async -> [SleepPrompt] {
+        let requests = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        return requests.compactMap { request -> SleepPrompt? in
+            guard [bedTime, wakeTime].contains(request.identifier),
+                  let date = (request.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate() else { return nil }
+            return SleepPrompt(id: request.identifier, title: request.content.title, date: date)
+        }.sorted { $0.date < $1.date }
     }
 }
 

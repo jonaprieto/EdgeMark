@@ -28,6 +28,7 @@ struct SettingsView: View {
         } else {
             SleepReminder.cancel(SleepReminder.wakeTime)
         }
+        PhoneModel.shared.refresh()
     }
 
     private var model: PhoneModel { .shared }

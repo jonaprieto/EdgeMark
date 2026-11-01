@@ -49,6 +49,7 @@ final class PhoneModel {
 
     /// All that iOS will ring, soonest first.
     private(set) var reminders: [Reminder] = []
+    private(set) var sleepPrompts: [SleepPrompt] = []
     /// iOS refused some of the todos waiting to ring.
     private(set) var notificationsOff = false
     private var lastReminders: [Todo]?
@@ -153,6 +154,7 @@ final class PhoneModel {
             }
             await Reminders.cancelNotes { !paths.contains($0) }
             reminders = await Reminders.pending()
+            sleepPrompts = await SleepReminder.pending()
             updateWidgets()
         }
     }
