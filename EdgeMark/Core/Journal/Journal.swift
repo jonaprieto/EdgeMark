@@ -125,6 +125,14 @@ public nonisolated enum Journal {
         return out
     }
 
+    /// `text` without `entry`'s line, nil when the line changed since it was read.
+    public static func removing(_ entry: Entry, from text: String) -> String? {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard let index = lines.firstIndex(of: "- \(entry.time) \(entry.text)") else { return nil }
+        lines.remove(at: index)
+        return lines.joined(separator: "\n")
+    }
+
     /// Reads `Journal/2026-10-31-22-14-idea.md.age`. Nil for any other file.
     public static func privateEntry(path: String) -> PrivateEntry? {
         let name = (path as NSString).lastPathComponent

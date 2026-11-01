@@ -7,6 +7,7 @@ struct JournalView: View {
 
     @AppStorage("journal.kind") private var kind = "idea"
     @State private var query = ""
+    @State private var removing: Row?
 
     private var model: PhoneModel { .shared }
     private var showsMeals: Bool { kind == "meal" }
@@ -27,7 +28,11 @@ struct JournalView: View {
                 .listRowInsets(EdgeInsets())
                 ForEach(days.keys.sorted(by: >), id: \.self) { day in
                     Section(day) {
-                        ForEach(days[day] ?? []) { row in rowView(row) }
+                        ForEach(days[day] ?? []) { row in
+                            rowView(row).swipeActions {
+                                Button("Delete", systemImage: "trash", role: .destructive) { removing = row }
+                            }
+                        }
                     }
                 }
             }
@@ -48,6 +53,21 @@ struct JournalView: View {
             }
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }
+            }
+            .confirmationDialog(
+                showsMeals ? "Delete this meal?" : "Delete this idea?",
+                isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                titleVisibility: .visible,
+                presenting: removing,
+            ) { row in
+                Button("Delete", role: .destructive) {
+                    switch row {
+                    case let .entry(entry, _): model.remove(entry)
+                    case let .sealed(entry): model.delete(entry.path)
+                    }
+                }
+            } message: { _ in
+                Text("It goes from this iPhone and the Mac. Your repository's history keeps a copy.")
             }
         }
     }

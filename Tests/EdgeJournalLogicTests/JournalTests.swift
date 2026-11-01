@@ -17,6 +17,14 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(Journal.emptyDay(for: date, calendar: calendar), "# 2026-10-31\n")
     }
 
+    func testRemovingTakesOutOneLine() throws {
+        let path = "Journal/2026-10-31.md"
+        let text = "# 2026-10-31\n\n## Ideas\n\n- 09:00 uno\n- 09:05 dos\n"
+        let entry = try XCTUnwrap(Journal.entries(in: text, path: path).first)
+        XCTAssertEqual(Journal.removing(entry, from: text), "# 2026-10-31\n\n## Ideas\n\n- 09:05 dos\n")
+        XCTAssertNil(Journal.removing(entry, from: "# 2026-10-31\n"))
+    }
+
     func testPlacesShowBesideEntriesOnly() {
         let path = "Journal/2026-10-31.md"
         let text = "# 2026-10-31\n\n## Meals\n\n- 12:30 arroz\n- 12:30 arroz con pollo\n- 19:00 sopa\n\n## Todos\n\n- [ ] 12:30 pan\n"

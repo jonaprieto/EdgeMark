@@ -263,6 +263,18 @@ final class PhoneModel {
             .map { ($0, PlaceLine.place(of: $0, in: places)) }
     }
 
+    /// Takes a line out of its day file, with its photos, on every device.
+    func remove(_ entry: Journal.Entry) {
+        let folder = (entry.path as NSString).deletingLastPathComponent
+        let remaining = Journal.removing(entry, from: text(of: entry.path))
+        if remaining != nil {
+            for image in entry.images {
+                try? mirror?.delete("\(folder)/\(image)")
+            }
+        }
+        write(remaining, to: entry.path)
+    }
+
     /// Calendar events and meeting notes, soonest first.
     var meetings: [Meeting.Row] {
         let events = calendars.events
