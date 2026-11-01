@@ -103,6 +103,28 @@ final class GistLibraryTests: XCTestCase {
         XCTAssertFalse(library.cache.exists("g/a.md"))
     }
 
+    func testTheListIsThereBeforeTheFilesAndAFailedDownloadRetries() async throws {
+        FakeGists.set(listing: [item("g", updated: "1")], details: [:])
+        do {
+            try await library.refresh()
+            XCTFail("expected the download to fail")
+        } catch {
+            XCTAssertEqual(library.cached().map(\.id), ["g"])
+        }
+        FakeGists.set(listing: [item("g", updated: "1")], details: ["g": ["files": ["a.md": ["content": "ok"]]]])
+        try await library.refresh()
+        XCTAssertEqual(try text("g/a.md"), "ok")
+    }
+
+    func testListedRunsBeforeAnyDownload() async throws {
+        FakeGists.set(listing: [item("g", updated: "1")], details: ["g": ["files": ["a.md": ["content": "ok"]]]])
+        try await library.refresh(listed: { gists in
+            XCTAssertEqual(gists.map(\.id), ["g"])
+            XCTAssertEqual(FakeGists.downloaded, 0)
+        })
+        XCTAssertEqual(FakeGists.downloaded, 1)
+    }
+
     func testADeletedGistLeavesTheCache() async throws {
         FakeGists.set(listing: [item("g", updated: "1")], details: ["g": ["files": ["a.md": ["content": "x"]]]])
         _ = try await library.refresh()

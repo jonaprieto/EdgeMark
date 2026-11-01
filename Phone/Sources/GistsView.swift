@@ -27,7 +27,11 @@ struct GistsView: View {
         }
         .overlay {
             if model.gists.isEmpty {
-                ContentUnavailableView("No gists", systemImage: "doc.on.doc", description: Text(model.gistError ?? "Pull down to refresh."))
+                if model.refreshingGists {
+                    ProgressView("Loading your gists")
+                } else {
+                    ContentUnavailableView("No gists", systemImage: "doc.on.doc", description: Text(model.gistError ?? "Pull down to refresh."))
+                }
             }
         }
         .safeAreaInset(edge: .bottom) {
@@ -67,6 +71,9 @@ struct GistFileView: View {
                 ContentUnavailableView("Encrypted gist", systemImage: "lock", description: Text("Open it on the Mac."))
             } else {
                 let text = PhoneModel.shared.gistText(of: path)
+                if text.isEmpty, PhoneModel.shared.refreshingGists {
+                    ProgressView("Downloading")
+                }
                 ScrollView {
                     Group {
                         if name.hasSuffix(".md") {

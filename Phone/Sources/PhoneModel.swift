@@ -45,6 +45,7 @@ final class PhoneModel {
 
     private(set) var gists: [Gist] = []
     private(set) var gistError: String?
+    private(set) var refreshingGists = false
 
     private let mirror: NotesMirror?
     private let gistCache: NotesMirror?
@@ -209,19 +210,26 @@ final class PhoneModel {
         gistCache.flatMap { try? $0.read(path) }.map { String(decoding: $0, as: UTF8.self) } ?? ""
     }
 
-    /// Lists your gists and downloads what changed. The cached copy stays readable offline.
+    /// Lists your gists and downloads what changed. Runs on its own, so leaving the Gists screen
+    /// does not cut it off, and the cached copy stays readable offline.
     func refreshGists() async {
-        guard let gistCache else { return }
+        guard !refreshingGists, let gistCache else { return }
         guard let token = Keychain.get("github-token") else {
             gistError = "No GitHub token on this phone"
             return
         }
-        do {
-            gists = try await GistLibrary(token: token, cache: gistCache).refresh()
-            gistError = nil
-        } catch {
-            gistError = "\(error)"
-        }
+        refreshingGists = true
+        await Task {
+            defer { refreshingGists = false }
+            do {
+                try await GistLibrary(token: token, cache: gistCache).refresh { listed in
+                    await MainActor.run { self.gists = listed }
+                }
+                gistError = nil
+            } catch {
+                gistError = "\(error)"
+            }
+        }.value
     }
 
     /// Open todos across every note, soonest first.

@@ -14,6 +14,7 @@ struct EdgeMarkPhoneApp: App {
                         await PhoneModel.shared.calendars.refresh()
                         PhoneModel.shared.refresh()
                         await PhoneModel.shared.sync()
+                        await PhoneModel.shared.refreshGists()
                     }
                 case .background: PhoneModel.shared.syncBeforeSuspend()
                 default: break

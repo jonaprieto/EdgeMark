@@ -14,6 +14,7 @@ public struct Gist: Codable, Equatable, Hashable, Identifiable, Sendable {
 /// Gists are edited on the Mac: a change to a public one is visible to everyone at once.
 public struct GistLibrary: Sendable {
     static let indexPath = "index.json"
+    static let parallel = 6
 
     let token: String
     let cache: NotesMirror
@@ -30,33 +31,57 @@ public struct GistLibrary: Sendable {
         (try? cache.read(Self.indexPath)).flatMap { try? JSONDecoder().decode([Gist].self, from: $0) } ?? []
     }
 
-    /// Lists every gist and downloads the ones that changed. The index is written last, so a
-    /// refresh cut short picks up where it stopped.
-    public func refresh() async throws -> [Gist] {
-        var listed: [[String: Any]] = []
+    /// Lists every gist, hands over the list at once, then downloads what changed. The list comes
+    /// first and each gist is marked when it lands, so a slow or cut-off refresh still shows every
+    /// gist and the next one picks up where this stopped.
+    @discardableResult
+    public func refresh(listed: @Sendable ([Gist]) async -> Void = { _ in }) async throws -> [Gist] {
+        var items: [[String: Any]] = []
         var page = 1
         while true {
             let batch = try await array("gists?per_page=100&page=\(page)")
-            listed += batch
+            items += batch
             if batch.count < 100 { break }
             page += 1
         }
 
-        let known = Dictionary(cached().map { ($0.id, $0) }) { first, _ in first }
         var gists: [Gist] = []
-        for item in listed {
+        for item in items {
             guard let id = item["id"] as? String, let updated = item["updated_at"] as? String else { continue }
             let files = (item["files"] as? [String: Any] ?? [:]).keys.sorted()
             let description = (item["description"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-            if known[id]?.updatedAt != updated { try await download(id) }
             gists.append(Gist(id: id, title: description.isEmpty ? files.first ?? id : description, updatedAt: updated, isPublic: item["public"] as? Bool ?? false, files: files))
         }
-        for gone in Set(known.keys).subtracting(gists.map(\.id)) {
+        gists.sort { $0.updatedAt > $1.updatedAt }
+
+        for gone in Set(cached().map(\.id)).subtracting(gists.map(\.id)) {
             try? cache.remove(gone)
         }
-        gists.sort { $0.updatedAt > $1.updatedAt }
         try cache.write(JSONEncoder().encode(gists), to: Self.indexPath)
+        await listed(gists)
+
+        let stale = gists.filter { (try? cache.read(Self.stamp($0.id))) != Data($0.updatedAt.utf8) }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            var running = 0
+            for gist in stale {
+                if running == Self.parallel {
+                    try await group.next()
+                    running -= 1
+                }
+                group.addTask {
+                    try await download(gist.id)
+                    try cache.write(Data(gist.updatedAt.utf8), to: Self.stamp(gist.id))
+                }
+                running += 1
+            }
+            try await group.waitForAll()
+        }
         return gists
+    }
+
+    /// Records which version of a gist is on the phone.
+    private static func stamp(_ id: String) -> String {
+        "\(id)/.updated"
     }
 
     private func download(_ id: String) async throws {
