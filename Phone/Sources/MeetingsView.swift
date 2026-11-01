@@ -3,12 +3,17 @@ import SwiftUI
 
 struct MeetingsView: View {
     @State private var path: [Route] = []
+    @State private var query = ""
 
     private var model: PhoneModel { .shared }
 
+    private var rows: [Meeting.Row] {
+        query.isEmpty ? model.meetings : model.meetings.filter { $0.title.localizedCaseInsensitiveContains(query) }
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
-            List(model.meetings) { row in
+            List(rows) { row in
                 Button { open(row) } label: {
                     HStack {
                         VStack(alignment: .leading) {
@@ -32,6 +37,7 @@ struct MeetingsView: View {
                 }
             }
             .navigationTitle("Meetings")
+            .searchable(text: $query)
             .refreshable {
                 await model.calendars.refresh()
                 await model.sync()

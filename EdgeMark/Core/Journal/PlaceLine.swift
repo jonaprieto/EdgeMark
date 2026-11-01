@@ -33,6 +33,21 @@ public nonisolated struct PlaceLine: Codable, Equatable, Hashable, Identifiable,
         return (try? encoder.encode(self)).map { String(decoding: $0, as: UTF8.self) } ?? ""
     }
 
+    /// Where `entry` was written: the line for its file from the same minute or the next few,
+    /// since the position comes in a moment after the entry is saved.
+    public static func place(of entry: Journal.Entry, in lines: [PlaceLine]) -> PlaceLine? {
+        guard let minute = minutes(entry.time) else { return nil }
+        return lines.first { line in
+            guard line.path == entry.path, line.at.hasPrefix(entry.day), let logged = minutes(String(line.at.dropFirst(11).prefix(5))) else { return false }
+            return (0 ... 2).contains(logged - minute)
+        }
+    }
+
+    private static func minutes(_ time: String) -> Int? {
+        let parts = time.split(separator: ":").compactMap { Int($0) }
+        return parts.count == 2 ? parts[0] * 60 + parts[1] : nil
+    }
+
     /// Every readable line, oldest first. A line the union merge mangled is skipped.
     public static func all(in log: String) -> [PlaceLine] {
         log.split(separator: "\n").compactMap { try? JSONDecoder().decode(PlaceLine.self, from: Data($0.utf8)) }

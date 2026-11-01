@@ -60,4 +60,24 @@ final class JournalTests: XCTestCase {
         XCTAssertFalse(line.text.contains("\n"))
         XCTAssertEqual(PlaceLine.all(in: "\(line.text)\nnot json\n\(line.text)\n"), [line, line])
     }
+
+    func testEntriesReadTimedLinesAndSkipTasks() {
+        let text = "# Day\n\n## Meals\n\n- 08:00 arepa\n\n## Ideas\n\n- 09:15 a note: with colon\n- no time\n\n## Todos\n\n- [ ] task\n- 10:00 not an entry\n"
+        let entries = Journal.entries(in: text, path: "Journal/2026-10-31.md")
+        XCTAssertEqual(entries.map(\.text), ["arepa", "a note: with colon"])
+        XCTAssertEqual(entries.map(\.kind), [.meal, .idea])
+        XCTAssertEqual(entries[1].day, "2026-10-31")
+        XCTAssertEqual(entries[1].time, "09:15")
+    }
+
+    func testAnEntryFindsThePlaceLoggedJustAfterIt() throws {
+        let path = "Journal/2026-10-31.md"
+        let entry = try XCTUnwrap(Journal.entries(in: "## Ideas\n\n- 12:30 idea\n", path: path).first)
+        let at = date
+        let line = PlaceLine(date: at.addingTimeInterval(60), path: path, latitude: 1, longitude: 2, place: "Usaquen", timeZone: calendar.timeZone)
+        let late = PlaceLine(date: at.addingTimeInterval(600), path: path, latitude: 1, longitude: 2, place: "Far", timeZone: calendar.timeZone)
+        let other = PlaceLine(date: at, path: "Other.md", latitude: 1, longitude: 2, place: "Other", timeZone: calendar.timeZone)
+        XCTAssertEqual(PlaceLine.place(of: entry, in: [other, late, line])?.place, "Usaquen")
+        XCTAssertNil(PlaceLine.place(of: entry, in: [other, late]))
+    }
 }

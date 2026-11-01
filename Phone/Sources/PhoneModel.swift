@@ -203,6 +203,13 @@ final class PhoneModel {
         return path
     }
 
+    /// Searches the title, the file names and the text of every file.
+    func gist(_ gist: Gist, matches query: String) -> Bool {
+        gist.title.localizedCaseInsensitiveContains(query) || gist.files.contains {
+            $0.localizedCaseInsensitiveContains(query) || gistText(of: "\(gist.id)/\($0)").localizedCaseInsensitiveContains(query)
+        }
+    }
+
     func gistText(of path: String) -> String {
         gistCache.flatMap { try? $0.read(path) }.map { String(decoding: $0, as: UTF8.self) } ?? ""
     }
@@ -241,6 +248,15 @@ final class PhoneModel {
         if let text { save(text, to: path) }
         refresh()
         Task { await sync() }
+    }
+
+    /// Ideas and observations from every day file, newest first, with where they were written.
+    var ideas: [(entry: Journal.Entry, place: PlaceLine?)] {
+        notes.filter { $0.folder == Journal.folder }
+            .flatMap { Journal.entries(in: $0.text, path: $0.path) }
+            .filter { $0.kind == .idea }
+            .sorted { ($0.day, $0.time) > ($1.day, $1.time) }
+            .map { ($0, PlaceLine.place(of: $0, in: places)) }
     }
 
     /// Calendar events and meeting notes, soonest first.

@@ -15,7 +15,10 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   kept.
 - The iPhone app records where you finish a note, rounded to about 110 m, and shows it on a map.
   The positions sit in a log of their own, never in the note text.
-- A Todos tab on the iPhone lists every open task across your notes, soonest first, with due dates.
+- A Todos tab on the iPhone lists every open task across your notes, grouped by note, by what changed
+  recently or by due date, and searchable.
+- An Ideas tab on the iPhone lists your ideas and observations with when and where you wrote them,
+  and searches them. Meetings and gists are searchable too.
 - A Meetings tab on the iPhone lists upcoming events from your calendars, Google and Proton included
   once iOS has them, and opens a note for each one to collect ideas.
 - Todos in the settings menu lists every open task across your notes, soonest first, and checks

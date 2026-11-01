@@ -4,10 +4,16 @@ import SwiftUI
 
 /// Your gists, read-only: they are edited on the Mac.
 struct GistsView: View {
+    @State private var query = ""
+
     private var model: PhoneModel { .shared }
 
+    private var shown: [Gist] {
+        query.isEmpty ? model.gists : model.gists.filter { model.gist($0, matches: query) }
+    }
+
     var body: some View {
-        List(model.gists) { gist in
+        List(shown) { gist in
             NavigationLink(value: gist.files.count == 1 ? Route.gistFile("\(gist.id)/\(gist.files[0])") : Route.gist(gist.id)) {
                 VStack(alignment: .leading) {
                     Label {
@@ -31,6 +37,7 @@ struct GistsView: View {
             }
         }
         .navigationTitle("Gists")
+        .searchable(text: $query)
         .refreshable { await model.refreshGists() }
         .task { await model.refreshGists() }
     }

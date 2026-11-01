@@ -15,6 +15,19 @@ public nonisolated enum Journal {
         }
     }
 
+    /// One timed line of a day file.
+    public struct Entry: Hashable, Identifiable, Sendable {
+        public let path: String
+        public let day: String
+        public let time: String
+        public let kind: Kind
+        public let text: String
+
+        public var id: String {
+            "\(path) \(time) \(text)"
+        }
+    }
+
     public static let folder = "Journal"
 
     /// `2026-10-31`, in the calendar's time zone.
@@ -65,6 +78,29 @@ public nonisolated enum Journal {
             }
         }
         return lines.joined(separator: "\n") + "\n"
+    }
+
+    /// The timed lines of a day file, in file order. Tasks are todos, not entries.
+    public static func entries(in text: String, path: String) -> [Entry] {
+        let day = String((path as NSString).lastPathComponent.prefix(10))
+        var kind: Kind?
+        var out: [Entry] = []
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            if line.hasPrefix("## ") {
+                kind = Kind.allCases.first { $0.heading == line }
+                continue
+            }
+            guard let kind, kind != .todo, line.hasPrefix("- ") else { continue }
+            let words = line.dropFirst(2).split(separator: " ", maxSplits: 1).map(String.init)
+            guard words.count == 2, isTime(words[0]) else { continue }
+            out.append(Entry(path: path, day: day, time: words[0], kind: kind, text: words[1]))
+        }
+        return out
+    }
+
+    private static func isTime(_ word: String) -> Bool {
+        let parts = word.split(separator: ":")
+        return parts.count == 2 && parts.allSatisfy { $0.count == 2 && $0.allSatisfy(\.isNumber) }
     }
 
     private static func format(_ pattern: String, _ date: Date, _ calendar: Calendar) -> String {

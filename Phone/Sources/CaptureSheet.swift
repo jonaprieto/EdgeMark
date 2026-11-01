@@ -65,7 +65,7 @@ struct CaptureSheet: View {
     private var prompt: String {
         switch kind {
         case .meal: "What did you eat?"
-        case .idea: "What is the idea?"
+        case .idea: "An idea, or something you noticed"
         case .todo: "What needs doing?"
         case .meeting: "What should you bring up?"
         }
