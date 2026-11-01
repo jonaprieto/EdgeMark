@@ -71,6 +71,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   set them, each with its own icon, along with the notes you finished.
 - Delete a meeting on the iPhone by swiping it: the dialog says what goes, and an event leaves its original
   calendar too once you confirm, for that date only if it repeats.
+- Any note on the iPhone has Delete in its ... menu, with a confirmation.
 
 ### Fixed
 

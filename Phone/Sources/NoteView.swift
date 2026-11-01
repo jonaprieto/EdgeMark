@@ -12,6 +12,8 @@ struct NoteView: View {
     @State private var brainstorming = false
     @State private var reminding = false
     @State private var sharing = false
+    @State private var deleting: PhoneNote?
+    @Environment(\.dismiss) private var dismiss
     @FocusState private var focused: Bool
 
     private var model: PhoneModel { .shared }
@@ -60,7 +62,13 @@ struct NoteView: View {
                     Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
                 }
             }
+            if !editing {
+                ToolbarItem(placement: .secondaryAction) {
+                    Button("Delete", systemImage: "trash", role: .destructive) { deleting = model.note(path) }
+                }
+            }
         }
+        .deleteDialog(for: $deleting)
         .sheet(isPresented: $brainstorming) { BrainstormView(source: path) }
         .sheet(isPresented: $sharing) { ShareSheet(items: shared).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $reminding) {
@@ -76,7 +84,11 @@ struct NoteView: View {
             edited = true
             model.edit(new, path: path)
         }
-        .onChange(of: model.revision) { text = model.text(of: path) }
+        .onChange(of: model.revision) {
+            text = model.text(of: path)
+            // Gone from here, or from the Mac by the last sync.
+            if model.note(path) == nil { dismiss() }
+        }
     }
 
     /// The words, then the photos as files: a path in the note means nothing to whoever gets it.
