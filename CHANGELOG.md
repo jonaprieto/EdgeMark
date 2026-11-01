@@ -5,6 +5,10 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Changed
+
+- A new app icon: the Markdown hash next to the screen edge, on the Mac and the iPhone.
+
 ### Added
 
 - An iPhone app opens your notes, edits them and keeps them in sync with the Mac through GitHub.
