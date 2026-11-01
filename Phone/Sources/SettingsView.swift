@@ -4,22 +4,29 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("brainstorm.model") private var modelName = "gpt-6.1-sol"
     @AppStorage("voice.language") private var language = VoiceLanguage.es
-    @AppStorage("sleep.reminder") private var sleepReminder = false
-    @AppStorage("sleep.reminderTime") private var sleepTime = Self.defaultSleepTime
+    @AppStorage("sleep.bedReminder") private var bedReminder = false
+    @AppStorage("sleep.bedReminderTime") private var bedTime = Self.time(hour: 22, minute: 30)
+    @AppStorage("sleep.reminder") private var wakeReminder = false
+    @AppStorage("sleep.reminderTime") private var wakeTime = Self.time(hour: 8, minute: 0)
 
-    private static var defaultSleepTime: Double {
-        Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: Date())?.timeIntervalSinceReferenceDate ?? 0
+    private static func time(hour: Int, minute: Int) -> Double {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date())?.timeIntervalSinceReferenceDate ?? 0
     }
 
-    private var sleepDate: Binding<Date> {
-        Binding(get: { Date(timeIntervalSinceReferenceDate: sleepTime) }, set: { sleepTime = $0.timeIntervalSinceReferenceDate })
+    private func date(_ value: Binding<Double>) -> Binding<Date> {
+        Binding(get: { Date(timeIntervalSinceReferenceDate: value.wrappedValue) }, set: { value.wrappedValue = $0.timeIntervalSinceReferenceDate })
     }
 
-    private func updateReminder() async {
-        if sleepReminder {
-            sleepReminder = await SleepReminder.schedule(at: sleepDate.wrappedValue)
+    private func updateReminders() async {
+        if bedReminder {
+            bedReminder = await SleepReminder.schedule(SleepReminder.bedTime, title: "Going to bed?", at: date($bedTime).wrappedValue)
         } else {
-            SleepReminder.cancel()
+            SleepReminder.cancel(SleepReminder.bedTime)
+        }
+        if wakeReminder {
+            wakeReminder = await SleepReminder.schedule(SleepReminder.wakeTime, title: "Are you up?", at: date($wakeTime).wrappedValue)
+        } else {
+            SleepReminder.cancel(SleepReminder.wakeTime)
         }
     }
 
@@ -41,13 +48,19 @@ struct SettingsView: View {
                     LabeledContent("Version", value: PhoneModel.version)
                 }
                 Section("Sleep") {
-                    Toggle("Morning reminder", isOn: $sleepReminder)
-                    if sleepReminder {
-                        DatePicker("Time", selection: sleepDate, displayedComponents: .hourAndMinute)
+                    Toggle("Bedtime reminder", isOn: $bedReminder)
+                    if bedReminder {
+                        DatePicker("Time", selection: date($bedTime), displayedComponents: .hourAndMinute)
+                    }
+                    Toggle("Morning reminder", isOn: $wakeReminder)
+                    if wakeReminder {
+                        DatePicker("Time", selection: date($wakeTime), displayedComponents: .hourAndMinute)
                     }
                 }
-                .onChange(of: sleepReminder) { Task { await updateReminder() } }
-                .onChange(of: sleepTime) { Task { await updateReminder() } }
+                .onChange(of: bedReminder) { Task { await updateReminders() } }
+                .onChange(of: bedTime) { Task { await updateReminders() } }
+                .onChange(of: wakeReminder) { Task { await updateReminders() } }
+                .onChange(of: wakeTime) { Task { await updateReminders() } }
                 Section("Dictation") {
                     Picker("Language", selection: $language) {
                         Text("Spanish").tag(VoiceLanguage.es)

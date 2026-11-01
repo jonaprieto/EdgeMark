@@ -58,6 +58,12 @@ struct CaptureSheet: View {
                 if kind == .sleep {
                     Text(Sleep.parse(text).map { "Reads as \($0.line.dropFirst(2))" } ?? "Say when you slept, or for how long.")
                         .foregroundStyle(.secondary)
+                    if request.text.isEmpty {
+                        Button("Going to bed now", systemImage: "moon.zzz") {
+                            SleepTracker.goingToBed()
+                            dismiss()
+                        }
+                    }
                 }
                 if kind == .meeting {
                     Text(PhoneModel.shared.meetings.first?.title ?? "No meeting coming up")
@@ -87,13 +93,14 @@ struct CaptureSheet: View {
         }
         .onAppear {
             kind = request.kind
+            text = request.text
             focused = !request.voice
         }
     }
 
     private var prompt: String {
         switch kind {
-        case .sleep: "De 11 a 7, regular"
+        case .sleep: "23:00 07:00 regular"
         case .meal: "What did you eat?"
         case .idea: "An idea, or something you noticed"
         case .todo: "What needs doing?"
@@ -110,7 +117,10 @@ struct CaptureSheet: View {
         await dictation.stop()
         let model = PhoneModel.shared
         if kind == .sleep {
-            if let sleep = Sleep.parse(text) { model.capture(sleep) }
+            if let sleep = Sleep.parse(text) {
+                model.capture(sleep)
+                SleepTracker.clear()
+            }
             dismiss()
             return
         }

@@ -27,6 +27,11 @@ final class SleepTextTests: XCTestCase {
         check("23:15 07:05", "- 23:15-07:05 7h50")
     }
 
+    func testTheTwoTapsReadBack() {
+        check("00:30 07:05", "- 00:30-07:05 6h35")
+        check("23:10 07:05 regular", "- 23:10-07:05 7h55 regular")
+    }
+
     func testNothingToRead() {
         XCTAssertNil(Sleep.parse("dormí fatal"))
         XCTAssertNil(Sleep.parse("de 7am a 7am"))

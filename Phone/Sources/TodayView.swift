@@ -6,6 +6,7 @@ struct TodayView: View {
 
     @State private var brainstorming = false
     @State private var editing = false
+    @AppStorage(SleepTracker.bedKey) private var bedAt = 0.0
     @State private var showSettings = false
 
     private var model: PhoneModel { .shared }
@@ -17,7 +18,8 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 10) {
-                        addButton("Sleep", "moon.zzz", .sleep)
+                        let inBed = SleepTracker.inBed(since: bedAt) != nil
+                        tile(inBed ? "Awake" : "Sleep", inBed ? "sunrise" : "moon.zzz") { capture = SleepTracker.capture }
                         addButton("Meal", "fork.knife", .meal)
                         addButton("Idea", "lightbulb", .idea)
                         addButton("Todo", "checkmark.square", .todo)
@@ -25,7 +27,9 @@ struct TodayView: View {
                     if let error = model.saveError {
                         Text(error).foregroundStyle(.red)
                     }
-                    if let summary = model.sleepSummary {
+                    if let bed = SleepTracker.inBed(since: bedAt) {
+                        Label("In bed since \(Journal.time(bed))", systemImage: "bed.double").font(.subheadline).foregroundStyle(.secondary)
+                    } else if let summary = model.sleepSummary {
                         Label(summary, systemImage: "moon.zzz").font(.subheadline).foregroundStyle(.secondary)
                     }
                     let text = model.text(of: path)
@@ -73,11 +77,13 @@ struct TodayView: View {
         return model.places.filter { $0.at.hasPrefix(Journal.day(Date())) }.compactMap(\.place).filter { seen.insert($0).inserted }
     }
 
-    /// One of four equal tiles, so the row fits the smallest iPhone with labels on one line.
     private func addButton(_ title: String, _ icon: String, _ kind: CaptureKind) -> some View {
-        Button {
-            capture = CaptureRequest(kind: kind)
-        } label: {
+        tile(title, icon) { capture = CaptureRequest(kind: kind) }
+    }
+
+    /// One of four equal tiles, so the row fits the smallest iPhone with labels on one line.
+    private func tile(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: icon).font(.title3)
                 Text(title).font(.footnote.weight(.medium)).lineLimit(1)

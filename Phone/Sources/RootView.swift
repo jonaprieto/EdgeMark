@@ -15,6 +15,7 @@ struct CaptureRequest: Identifiable {
     let id = UUID()
     var kind = CaptureKind.idea
     var voice = false
+    var text = ""
 
     /// `edgemark://capture?kind=meal&voice=1`
     init?(url: URL) {
@@ -22,6 +23,7 @@ struct CaptureRequest: Identifiable {
         let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
         kind = items.first { $0.name == "kind" }?.value.flatMap(CaptureKind.init) ?? .idea
         voice = items.contains { $0.name == "voice" }
+        text = items.first { $0.name == "text" }?.value ?? ""
     }
 
     init(kind: CaptureKind = .idea, voice: Bool = false) {
