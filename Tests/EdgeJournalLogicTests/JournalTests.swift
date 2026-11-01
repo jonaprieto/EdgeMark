@@ -93,4 +93,14 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(entry.images, [".d/IMG.jpg"])
         XCTAssertEqual(entry.words, "")
     }
+
+    func testPrivateEntriesReadTheirFileName() throws {
+        let entry = try XCTUnwrap(Journal.privateEntry(path: "Journal/2026-10-31-22-14-idea.md.age"))
+        XCTAssertEqual(entry.day, "2026-10-31")
+        XCTAssertEqual(entry.time, "22:14")
+        XCTAssertEqual(entry.kind, "idea")
+        XCTAssertNil(Journal.privateEntry(path: "Journal/2026-10-31.md"))
+        XCTAssertNil(Journal.privateEntry(path: "Journal/Diary.md.age"))
+        XCTAssertNil(Journal.privateEntry(path: "Other/2026-10-31-22-14-idea.md.age"))
+    }
 }

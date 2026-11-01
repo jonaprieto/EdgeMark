@@ -432,9 +432,9 @@ final class PhoneModel {
         return createPrivate(title: "\(Journal.day(now)) \(Journal.time(now)) \(kind)", folder: Journal.folder, text: text) != nil
     }
 
-    /// Private captures, newest first. Only their file names are readable.
-    var privateCaptures: [PhoneNote] {
-        notes.filter { $0.folder == Journal.folder && $0.isEncrypted }
+    /// Private captures. Only what their file names say can be read without Face ID.
+    var privateCaptures: [Journal.PrivateEntry] {
+        notes.compactMap { Journal.privateEntry(path: $0.path) }
     }
 
     /// Lets the held file through on the next sync.

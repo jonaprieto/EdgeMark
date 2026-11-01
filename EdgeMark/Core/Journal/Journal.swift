@@ -38,6 +38,18 @@ public nonisolated enum Journal {
         }
     }
 
+    /// A private capture, whose text is sealed: what its file name says about it.
+    public struct PrivateEntry: Hashable, Identifiable, Sendable {
+        public let path: String
+        public let day: String
+        public let time: String
+        public let kind: String
+
+        public var id: String {
+            path
+        }
+    }
+
     public static let folder = "Journal"
 
     /// `2026-10-31`, in the calendar's time zone.
@@ -111,6 +123,20 @@ public nonisolated enum Journal {
             out.append(Entry(path: path, day: day, time: words[0], kind: kind, text: words[1]))
         }
         return out
+    }
+
+    /// Reads `Journal/2026-10-31-22-14-idea.md.age`. Nil for any other file.
+    public static func privateEntry(path: String) -> PrivateEntry? {
+        let name = (path as NSString).lastPathComponent
+        guard path.hasPrefix("\(folder)/"), name.hasSuffix(".md.age") else { return nil }
+        let parts = name.dropLast(7).split(separator: "-").map(String.init)
+        guard parts.count >= 6, parts[0].count == 4, parts.prefix(5).allSatisfy({ $0.allSatisfy(\.isNumber) }) else { return nil }
+        return PrivateEntry(
+            path: path,
+            day: parts[0 ..< 3].joined(separator: "-"),
+            time: "\(parts[3]):\(parts[4])",
+            kind: parts[5],
+        )
     }
 
     /// Paths of the Markdown images in `text`, in order.
