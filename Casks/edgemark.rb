@@ -1,6 +1,6 @@
 cask "edgemark" do
-  version "2.17.0"
-  sha256 "3acd39784ebe58a97c56a4ee038ae9dc77d28c602223aed52554b44216e60a71"
+  version "2.18.0"
+  sha256 "b4ae96ec2109f90e9a926821d97cb3950d0f02b0ee28bc4945a1ea827c65960a"
 
   url "https://github.com/jonaprieto/EdgeMark/releases/download/v#{version}/EdgeMark-v#{version}.dmg"
   name "EdgeMark"
