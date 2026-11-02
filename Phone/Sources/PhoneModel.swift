@@ -23,7 +23,8 @@ struct PhoneNote: Identifiable, Hashable {
 final class PhoneModel {
     static let shared = PhoneModel()
     // ponytail: one user, one repo. Move to Settings if that ever changes.
-    static let repository = "owner/notes"
+    /// `owner/name`, set by `scripts/phone.sh`, so no repository is written in the code.
+    static let repository = Bundle.main.object(forInfoDictionaryKey: "EdgeMarkNotesRepository") as? String ?? ""
 
     private(set) var notes: [PhoneNote] = []
     private(set) var status = ""

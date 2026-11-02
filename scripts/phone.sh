@@ -5,7 +5,10 @@
 #   scripts/phone.sh            build, install, launch
 #   scripts/phone.sh provision  first, and whenever the free 7-day profile has expired
 #
-# EDGEMARK_GITHUB_TOKEN needs contents read/write on owner/notes. Exported here, it,
+# The notes repository comes from the folder the Mac app uses, and the Apple team from this Mac's
+# Apple Development certificate. EDGEMARK_NOTES_REPO (owner/name) and EDGEMARK_TEAM override them.
+#
+# EDGEMARK_GITHUB_TOKEN needs contents read/write on that repository. Exported here, it,
 # TYPESAFE_API_KEY and OPENAI_API_KEY reach the app at launch without showing in the command
 # line; it keeps them in its Keychain. EDGEMARK_AGE_IDENTITY, the AGE-SECRET-KEY-1... of the Mac's
 # note encryption, opens .age notes: the phone keeps it behind Face ID. Unset it after one run.
@@ -18,6 +21,11 @@ VERSION=$(grep -m1 'MARKETING_VERSION' EdgeMark.xcodeproj/project.pbxproj | sed 
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo dev)
 # The public half of the Mac's note encryption, so the phone can seal private notes.
 RECIPIENT=$(defaults read io.github.ender-wang.EdgeMark encryption.recipient 2>/dev/null || true)
+NOTES=$(defaults read io.github.ender-wang.EdgeMark storageDirectory 2>/dev/null || echo "$HOME/notes")
+REPO=${EDGEMARK_NOTES_REPO:-$(git -C "$NOTES" remote get-url origin 2>/dev/null | sed -E 's#.*github\.com[:/]##; s#\.git$##')}
+[ -n "$REPO" ] || { echo "set EDGEMARK_NOTES_REPO to the owner/name of your notes repository"; exit 1; }
+TEAM=${EDGEMARK_TEAM:-$(security find-certificate -c "Apple Development" -p 2>/dev/null | openssl x509 -noout -subject 2>/dev/null | sed -n 's/.*OU *= *\([A-Z0-9]*\).*/\1/p')}
+[ -n "$TEAM" ] || { echo "set EDGEMARK_TEAM to your Apple team ID"; exit 1; }
 rm -rf "$T" && mkdir -p "$T"
 
 xcrun devicectl list devices -q --json-output "$T/dev.json" >/dev/null
@@ -27,7 +35,7 @@ DEV=$(plutil -extract result.devices.0.hardwareProperties.udid raw "$T/dev.json"
 if [ "$1" = provision ]; then
   # ponytail: the stub project exists only so Xcode's engine mints the free certificate and profile
   xcodebuild -project Phone/provision/P.xcodeproj -scheme Stub -destination "id=$DEV" \
-    -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
+    -allowProvisioningUpdates -allowProvisioningDeviceRegistration DEVELOPMENT_TEAM="$TEAM" \
     -derivedDataPath "$T/dd" build -quiet
 fi
 
@@ -40,7 +48,7 @@ BIN=$(build --show-bin-path)
 xcodebuild -project Phone/provision/P.xcodeproj -scheme EdgeMarkWidget -configuration Debug \
   -destination "id=$DEV" -derivedDataPath .build/phone-widget \
   -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
-  MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$VERSION" \
+  DEVELOPMENT_TEAM="$TEAM" MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$VERSION" \
   SWIFT_OPTIMIZATION_LEVEL=-O build -quiet
 
 rm -rf "$APP" && mkdir -p "$APP/PlugIns"
@@ -48,7 +56,7 @@ cp "$BIN/EdgeMarkPhone" "$APP/"
 find "$BIN" -maxdepth 1 -name '*.bundle' -exec cp -R {} "$APP/" \;
 cp -R .build/phone-widget/Build/Products/Debug-iphoneos/EdgeMarkWidget.appex "$APP/PlugIns/"
 cp EdgeMark/Resources/Mermaid/mermaid.min.js EdgeMark/Resources/Mermaid/LICENSE-mermaid.txt "$APP/"
-sed -e "s/VERSION/$VERSION/" -e "s/>COMMIT</>$COMMIT</" -e "s/AGE_RECIPIENT/$RECIPIENT/" Phone/Info.plist > "$APP/Info.plist"
+sed -e "s/VERSION/$VERSION/" -e "s/>COMMIT</>$COMMIT</" -e "s/AGE_RECIPIENT/$RECIPIENT/" -e "s#NOTES_REPOSITORY#$REPO#" Phone/Info.plist > "$APP/Info.plist"
 
 # Icon: one 1024px source; actool renders the sizes and the CFBundleIcons keys.
 A="$T/Assets.xcassets/AppIcon.appiconset"

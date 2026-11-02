@@ -80,7 +80,7 @@ The iPhone app is not on the App Store. You build it from this repository and in
 - An iPhone on iOS 26 or later, with Developer Mode on (Settings > Privacy & Security).
 - Your notes in a private GitHub repository, set up as in [Set up sync](#set-up-sync).
 
-**1. Get the code and point it at your notes.** Set `repository` in `Phone/Sources/PhoneModel.swift` to your notes repository.
+**1. Get the code.** The script finds your notes repository from the folder the Mac app uses. Without the Mac app, export `EDGEMARK_NOTES_REPO` with its `owner/name`.
 
 ```bash
 git clone https://github.com/jonaprieto/EdgeMark.git
@@ -119,15 +119,17 @@ Export any of these before running `scripts/phone.sh`. The app keeps them in its
 | `OPENAI_API_KEY` | Brainstorming |
 | `TYPESAFE_API_KEY` | The Jev part of the secret guard before a push |
 | `EDGEMARK_AGE_IDENTITY` | Opening encrypted notes. Your `AGE-SECRET-KEY-1...`, kept behind Face ID. Unset it after one run. |
+| `EDGEMARK_NOTES_REPO` | The `owner/name` of your notes repository, when the script cannot find it. |
+| `EDGEMARK_TEAM` | Your Apple team ID, when the script cannot read it from your Apple Development certificate. |
 
 </details>
 
 <details>
 <summary>Building for your own Apple account</summary>
 
-The project is set up for one developer. For your own account, replace the team and the bundle identifier:
+The script reads your team from this Mac. For your own account, replace the bundle identifier:
 
-- `DEVELOPMENT_TEAM` and `PRODUCT_BUNDLE_IDENTIFIER` in `Phone/provision/P.xcodeproj/project.pbxproj`.
+- `PRODUCT_BUNDLE_IDENTIFIER` in `Phone/provision/P.xcodeproj/project.pbxproj`.
 - `ID` in `scripts/phone.sh`.
 - The identifiers in `Phone/Info.plist` and `Phone/Widget/Info.plist`.
 
