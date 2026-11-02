@@ -13,7 +13,7 @@ struct CaptureSheet: View {
     @State private var meal = Journal.Meal(at: Date())
     @State private var eaten = Date()
     @State private var place: String?
-    @State private var dictation = Dictation()
+    @State private var dictation = Dictation(keepsDraft: true)
     @State private var photos: [UIImage] = []
     @State private var isPrivate = false
     @FocusState private var focused: Bool
@@ -96,7 +96,7 @@ struct CaptureSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { finish() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { Task { await save() } }
@@ -106,7 +106,7 @@ struct CaptureSheet: View {
         }
         .onAppear {
             kind = request.kind
-            text = request.text
+            text = request.text.isEmpty ? Dictation.unsaved ?? "" : request.text
             remind = request.remind
             focused = !request.voice
         }
@@ -114,6 +114,10 @@ struct CaptureSheet: View {
             if kind == .meal, place == nil { place = await PhoneModel.shared.currentPlace() }
         }
         .onChange(of: text) { readWhen() }
+        // A private capture stays out of a file that is readable while the phone is locked.
+        .onChange(of: isPrivate) {
+            if isPrivate { dictation.discardDraft() } else { dictation.keepsDraft = true }
+        }
         .onChange(of: remind) {
             if remind { due = Date().addingTimeInterval(3600) }
             readWhen()
@@ -122,6 +126,11 @@ struct CaptureSheet: View {
 
     private var rings: Bool {
         kind == .todo && remind
+    }
+
+    private func finish() {
+        dictation.discardDraft()
+        dismiss()
     }
 
     /// "Llamar a mamá mañana a las 3" sets the picker, which still has the last word.
@@ -153,11 +162,11 @@ struct CaptureSheet: View {
                 model.capture(sleep)
                 SleepTracker.clear()
             }
-            dismiss()
+            finish()
             return
         }
         if isPrivate {
-            if model.capturePrivately(kind == .meal ? meal.labeled(text) : text, kind: kind.rawValue) { dismiss() }
+            if model.capturePrivately(kind == .meal ? meal.labeled(text) : text, kind: kind.rawValue) { finish() }
             return
         }
         let target = kind.journal != nil ? Journal.path(for: Date()) : model.nextMeetingPath
@@ -175,6 +184,6 @@ struct CaptureSheet: View {
             _ = model.addMeetingIdea(line)
         }
         // A failed write keeps the sheet open, with the text still in it.
-        if PhoneModel.shared.saveError == nil { dismiss() }
+        if PhoneModel.shared.saveError == nil { finish() }
     }
 }

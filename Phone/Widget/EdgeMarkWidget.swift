@@ -8,6 +8,8 @@ struct EdgeMarkWidgets: WidgetBundle {
         VoiceWidget()
         AgendaWidget()
         RemindersWidget()
+        DictationLiveActivity()
+        DictateControl()
     }
 }
 
@@ -73,6 +75,49 @@ struct VoiceWidget: Widget {
         .configurationDisplayName("Dictate")
         .description("Speak a note.")
         .supportedFamilies([.systemSmall, .accessoryCircular])
+        // It only opens the app, which CarPlay cannot do without a CarPlay app.
+        .disfavoredLocations([.carPlay], for: [.systemSmall])
+    }
+}
+
+struct DictateControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "EdgeMarkDictate") {
+            ControlWidgetButton(action: DictateIntent()) {
+                Label("Dictate", systemImage: "mic")
+            }
+        }
+        .displayName("Dictate")
+        .description("Speak an idea.")
+    }
+}
+
+/// CarPlay Dashboard shows the small family and takes no taps.
+struct DictationLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: DictationActivity.self) { context in
+            VStack(alignment: .leading) {
+                Label("Listening", systemImage: "mic.fill").font(.headline)
+                elapsed(context.attributes.started)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.center) { elapsed(context.attributes.started) }
+            } compactLeading: {
+                Image(systemName: "mic.fill")
+            } compactTrailing: {
+                elapsed(context.attributes.started)
+            } minimal: {
+                Image(systemName: "mic.fill")
+            }
+        }
+        .supplementalActivityFamilies([.small])
+    }
+
+    private func elapsed(_ started: Date) -> some View {
+        Text(started, style: .timer).monospacedDigit()
     }
 }
 

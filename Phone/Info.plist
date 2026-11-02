@@ -25,6 +25,8 @@
 	<key>NSLocationWhenInUseUsageDescription</key><string>Your location is recorded when you finish a note.</string>
 	<key>NSMicrophoneUsageDescription</key><string>The microphone lets you dictate notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key><string>Speech recognition turns your dictation into text.</string>
+	<key>NSSupportsLiveActivities</key><true/>
+	<key>UIBackgroundModes</key><array><string>audio</string></array>
 	<key>ITSAppUsesNonExemptEncryption</key><false/>
 </dict>
 </plist>

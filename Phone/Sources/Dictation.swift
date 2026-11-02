@@ -1,3 +1,4 @@
+import ActivityKit
 import AVFoundation
 import Speech
 import SwiftUI
@@ -27,18 +28,58 @@ final class Dictation {
     /// Everything heard so far in this take, the part still being revised included.
     private(set) var text = ""
     private(set) var problem: String?
+    /// Finished phrases also go to the draft, for a take iOS might end before it is saved.
+    var keepsDraft: Bool
 
     private var settled = ""
+    /// What the draft held when this take began.
+    private var kept = ""
     private let engine = AVAudioEngine()
+    private var format: AVAudioFormat?
     private var analyzer: SpeechAnalyzer?
     private var input: AsyncStream<AnalyzerInput>.Continuation?
     private var results: Task<Void, Never>?
+    private var observers: [NSObjectProtocol] = []
+
+    /// In Caches, out of backups like the notes. The notes stay sealed while the phone is locked and
+    /// a take does not, so this file is readable after the first unlock.
+    private static let draft = URL.cachesDirectory.appendingPathComponent("dictation-draft.txt")
+
+    /// A take that never reached a note.
+    static var unsaved: String? {
+        try? String(contentsOf: draft, encoding: .utf8)
+    }
+
+    init(keepsDraft: Bool = false) {
+        self.keepsDraft = keepsDraft
+    }
+
+    /// A sheet can close mid take.
+    isolated deinit {
+        guard isListening else { return }
+        turnOff()
+        Task { await Self.endActivities() }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    func discardDraft() {
+        keepsDraft = false
+        try? FileManager.default.removeItem(at: Self.draft)
+    }
+
+    /// A take iOS killed leaves its activity behind, so launching clears it too.
+    static func endActivities() async {
+        for activity in Activity<DictationActivity>.activities {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
 
     func start(_ language: VoiceLanguage) async {
         guard !isListening, !isPreparing else { return }
         problem = nil
         text = ""
         settled = ""
+        kept = keepsDraft ? Self.unsaved ?? "" : ""
         isPreparing = true
         defer { isPreparing = false }
         do {
@@ -69,7 +110,8 @@ final class Dictation {
             throw Refused(reason: "No audio format for speech")
         }
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement)
+        // The category and mode Apple asks of voice in CarPlay.
+        try session.setCategory(.playAndRecord, mode: .default, options: .allowBluetoothHFP)
         try session.setActive(true)
 
         let analyzer = SpeechAnalyzer(modules: [transcriber])
@@ -80,7 +122,10 @@ final class Dictation {
         try await analyzer.start(inputSequence: stream)
         self.analyzer = analyzer
         self.input = input
+        self.format = format
         isListening = true
+        watchRoute()
+        _ = try? Activity.request(attributes: DictationActivity(started: Date()), content: .init(state: .init(), staleDate: nil))
         results = Task { [weak self] in
             do {
                 for try await result in transcriber.results {
@@ -96,22 +141,62 @@ final class Dictation {
         if isFinal {
             settled += words
             text = settled
+            if keepsDraft {
+                let whole = kept.isEmpty ? settled : kept + " " + settled
+                try? Data(whole.utf8).write(to: Self.draft, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            }
         } else {
             text = settled + words
         }
     }
 
-    func stop() async {
-        guard isListening else { return }
-        isListening = false
+    private func watchRoute() {
+        let center = NotificationCenter.default
+        observers = [
+            center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.resume() }
+            },
+            center.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] note in
+                guard note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt == AVAudioSession.InterruptionType.ended.rawValue else { return }
+                MainActor.assumeIsolated { self?.resume() }
+            },
+        ]
+    }
+
+    /// A new route stops the engine, as when the car connects mid take, and so does an interruption.
+    /// The take carries on if iOS lets it, which it may not on a locked phone.
+    private func resume() {
+        guard isListening, let input, let format else { return }
+        engine.stop()
+        engine.inputNode.removeTap(onBus: 0)
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+            try Self.feed(engine, into: input, as: format)
+            engine.prepare()
+            try engine.start()
+        } catch {
+            problem = "Listening stopped; what you said so far is still here"
+            Task { await stop() }
+        }
+    }
+
+    private func turnOff() {
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         input?.finish()
+        observers.forEach(NotificationCenter.default.removeObserver)
+    }
+
+    func stop() async {
+        guard isListening else { return }
+        isListening = false
+        turnOff()
         input = nil
         try? await analyzer?.finalizeAndFinishThroughEndOfInput()
         analyzer = nil
         await results?.value
         results = nil
+        await Self.endActivities()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
@@ -119,7 +204,8 @@ final class Dictation {
     private nonisolated static func feed(_ engine: AVAudioEngine, into input: AsyncStream<AnalyzerInput>.Continuation, as format: AVAudioFormat) throws {
         let node = engine.inputNode
         let natural = node.outputFormat(forBus: 0)
-        guard let converter = AVAudioConverter(from: natural, to: format) else { throw Refused(reason: "No audio converter for speech") }
+        // A route in the middle of changing reports no rate, and a tap on that would crash.
+        guard natural.sampleRate > 0, let converter = AVAudioConverter(from: natural, to: format) else { throw Refused(reason: "No audio converter for speech") }
         node.installTap(onBus: 0, bufferSize: 4096, format: natural) { buffer, _ in
             let capacity = AVAudioFrameCount(Double(buffer.frameLength) * format.sampleRate / natural.sampleRate) + 1
             guard let converted = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else { return }

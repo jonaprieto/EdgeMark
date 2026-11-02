@@ -5,6 +5,11 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Added
+
+- Dictate on the iPhone from Control Center or the Lock Screen, and keep talking with the phone
+  locked or in the car, with a timer on CarPlay Dashboard and a draft if iOS closes the app.
+
 ## 2.18.0 (2026-11-01)
 
 ### Changed

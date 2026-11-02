@@ -54,6 +54,14 @@ xcodebuild -project Phone/provision/P.xcodeproj -scheme EdgeMarkWidget -configur
 rm -rf "$APP" && mkdir -p "$APP/PlugIns"
 cp "$BIN/EdgeMarkPhone" "$APP/"
 find "$BIN" -maxdepth 1 -name '*.bundle' -exec cp -R {} "$APP/" \;
+# swift build stops short of App Intents metadata, and Control Center only opens an app that has it.
+printf '%s\n' "$PWD"/Phone/Sources/*.swift > "$T/sources"
+find "$PWD/.build/ios" -name 'EdgeMarkPhone-primary.swiftconstvalues' > "$T/consts"
+xcrun appintentsmetadataprocessor --output "$APP" --module-name EdgeMarkPhone --sdk-root "$SDK" \
+  --toolchain-dir "$(dirname "$(dirname "$(dirname "$(xcrun -f swiftc)")")")" \
+  --xcode-version "$(xcodebuild -version | sed -n 's/Build version //p')" --platform-family iOS \
+  --deployment-target 26.0 --target-triple arm64-apple-ios26.0 \
+  --source-file-list "$T/sources" --swift-const-vals-list "$T/consts"
 cp -R .build/phone-widget/Build/Products/Debug-iphoneos/EdgeMarkWidget.appex "$APP/PlugIns/"
 cp EdgeMark/Resources/Mermaid/mermaid.min.js EdgeMark/Resources/Mermaid/LICENSE-mermaid.txt "$APP/"
 sed -e "s/VERSION/$VERSION/" -e "s/>COMMIT</>$COMMIT</" -e "s/AGE_RECIPIENT/$RECIPIENT/" -e "s#NOTES_REPOSITORY#$REPO#" Phone/Info.plist > "$APP/Info.plist"
