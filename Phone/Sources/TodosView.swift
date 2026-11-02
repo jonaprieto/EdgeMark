@@ -133,7 +133,7 @@ struct TodosView: View {
             }
             .overlay {
                 if order == .reminders, model.reminders.isEmpty, model.sleepPrompts.isEmpty {
-                    ContentUnavailableView("No reminders", systemImage: "bell", description: Text("Add one here, or with the bell on a note."))
+                    ContentUnavailableView("No reminders", systemImage: "bell", description: Text("Tap + to add one, or use the bell on a note."))
                 } else if order != .reminders, model.todos.isEmpty {
                     ContentUnavailableView("No open todos", systemImage: "checkmark.circle")
                 }
@@ -142,7 +142,9 @@ struct TodosView: View {
             .searchable(text: $query)
             .refreshable { await model.sync() }
             .toolbar {
-                Button("Remind me", systemImage: "bell") { capture = CaptureRequest(kind: .todo, remind: true) }
+                Button(order == .reminders ? "Add Reminder" : "Add Todo", systemImage: "plus") {
+                    capture = CaptureRequest(kind: .todo, remind: order == .reminders)
+                }
             }
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }

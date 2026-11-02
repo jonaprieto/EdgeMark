@@ -92,7 +92,7 @@ struct CaptureSheet: View {
                     }
                 }
             }
-            .navigationTitle("Capture")
+            .navigationTitle(rings ? "New Reminder" : "Capture")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
