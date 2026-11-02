@@ -5,6 +5,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+## 2.19.0 (2026-11-01)
+
 ### Added
 
 - Dictate on the iPhone from Control Center or the Lock Screen, and keep talking with the phone
