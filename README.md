@@ -33,7 +33,7 @@ On the iPhone:
 - Share a note, photos included, to any app.
 - Reminders: on a note, like the Mac, or typed in one sentence, such as "llamar a mamá mañana a las 3".
 - Home Screen and Lock Screen widgets.
-- Brainstorming with OpenAI from any note.
+- Brainstorming with OpenAI from any note, or open the note in ChatGPT or Claude, with their apps and your plan.
 - A map of where you finished each note.
 
 Your notes stay readable without EdgeMark: they are Markdown files in a git repository.

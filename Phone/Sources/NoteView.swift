@@ -1,4 +1,5 @@
 import EdgeJournalLogic
+import EdgePhoneSync
 import SwiftUI
 
 struct NoteView: View {
@@ -13,7 +14,9 @@ struct NoteView: View {
     @State private var reminding = false
     @State private var sharing = false
     @State private var deleting: PhoneNote?
+    @State private var tooLong: ChatApp?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @FocusState private var focused: Bool
 
     private var model: PhoneModel { .shared }
@@ -61,6 +64,11 @@ struct NoteView: View {
                 ToolbarItem(placement: .secondaryAction) {
                     Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
                 }
+                ToolbarItemGroup(placement: .secondaryAction) {
+                    ForEach(ChatApp.allCases, id: \.self) { app in
+                        Button("Open in \(app.rawValue)", systemImage: "arrow.up.forward.app") { open(in: app) }
+                    }
+                }
             }
             if !editing {
                 ToolbarItem(placement: .secondaryAction) {
@@ -69,6 +77,19 @@ struct NoteView: View {
             }
         }
         .deleteDialog(for: $deleting)
+        .alert(
+            "Too long for a link",
+            isPresented: Binding(get: { tooLong != nil }, set: { if !$0 { tooLong = nil } }),
+            presenting: tooLong,
+        ) { app in
+            Button("Copy and Open \(app.rawValue)") {
+                UIPasteboard.general.string = words
+                openURL(app.home)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Copy the note, then paste it into the new chat.")
+        }
         .sheet(isPresented: $brainstorming) { BrainstormView(source: path) }
         .sheet(isPresented: $sharing) { ShareSheet(items: shared).presentationDetents([.medium, .large]) }
         .sheet(isPresented: $reminding) {
@@ -91,11 +112,19 @@ struct NoteView: View {
         }
     }
 
+    private var words: String {
+        Journal.withoutImages(text).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// The words, then the photos as files: a path in the note means nothing to whoever gets it.
     private var shared: [Any] {
         let photos: [Any] = Journal.imagePaths(in: text).compactMap { model.imageURL($0, in: path) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
-        return [Journal.withoutImages(text).trimmingCharacters(in: .whitespacesAndNewlines)] + photos
+        return [words] + photos
+    }
+
+    private func open(in app: ChatApp) {
+        if let link = app.link(with: words) { openURL(link) } else { tooLong = app }
     }
 
     private func setEditing(_ on: Bool) {
