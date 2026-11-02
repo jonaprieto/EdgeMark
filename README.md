@@ -165,7 +165,7 @@ The project is set up for one developer. For your own account, replace the team 
 
 Everything is Markdown, so the Mac reads it with no special support.
 
-- Each day is one file, `Journal/2026-10-31.md`, with Meals, Ideas and Todos sections.
+- Each day is one file, `Journal/2026-10-31.md`, with Meals, Ideas and Todos sections, and a From yesterday section at the top when you left it a note.
 - A meeting is one note, `Meetings/2026-11-03-Felipe.md`, with its ideas inside.
 - A brainstorm you save is a note in `Brainstorms/` that links back to where it started.
 - A todo is any `- [ ]` line in any note, with an optional `due:2026-11-02`, or `due:2026-11-02T15:30` to ring as a reminder. Existing notes work unchanged.

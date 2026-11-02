@@ -9,6 +9,7 @@ struct TodayView: View {
     @State private var editing = false
     @AppStorage(SleepTracker.bedKey) private var bedAt = 0.0
     @State private var showSettings = false
+    @State private var leaving = false
 
     private var model: PhoneModel { .shared }
     private var path: String { Journal.path(for: Date()) }
@@ -26,6 +27,22 @@ struct TodayView: View {
                         addButton("Todo", "checkmark.square", .todo)
                         tile("Remind", "bell") { capture = CaptureRequest(kind: .todo, remind: true) }
                         PhotoMenu(onPhotos: addPhotos) { tileLabel("Photo", "camera") }
+                    }
+                    // Not a seventh tile: the row would no longer fit its labels on the smallest iPhone.
+                    Button { leaving = true } label: {
+                        Label("For tomorrow", systemImage: "sunrise")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .foregroundStyle(.tint)
+                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    ForEach(model.leftForTomorrow) { entry in
+                        NavigationLink(value: Route.note(entry.path)) {
+                            Label(entry.words, systemImage: "sunrise").font(.subheadline).lineLimit(2)
+                        }
+                        .buttonStyle(.plain)
                     }
                     if model.notificationsOff {
                         Label("Notifications are off, so reminders will not ring.", systemImage: "bell.slash").font(.subheadline).foregroundStyle(.red)
@@ -73,6 +90,7 @@ struct TodayView: View {
             .sheet(isPresented: $showSettings) { SettingsView() }
             .navigationDestination(isPresented: $editing) { NoteView(path: path, startsEditing: true) }
             .sheet(isPresented: $brainstorming) { BrainstormView(source: nil) }
+            .sheet(isPresented: $leaving) { TomorrowSheet() }
             .navigationDestination(for: String.self) { _ in PlacesView() }
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }
@@ -110,5 +128,42 @@ struct TodayView: View {
         .foregroundStyle(.tint)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
         .contentShape(Rectangle())
+    }
+}
+
+/// A few words to find at the top of Today tomorrow.
+private struct TomorrowSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var dictation = Dictation()
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("What should you read tomorrow?", text: $text, axis: .vertical)
+                    .lineLimit(3 ... 10)
+                    .focused($focused)
+                MicButton(dictation: dictation, text: $text)
+            }
+            .navigationTitle("For Tomorrow")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { Task { await save() } }
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .onAppear { focused = true }
+    }
+
+    private func save() async {
+        await dictation.stop()
+        PhoneModel.shared.leaveForTomorrow(text)
+        dismiss()
     }
 }

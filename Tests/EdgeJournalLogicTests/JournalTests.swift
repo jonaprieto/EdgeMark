@@ -163,6 +163,15 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(entry.words, "la pizarra")
     }
 
+    func testALineLeftForTomorrowComesFirst() throws {
+        let day = "# 2026-11-02\n\n## Sleep\n\n- 01:00-09:00 8h\n"
+        let text = Journal.appending("- 19:05 leer el informe", under: .fromYesterday, to: day)
+        XCTAssertLessThan(try XCTUnwrap(text.range(of: "## From yesterday")).lowerBound, try XCTUnwrap(text.range(of: "## Sleep")).lowerBound)
+        let entry = try XCTUnwrap(Journal.entries(in: text, path: "Journal/2026-11-02.md").first)
+        XCTAssertEqual(entry.kind, .fromYesterday)
+        XCTAssertEqual(entry.words, "leer el informe")
+    }
+
     func testTagsAreReadFromTheWords() throws {
         let line = "## Ideas\n\n- 12:30 Issue #4: la #Pizarra, del #trabajo-nuevo ![](.d/IMG.jpg) a#b # ##\n"
         let entry = try XCTUnwrap(Journal.entries(in: line, path: "Journal/2026-10-31.md").first)

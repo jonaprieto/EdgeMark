@@ -75,6 +75,7 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - The bedtime and morning prompts show under Reminders on the iPhone, and can be deleted there.
 - Open a note in ChatGPT or Claude from its ... menu on the iPhone, which uses those apps instead of an API key.
 - Add a reminder from the + in Todos on the iPhone, while viewing Reminders.
+- For tomorrow, on the iPhone's Today, leaves a note at the top of tomorrow's page, in a From yesterday section.
 
 ### Fixed
 

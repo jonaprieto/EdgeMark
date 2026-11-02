@@ -4,10 +4,11 @@ import Foundation
 /// Foundation only, so the rules are unit tested by the `EdgeJournalLogic` SPM target.
 public nonisolated enum Journal {
     public enum Kind: String, CaseIterable, Sendable {
-        case sleep, meal, idea, todo
+        case fromYesterday, sleep, meal, idea, todo
 
         var heading: String {
             switch self {
+            case .fromYesterday: "## From yesterday"
             case .sleep: "## Sleep"
             case .meal: "## Meals"
             case .idea: "## Ideas"
@@ -122,7 +123,7 @@ public nonisolated enum Journal {
     }
 
     /// `text` with `entry` at the end of its section. A missing section is added in its place
-    /// in the fixed order: sleep, meals, ideas, todos.
+    /// in the fixed order: from yesterday, sleep, meals, ideas, todos.
     public static func appending(_ entry: String, under kind: Kind, to text: String) -> String {
         var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         while lines.last == "" {

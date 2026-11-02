@@ -433,6 +433,25 @@ final class PhoneModel {
         refresh()
     }
 
+    /// Leaves a line at the top of tomorrow's file, the first thing Today shows then. It records
+    /// no position: the map matches a line by day, and this one is written the day before its file.
+    func leaveForTomorrow(_ text: String) {
+        let now = Date()
+        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: now) else { return }
+        let path = Journal.path(for: tomorrow)
+        let existing = mirror?.exists(path) == true ? self.text(of: path) : Journal.emptyDay(for: tomorrow)
+        save(Journal.appending(Journal.entry(text, kind: .fromYesterday, at: now), under: .fromYesterday, to: existing), to: path)
+        refresh()
+        Task { await sync() }
+    }
+
+    /// What is waiting at the top of tomorrow's file.
+    var leftForTomorrow: [Journal.Entry] {
+        guard let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: Date()) else { return [] }
+        let path = Journal.path(for: tomorrow)
+        return Journal.entries(in: text(of: path), path: path).filter { $0.kind == .fromYesterday }
+    }
+
     /// Adds last night to today's file. It records no position: nobody finishes a note asleep.
     func capture(_ sleep: Sleep) {
         let now = Date()
