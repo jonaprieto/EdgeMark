@@ -5,6 +5,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+## 2.18.0 (2026-11-01)
+
 ### Changed
 
 - A new app icon: the Markdown hash next to the screen edge, on the Mac and the iPhone.
