@@ -125,6 +125,7 @@ final class Dictation {
         self.format = format
         isListening = true
         watchRoute()
+        StopDictationIntent.stop = { [weak self] in await self?.stop() }
         _ = try? Activity.request(attributes: DictationActivity(started: Date()), content: .init(state: .init(), staleDate: nil))
         results = Task { [weak self] in
             do {

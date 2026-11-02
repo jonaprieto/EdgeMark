@@ -92,23 +92,18 @@ struct DictateControl: ControlWidget {
     }
 }
 
-/// CarPlay Dashboard shows the small family and takes no taps.
+/// CarPlay Dashboard shows the small family and takes no taps, so only the Lock Screen gets Stop.
 struct DictationLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: DictationActivity.self) { context in
-            VStack(alignment: .leading) {
-                Label("Listening", systemImage: "mic.fill").font(.headline)
-                elapsed(context.attributes.started)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
+            DictationActivityView(started: context.attributes.started)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.center) { elapsed(context.attributes.started) }
+                DynamicIslandExpandedRegion(.center) { Self.elapsed(context.attributes.started) }
             } compactLeading: {
                 Image(systemName: "mic.fill")
             } compactTrailing: {
-                elapsed(context.attributes.started)
+                Self.elapsed(context.attributes.started)
             } minimal: {
                 Image(systemName: "mic.fill")
             }
@@ -116,8 +111,29 @@ struct DictationLiveActivity: Widget {
         .supplementalActivityFamilies([.small])
     }
 
-    private func elapsed(_ started: Date) -> some View {
+    fileprivate static func elapsed(_ started: Date) -> some View {
         Text(started, style: .timer).monospacedDigit()
+    }
+}
+
+struct DictationActivityView: View {
+    @Environment(\.activityFamily) private var family
+    let started: Date
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Label("Listening", systemImage: "mic.fill").font(.headline)
+                DictationLiveActivity.elapsed(started)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if family != .small {
+                Button(intent: StopDictationIntent()) {
+                    Label("Stop", systemImage: "stop.fill")
+                }
+            }
+        }
+        .padding()
     }
 }
 

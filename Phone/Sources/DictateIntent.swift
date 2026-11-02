@@ -16,6 +16,20 @@ struct DictateIntent: AppIntent {
     }
 }
 
+/// The Stop button on a running take. iOS runs it in the app, which the take keeps alive, and the take
+/// sets `stop`; the widget extension only needs the type to draw the button.
+struct StopDictationIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Stop Dictation"
+    static let authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+    @MainActor static var stop: (() async -> Void)?
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        await Self.stop?()
+        return .result()
+    }
+}
+
 /// A take in progress, on the Lock Screen and CarPlay Dashboard. The timer needs nothing but its start.
 struct DictationActivity: ActivityAttributes {
     struct ContentState: Codable, Hashable {}
