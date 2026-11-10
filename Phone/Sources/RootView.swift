@@ -50,6 +50,8 @@ struct RootView: View {
     @State private var tab = Tab.today
     @State private var opened: OpenedNote?
     @AppStorage("todos.order") private var order = TodoOrder.note
+    /// No GitHub access yet, from a sign-in or from `scripts/phone.sh`: the first launch.
+    @State private var welcoming = !PhoneModel.shared.isSignedIn && Keychain.get("github-token") == nil
 
     var body: some View {
         TabView(selection: $tab) {
@@ -63,6 +65,7 @@ struct RootView: View {
         .sheet(item: $opened) { note in
             NavigationStack { NoteView(path: note.id) }
         }
+        .fullScreenCover(isPresented: $welcoming) { SignInView() }
         .onOpenURL(perform: open)
     }
 

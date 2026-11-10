@@ -70,9 +70,17 @@ public struct GitHubLogin: Sendable {
         var interval = code.interval
         while Date() < code.expires {
             try await Task.sleep(for: .seconds(interval))
-            let body = try await post("login/oauth/access_token", [
-                "client_id": clientID, "device_code": code.device, "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-            ])
+            let body: [String: Any]
+            do {
+                body = try await post("login/oauth/access_token", [
+                    "client_id": clientID, "device_code": code.device, "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                ])
+            } catch {
+                // iOS suspends the app while you approve in Safari, and the poll in flight fails;
+                // offline does the same. Only GitHub's answer ends the wait.
+                try Task.checkCancellation()
+                continue
+            }
             switch Self.read(body, now: Date()) {
             case let .tokens(tokens): return tokens
             case .wait: continue
