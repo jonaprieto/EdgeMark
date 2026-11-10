@@ -1,7 +1,7 @@
 import EdgeJournalLogic
 import SwiftUI
 
-/// Ideas or meals across the days, each with its time and place.
+/// Ideas, meals or what you did, across the days, each with its time and place.
 struct JournalView: View {
     @Binding var capture: CaptureRequest?
 
@@ -10,10 +10,13 @@ struct JournalView: View {
     @State private var removing: Row?
 
     private var model: PhoneModel { .shared }
-    private var showsMeals: Bool { kind == "meal" }
-    private var listed: [(entry: Journal.Entry, place: PlaceLine?)] { model.entries(showsMeals ? .meal : .idea) }
-    /// A private meal goes with the meals, every other private capture with the ideas.
-    private var sealed: [Journal.PrivateEntry] { model.privateCaptures.filter { ($0.kind == "meal") == showsMeals } }
+    private var shown: CaptureKind { kind == "meal" ? .meal : kind == "done" ? .done : .idea }
+    private var showsMeals: Bool { shown == .meal }
+    private var listed: [(entry: Journal.Entry, place: PlaceLine?)] { model.entries(shown.journal ?? .idea) }
+    /// A private meal or done goes with its own list, every other private capture with the ideas.
+    private var sealed: [Journal.PrivateEntry] {
+        model.privateCaptures.filter { shown == .idea ? !["meal", "done"].contains($0.kind) : $0.kind == shown.rawValue }
+    }
 
     var body: some View {
         NavigationStack {
@@ -22,6 +25,7 @@ struct JournalView: View {
                 Picker("Show", selection: $kind) {
                     Text("Ideas").tag("idea")
                     Text("Meals").tag("meal")
+                    Text("Done").tag("done")
                 }
                 .pickerStyle(.segmented)
                 .listRowBackground(Color.clear)
@@ -40,25 +44,27 @@ struct JournalView: View {
                 if listed.isEmpty, sealed.isEmpty {
                     if showsMeals {
                         ContentUnavailableView("No meals yet", systemImage: "fork.knife", description: Text("What you eat lands here, with when and where."))
+                    } else if shown == .done {
+                        ContentUnavailableView("Nothing done yet", systemImage: "checkmark.circle", description: Text("What you do lands here, with a #tag for work, personal or a project."))
                     } else {
                         ContentUnavailableView("No ideas yet", systemImage: "lightbulb", description: Text("Ideas and things you notice land here, with when and where."))
                     }
                 }
             }
-            .navigationTitle(showsMeals ? "Meals" : "Ideas")
+            .navigationTitle(showsMeals ? "Meals" : shown == .done ? "Done" : "Ideas")
             .searchable(text: $query)
             .searchSuggestions {
                 ForEach(tags, id: \.self) { Text($0).searchCompletion($0) }
             }
             .refreshable { await model.sync() }
             .toolbar {
-                Button("Add", systemImage: "plus") { capture = CaptureRequest(kind: showsMeals ? .meal : .idea) }
+                Button("Add", systemImage: "plus") { capture = CaptureRequest(kind: shown) }
             }
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }
             }
             .confirmationDialog(
-                showsMeals ? "Delete this meal?" : "Delete this idea?",
+                showsMeals ? "Delete this meal?" : shown == .done ? "Delete this entry?" : "Delete this idea?",
                 isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
                 titleVisibility: .visible,
                 presenting: removing,

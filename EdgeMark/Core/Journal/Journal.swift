@@ -4,7 +4,7 @@ import Foundation
 /// Foundation only, so the rules are unit tested by the `EdgeJournalLogic` SPM target.
 public nonisolated enum Journal {
     public enum Kind: String, CaseIterable, Sendable {
-        case fromYesterday, sleep, meal, idea, todo
+        case fromYesterday, sleep, meal, idea, done, todo
 
         var heading: String {
             switch self {
@@ -12,6 +12,7 @@ public nonisolated enum Journal {
             case .sleep: "## Sleep"
             case .meal: "## Meals"
             case .idea: "## Ideas"
+            case .done: "## Done"
             case .todo: "## Todos"
             }
         }
@@ -69,10 +70,7 @@ public nonisolated enum Journal {
 
         /// The `#tags` in its words, lowercased. `#4` is a number, not a tag.
         public var tags: [String] {
-            words.split(whereSeparator: \.isWhitespace).filter { $0.hasPrefix("#") }.compactMap { word in
-                let tag = word.dropFirst().trimmingCharacters(in: .punctuationCharacters).lowercased()
-                return tag.contains(where: \.isLetter) ? "#\(tag)" : nil
-            }
+            words.split(whereSeparator: \.isWhitespace).compactMap(Journal.tag)
         }
     }
 
@@ -122,8 +120,32 @@ public nonisolated enum Journal {
         return "- [ ] \(flat)\(dueTag)"
     }
 
+    /// `#Casa,` reads as `#casa`. Nil for a word that is no tag: `#4` is a number.
+    public static func tag(_ word: some StringProtocol) -> String? {
+        guard word.hasPrefix("#") else { return nil }
+        let tag = word.dropFirst().trimmingCharacters(in: .punctuationCharacters).lowercased()
+        return tag.contains(where: \.isLetter) ? "#\(tag)" : nil
+    }
+
+    /// The tags of `entries`, each once, most used first. A tie goes to the one met first, so
+    /// newest first when `entries` is: the Done buttons.
+    public static func commonTags(_ entries: [Entry]) -> [String] {
+        let all = entries.flatMap(\.tags)
+        let counts = all.reduce(into: [:]) { $0[$1, default: 0] += 1 }
+        var seen = Set<String>()
+        return all.filter { seen.insert($0).inserted }.enumerated()
+            .sorted { (counts[$0.element]!, -$0.offset) > (counts[$1.element]!, -$1.offset) }.map(\.element)
+    }
+
+    /// `text` with `tag` added at the end, or taken out when it is already there: a chip's tap.
+    public static func toggling(_ tag: String, in text: String) -> String {
+        let words = text.split(whereSeparator: \.isWhitespace).map(String.init)
+        let kept = words.filter { Journal.tag($0) != tag }
+        return (kept.count < words.count ? kept : words + [tag]).joined(separator: " ")
+    }
+
     /// `text` with `entry` at the end of its section. A missing section is added in its place
-    /// in the fixed order: from yesterday, sleep, meals, ideas, todos.
+    /// in the fixed order: from yesterday, sleep, meals, ideas, done, todos.
     public static func appending(_ entry: String, under kind: Kind, to text: String) -> String {
         var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         while lines.last == "" {

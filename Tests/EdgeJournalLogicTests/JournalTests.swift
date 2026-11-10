@@ -82,6 +82,25 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(text, "# Day\n\n## Meals\n\n- m\n\n## Ideas\n\n- i\n\n## Todos\n\n- t\n")
     }
 
+    func testDoneSitsBetweenIdeasAndTodos() throws {
+        let text = Journal.appending("- 15:10 fixed sync #work", under: .done, to: "# Day\n\n## Ideas\n\n- i\n\n## Todos\n\n- t\n")
+        XCTAssertEqual(text, "# Day\n\n## Ideas\n\n- i\n\n## Done\n\n- 15:10 fixed sync #work\n\n## Todos\n\n- t\n")
+        let entry = try XCTUnwrap(Journal.entries(in: text, path: "Journal/2026-11-09.md").last)
+        XCTAssertEqual(entry.kind, .done)
+        XCTAssertEqual(entry.tags, ["#work"])
+    }
+
+    func testCommonTagsComeOnceMostUsedFirst() {
+        let text = "## Done\n\n- 09:00 a #suma #work\n- 08:00 b #Work #personal\n- 07:00 c #personal #work\n"
+        XCTAssertEqual(Journal.commonTags(Journal.entries(in: text, path: "Journal/2026-11-09.md")), ["#work", "#personal", "#suma"])
+    }
+
+    func testAChipAddsOrRemovesItsTag() {
+        XCTAssertEqual(Journal.toggling("#work", in: "fixed sync "), "fixed sync #work")
+        XCTAssertEqual(Journal.toggling("#work", in: ""), "#work")
+        XCTAssertEqual(Journal.toggling("#work", in: "fixed #Work, sync"), "fixed sync")
+    }
+
     func testEntriesStayTogetherAtTheEndOfTheSection() {
         let text = "# Day\n\n## Meals\n\n- a\n\n## Ideas\n\n- b\n"
         XCTAssertEqual(

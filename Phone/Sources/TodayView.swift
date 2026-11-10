@@ -94,7 +94,10 @@ struct TodayView: View {
             PhotoMenu(onPhotos: addPhotos) { tileLabel("Photo", "camera") }
         }
         // Not a seventh tile: the row would no longer fit its labels on the smallest iPhone.
-        bar("For tomorrow", "sunrise") { leaving = true }
+        HStack(spacing: 8) {
+            bar("Done", "checkmark.circle") { capture = CaptureRequest(kind: .done) }
+            bar("For tomorrow", "sunrise") { leaving = true }
+        }
         ForEach(model.leftForTomorrow) { entry in
             NavigationLink(value: Route.note(entry.path)) {
                 Label(entry.words, systemImage: "sunrise").font(.subheadline).lineLimit(2)
@@ -134,7 +137,7 @@ struct TodayView: View {
         if !images.isEmpty { model.capture(images.joined(separator: " "), kind: .idea, due: nil) }
     }
 
-    /// A full-width button under the tiles.
+    /// A half-width button under the tiles.
     private func bar(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: icon)

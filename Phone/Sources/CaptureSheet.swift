@@ -25,6 +25,7 @@ struct CaptureSheet: View {
                     Text("Sleep").tag(CaptureKind.sleep)
                     Text("Meal").tag(CaptureKind.meal)
                     Text("Idea").tag(CaptureKind.idea)
+                    Text("Done").tag(CaptureKind.done)
                     Text("Todo").tag(CaptureKind.todo)
                     Text("Meeting").tag(CaptureKind.meeting)
                 }
@@ -38,6 +39,18 @@ struct CaptureSheet: View {
                 TextField(prompt, text: $text, axis: .vertical)
                     .lineLimit(3 ... 10)
                     .focused($focused)
+                if kind == .done {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(doneTags, id: \.self) { tag in
+                                let on = text.split(whereSeparator: \.isWhitespace).contains { Journal.tag($0) == tag }
+                                Button(tag) { text = Journal.toggling(tag, in: text) }
+                                    .buttonStyle(.bordered)
+                                    .tint(on ? .accentColor : .secondary)
+                            }
+                        }
+                    }
+                }
                 Section {
                     MicButton(dictation: dictation, text: $text, startsListening: request.voice)
                     if PhoneModel.shared.canEncrypt, kind != .meeting, kind != .sleep, !rings {
@@ -124,6 +137,16 @@ struct CaptureSheet: View {
         }
     }
 
+    /// The tags most used on earlier Done lines, then #trabajo and #personal so there is
+    /// something to tap from the first one, then the tags of ideas and meals: projects, often.
+    private var doneTags: [String] {
+        let model = PhoneModel.shared
+        let tags = Journal.commonTags(model.entries(.done).map(\.entry)) + ["#trabajo", "#personal"]
+            + Journal.commonTags((model.entries(.idea) + model.entries(.meal)).map(\.entry))
+        var seen = Set<String>()
+        return Array(tags.filter { seen.insert($0).inserted }.prefix(8))
+    }
+
     private var rings: Bool {
         kind == .todo && remind
     }
@@ -143,6 +166,7 @@ struct CaptureSheet: View {
         case .sleep: "23:00 07:00 regular"
         case .meal: "What did you eat?"
         case .idea: "An idea, or something you noticed"
+        case .done: "What did you do? #work #project"
         case .todo: remind ? "Call mom tomorrow at 3" : "What needs doing?"
         case .meeting: "What should you bring up?"
         }
