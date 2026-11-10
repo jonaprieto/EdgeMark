@@ -53,10 +53,13 @@ struct NoteBody: View {
         case markdown(String)
         case entry(Journal.Entry)
         case sleep(Sleep)
+        case section(String)
     }
 
-    /// `markdown` with each timed line and each night taken out as a row of its own.
-    private static func pieces(of markdown: String, entries: [String: Journal.Entry], nights: [String: Sleep]) -> [Piece] {
+    /// `markdown` with each timed line and each night taken out as a row of its own. In a day
+    /// file the `# 2026-11-09` title goes, since the screen's title already says the day, and
+    /// each `## Meals` is a quiet label rather than a ruled heading over small rows.
+    private static func pieces(of markdown: String, entries: [String: Journal.Entry], nights: [String: Sleep], dayFile: Bool) -> [Piece] {
         var out: [Piece] = []
         var pending: [String] = []
         func flush() {
@@ -71,6 +74,11 @@ struct NoteBody: View {
             } else if let night = nights[line] {
                 flush()
                 out.append(.sleep(night))
+            } else if dayFile, line.hasPrefix("## ") {
+                flush()
+                out.append(.section(String(line.dropFirst(3))))
+            } else if dayFile, line.hasPrefix("# ") {
+                continue
             } else {
                 pending.append(line)
             }
@@ -86,7 +94,7 @@ struct NoteBody: View {
             ForEach(Array(TodoScan.segments(of: text, path: path).enumerated()), id: \.offset) { _, segment in
                 switch segment {
                 case let .text(markdown):
-                    ForEach(Array(Self.pieces(of: markdown, entries: entries, nights: nights).enumerated()), id: \.offset) { _, piece in
+                    ForEach(Array(Self.pieces(of: markdown, entries: entries, nights: nights, dayFile: path.hasPrefix("\(Journal.folder)/")).enumerated()), id: \.offset) { _, piece in
                         switch piece {
                         case let .markdown(chunk):
                             NoteMarkdown(chunk, imageBase: imageBase)
@@ -94,6 +102,12 @@ struct NoteBody: View {
                             EntryRow(entry: entry, place: PlaceLine.place(of: entry, in: PhoneModel.shared.places), imageBase: imageBase)
                         case let .sleep(night):
                             SleepRow(sleep: night)
+                        case let .section(title):
+                            Text(title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 10)
+                                .accessibilityAddTraits(.isHeader)
                         }
                     }
                 case let .task(todo):

@@ -8,6 +8,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 ### Changed
 
 - The iPhone's Today title sits on the same row as its buttons, with Settings at the top right.
+- A day on the iPhone no longer repeats its date under the title, and its Meals, Ideas and other
+  sections read as quiet labels.
 
 ### Fixed
 
