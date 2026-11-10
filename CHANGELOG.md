@@ -9,6 +9,11 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 - The iPhone's Today title sits on the same row as its buttons, with Settings at the top right.
 
+### Fixed
+
+- An OpenAI key pasted on the iPhone is kept: Settings > Brainstorm has a field for it that
+  saves on paste, and a key pasted in the model's field moves there.
+
 ### Added
 
 - Swipe sideways on the iPhone's Today to read earlier days, and tap Today to come back.

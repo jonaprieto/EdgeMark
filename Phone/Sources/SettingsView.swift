@@ -4,6 +4,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @State private var signingIn = false
+    @State private var openAIKey = ""
+    @State private var hasOpenAIKey = Keychain.get("openai-api-key") != nil
     @AppStorage(ThemeSetting.key) private var themeName = ""
     @AppStorage("brainstorm.model") private var modelName = "gpt-6.1-sol"
     @AppStorage("voice.language") private var language = VoiceLanguage.es
@@ -35,6 +37,14 @@ struct SettingsView: View {
     }
 
     private var model: PhoneModel { .shared }
+
+    private func keep(_ key: String) {
+        let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return }
+        Keychain.set("openai-api-key", key)
+        openAIKey = ""
+        hasOpenAIKey = true
+    }
 
     var body: some View {
         NavigationStack {
@@ -81,10 +91,37 @@ struct SettingsView: View {
                         Text("English").tag(VoiceLanguage.en)
                     }
                 }
-                Section("Brainstorm") {
+                Section {
+                    if hasOpenAIKey {
+                        LabeledContent("OpenAI key", value: "Saved")
+                        Button("Remove OpenAI Key", role: .destructive) {
+                            Keychain.remove("openai-api-key")
+                            hasOpenAIKey = false
+                        }
+                    } else {
+                        SecureField("Paste your OpenAI API key", text: $openAIKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .onSubmit { keep(openAIKey) }
+                            // A paste saves at once, so leaving the screen cannot lose it.
+                            .onChange(of: openAIKey) { if openAIKey.hasPrefix("sk-") { keep(openAIKey) } }
+                        Button("Save Key") { keep(openAIKey) }
+                            .disabled(openAIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
                     TextField("OpenAI model", text: $modelName)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .onChange(of: modelName, initial: true) {
+                            // A key pasted in the model's place: keep it as the key.
+                            if modelName.hasPrefix("sk-") {
+                                keep(modelName)
+                                modelName = "gpt-6.1-sol"
+                            }
+                        }
+                } header: {
+                    Text("Brainstorm")
+                } footer: {
+                    Text("The key stays in this iPhone's Keychain and goes only to OpenAI.")
                 }
                 if !model.calendars.all.isEmpty {
                     Section("Calendars") {
