@@ -127,6 +127,24 @@ public nonisolated enum Journal {
         return tag.contains(where: \.isLetter) ? "#\(tag)" : nil
     }
 
+    /// `text` cut into plain stretches and the tags in it, in order, by the same rule as
+    /// `Entry.tags`: what draws a tag as a badge.
+    public static func tagSpans(_ text: String) -> [(text: String, isTag: Bool)] {
+        var out: [(text: String, isTag: Bool)] = []
+        var plain = text.startIndex
+        for match in text.matches(of: tagPattern) {
+            let start = match.range.lowerBound
+            guard start == text.startIndex || text[text.index(before: start)].isWhitespace, tag(text[match.range]) != nil else { continue }
+            if plain < start { out.append((String(text[plain ..< start]), false)) }
+            out.append((String(text[match.range]), true))
+            plain = match.range.upperBound
+        }
+        if plain < text.endIndex { out.append((String(text[plain...]), false)) }
+        return out
+    }
+
+    private nonisolated(unsafe) static let tagPattern = try! Regex("#[\\w-]+")
+
     /// The tags of `entries`, each once, most used first. A tie goes to the one met first, so
     /// newest first when `entries` is: the Done buttons.
     public static func commonTags(_ entries: [Entry]) -> [String] {

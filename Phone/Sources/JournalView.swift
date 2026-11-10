@@ -31,7 +31,7 @@ struct JournalView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
                 ForEach(days.keys.sorted(by: >), id: \.self) { day in
-                    Section(day) {
+                    Section(Self.heading(day)) {
                         ForEach(days[day] ?? []) { row in
                             rowView(row).swipeActions {
                                 Button("Delete", systemImage: "trash", role: .destructive) { removing = row }
@@ -109,6 +109,13 @@ struct JournalView: View {
         }
     }
 
+    /// `2026-11-09` as `Mon 9 Nov`.
+    private static func heading(_ day: String) -> String {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3, let date = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])) else { return day }
+        return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+    }
+
     /// The search when it is a whole tag, which then finds only that tag: not `#casamiento` for `#casa`.
     private var pickedTag: String? {
         let typed = query.lowercased()
@@ -144,7 +151,7 @@ struct JournalView: View {
             NavigationLink(value: Route.note(entry.path)) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        if !entry.words.isEmpty { Text(entry.words) }
+                        if !entry.words.isEmpty { RichLine(words: entry.words) }
                         Text([entry.meal?.rawValue, entry.time, place?.place].compactMap(\.self).joined(separator: " · "))
                             .font(.caption).foregroundStyle(.secondary)
                     }

@@ -16,6 +16,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   Settings > Appearance.
 - Pick the same themes on the Mac from the appearance menu or General settings; Catppuccin
   code blocks keep their usual code colors on the theme's background.
+- Journal lines on the iPhone show their time, meal and #tags as badges, with a pin that opens
+  the place in Maps; a night's sleep, a todo's due date and `verbatim` text stand out too.
 
 ## 2.19.0 (2026-11-01)
 

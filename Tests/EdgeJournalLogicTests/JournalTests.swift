@@ -95,6 +95,12 @@ final class JournalTests: XCTestCase {
         XCTAssertEqual(Journal.commonTags(Journal.entries(in: text, path: "Journal/2026-11-09.md")), ["#work", "#personal", "#suma"])
     }
 
+    func testTagSpansMarkOnlyRealTags() {
+        let spans = Journal.tagSpans("Issue #4: la #Pizarra, del #trabajo-nuevo a#b")
+        XCTAssertEqual(spans.map { $0.isTag ? "[\($0.text)]" : $0.text }.joined(), "Issue #4: la [#Pizarra], del [#trabajo-nuevo] a#b")
+        XCTAssertTrue(Journal.tagSpans("").isEmpty)
+    }
+
     func testAChipAddsOrRemovesItsTag() {
         XCTAssertEqual(Journal.toggling("#work", in: "fixed sync "), "fixed sync #work")
         XCTAssertEqual(Journal.toggling("#work", in: ""), "#work")

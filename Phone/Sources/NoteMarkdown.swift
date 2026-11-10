@@ -31,7 +31,8 @@ struct NoteMarkdown: View {
             .markdownTheme(markdownTheme.code {
                 FontFamilyVariant(.monospaced)
                 FontSize(.em(0.9))
-                BackgroundColor(Color.primary.opacity(0.08))
+                ForegroundColor(Self.codeColor(theme))
+                BackgroundColor(Self.codeColor(theme).opacity(0.12))
             }.codeBlock { block in
                 CodeBlock(code: block.content.trimmingCharacters(in: .newlines), language: block.language ?? "")
                     .markdownMargin(top: 8, bottom: 12)
@@ -41,19 +42,60 @@ struct NoteMarkdown: View {
     }
 }
 
-/// A note you can act on: its text as Markdown, its tasks as checkboxes that write to the file.
+/// A note you can act on: its text as Markdown, its tasks as checkboxes that write to the file,
+/// and a day file's timed lines as rows with badges.
 struct NoteBody: View {
     let text: String
     let path: String
     var imageBase: URL?
 
+    private enum Piece {
+        case markdown(String)
+        case entry(Journal.Entry)
+        case sleep(Sleep)
+    }
+
+    /// `markdown` with each timed line and each night taken out as a row of its own.
+    private static func pieces(of markdown: String, entries: [String: Journal.Entry], nights: [String: Sleep]) -> [Piece] {
+        var out: [Piece] = []
+        var pending: [String] = []
+        func flush() {
+            let chunk = pending.joined(separator: "\n")
+            if !chunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { out.append(.markdown(chunk)) }
+            pending = []
+        }
+        for line in markdown.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
+            if let entry = entries[line] {
+                flush()
+                out.append(.entry(entry))
+            } else if let night = nights[line] {
+                flush()
+                out.append(.sleep(night))
+            } else {
+                pending.append(line)
+            }
+        }
+        flush()
+        return out
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            let shown = PlaceLine.annotated(text, path: path, lines: PhoneModel.shared.places)
-            ForEach(Array(TodoScan.segments(of: shown, path: path).enumerated()), id: \.offset) { _, segment in
+        let entries = Dictionary(Journal.entries(in: text, path: path).map { ("- \($0.time) \($0.text)", $0) }) { first, _ in first }
+        let nights = Dictionary(Sleep.entries(in: text).map { ($0.line, $0) }) { first, _ in first }
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(TodoScan.segments(of: text, path: path).enumerated()), id: \.offset) { _, segment in
                 switch segment {
                 case let .text(markdown):
-                    NoteMarkdown(markdown, imageBase: imageBase)
+                    ForEach(Array(Self.pieces(of: markdown, entries: entries, nights: nights).enumerated()), id: \.offset) { _, piece in
+                        switch piece {
+                        case let .markdown(chunk):
+                            NoteMarkdown(chunk, imageBase: imageBase)
+                        case let .entry(entry):
+                            EntryRow(entry: entry, place: PlaceLine.place(of: entry, in: PhoneModel.shared.places), imageBase: imageBase)
+                        case let .sleep(night):
+                            SleepRow(sleep: night)
+                        }
+                    }
                 case let .task(todo):
                     TaskRow(todo: todo, imageBase: imageBase)
                 }
@@ -82,7 +124,12 @@ struct TaskRow: View {
                 NoteMarkdown(todo.text, imageBase: imageBase)
                     .opacity(todo.done ? 0.5 : 1)
                 if let due = todo.dueLabel {
-                    Label(due, systemImage: todo.time == nil ? "calendar" : "bell").font(.caption).foregroundStyle(.secondary)
+                    Label(due, systemImage: todo.time == nil ? "calendar" : "bell")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.tint)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(.tint.opacity(0.14), in: Capsule())
                 }
             }
         }
