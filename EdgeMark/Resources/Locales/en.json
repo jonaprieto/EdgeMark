@@ -258,6 +258,8 @@
   "settings.appearance.system": "System",
   "settings.appearance.light": "Light",
   "settings.appearance.dark": "Dark",
+  "settings.appearance.theme": "Theme",
+  "settings.appearance.noTheme": "None",
 
   "settings.general.panelTint": "Panel tint",
   "settings.editor.section": "Editor",

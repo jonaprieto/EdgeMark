@@ -14,6 +14,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   token to copy from a Mac.
 - Pick Dracula or a Catppuccin flavor (Latte, Frappé, Macchiato, Mocha) in the iPhone's
   Settings > Appearance.
+- Pick the same themes on the Mac from the appearance menu or General settings; Catppuccin
+  code blocks keep their usual code colors on the theme's background.
 
 ## 2.19.0 (2026-11-01)
 

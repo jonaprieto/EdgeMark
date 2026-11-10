@@ -42,6 +42,16 @@ extension MermaidRenderer.Style {
             // Keep the family a plain CSS string: no quotes or syntax from a font name.
             .map { $0.filter { !"\"'\\;{}<>".contains($0) } }
         let fontFamily = family.map { "\"\($0)\", \(system)" } ?? system
+        if !lightOnly, let p = AppSettings.shared.colorTheme?.palette {
+            func css(_ hex: UInt32) -> String {
+                String(format: "#%06X", hex)
+            }
+            return MermaidRenderer.Style(theme: "base", fontFamily: fontFamily, variables: [
+                "background": css(p.background), "mainBkg": css(p.surface), "primaryColor": css(p.surface),
+                "secondaryColor": css(p.surface), "tertiaryColor": css(p.background), "primaryTextColor": css(p.text),
+                "textColor": css(p.text), "primaryBorderColor": css(p.accent), "nodeBorder": css(p.accent), "lineColor": css(p.muted),
+            ])
+        }
         return MermaidRenderer.Style(theme: isDark ? "dark" : "default", fontFamily: fontFamily)
     }
 }

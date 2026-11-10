@@ -241,6 +241,8 @@
   "settings.appearance.system": "跟随系统",
   "settings.appearance.light": "浅色",
   "settings.appearance.dark": "深色",
+  "settings.appearance.theme": "主题",
+  "settings.appearance.noTheme": "无",
 
   "settings.general.panelTint": "面板色调",
   "settings.editor.section": "编辑器",

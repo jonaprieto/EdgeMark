@@ -48,7 +48,14 @@ struct GeneralSettingsTab: View {
         Form {
             Section {
                 // Bound to the settings, not a copy, so the footer's menu shows here too.
-                Picker(l10n["settings.general.appearance"], selection: $settings.appearanceMode) {
+                // Picking System, Light or Dark takes off the color theme.
+                Picker(l10n["settings.general.appearance"], selection: Binding(
+                    get: { settings.appearanceMode },
+                    set: {
+                        settings.colorTheme = nil
+                        settings.appearanceMode = $0
+                    },
+                )) {
                     Text(l10n["settings.appearance.system"]).tag(AppSettings.AppearanceMode.system)
                     Text(l10n["settings.appearance.light"]).tag(AppSettings.AppearanceMode.light)
                     Text(l10n["settings.appearance.dark"]).tag(AppSettings.AppearanceMode.dark)
@@ -56,6 +63,11 @@ struct GeneralSettingsTab: View {
                 .pickerStyle(.segmented)
                 .fixedSize()
                 .labelsHidden()
+
+                Picker(l10n["settings.appearance.theme"], selection: $settings.colorTheme) {
+                    Text(l10n["settings.appearance.noTheme"]).tag(ColorTheme?.none)
+                    ForEach(ColorTheme.allCases, id: \.self) { Text($0.name).tag(ColorTheme?.some($0)) }
+                }
 
                 Picker(l10n["settings.general.panelStyle"], selection: $settings.panelStyle) {
                     ForEach(AppSettings.PanelStyle.allCases, id: \.self) { style in

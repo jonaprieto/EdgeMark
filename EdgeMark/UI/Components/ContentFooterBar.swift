@@ -80,8 +80,15 @@ struct ContentFooterBar: View {
         ]
         for (mode, key, icon) in modes {
             menu.addActionItem(title: l10n[key], icon: icon) { [settings] in
+                settings.colorTheme = nil
                 settings.appearanceMode = mode
-            }.state = settings.appearanceMode == mode ? .on : .off
+            }.state = settings.colorTheme == nil && settings.appearanceMode == mode ? .on : .off
+        }
+        menu.addItem(.separator())
+        for theme in ColorTheme.allCases {
+            menu.addActionItem(title: theme.name, icon: "paintpalette") { [settings] in
+                settings.colorTheme = theme
+            }.state = settings.colorTheme == theme ? .on : .off
         }
         popUpMenu(menu)
     }

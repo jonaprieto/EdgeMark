@@ -29,6 +29,8 @@ final class MermaidRenderer: NSObject {
         var theme: String
         /// CSS `font-family` list for labels.
         var fontFamily: String
+        /// Mermaid `themeVariables` over the base theme: a color theme's palette.
+        var variables: [String: String] = [:]
     }
 
     static let shared = MermaidRenderer(
@@ -78,7 +80,8 @@ final class MermaidRenderer: NSObject {
     // MARK: - Public API
 
     func key(code: String, style: Style) -> String {
-        MermaidText.cacheKey(code: code, theme: style.theme, fontFamily: style.fontFamily, version: version)
+        let palette = style.variables.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+        return MermaidText.cacheKey(code: code, theme: ([style.theme] + palette).joined(separator: ","), fontFamily: style.fontFamily, version: version)
     }
 
     /// The finished result for a diagram, from memory or the disk cache, or nil when it
@@ -257,7 +260,7 @@ final class MermaidRenderer: NSObject {
         securityLevel: 'strict',
         theme: theme,
         fontFamily: fontFamily,
-        themeVariables: { fontFamily: fontFamily },
+        themeVariables: Object.assign({ fontFamily: fontFamily }, variables),
         flowchart: { useMaxWidth: false },
         sequence: { useMaxWidth: false },
         class: { useMaxWidth: false },
@@ -297,6 +300,7 @@ final class MermaidRenderer: NSObject {
                     "code": code,
                     "theme": style.theme,
                     "fontFamily": style.fontFamily,
+                    "variables": style.variables,
                     "id": "mermaid-\(renderCount)",
                 ],
                 contentWorld: .page,

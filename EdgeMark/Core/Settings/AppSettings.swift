@@ -151,6 +151,20 @@ final class AppSettings {
         }
     }
 
+    /// A color theme over the appearance, nil for the system's colors. It sets light or dark
+    /// itself; picking System, Light or Dark clears it.
+    var colorTheme: ColorTheme? {
+        didSet {
+            UserDefaults.standard.set(colorTheme?.rawValue, forKey: "colorTheme")
+            applyAppearance()
+        }
+    }
+
+    /// Behind the panel: the theme's solid background, else the tint over the material.
+    var panelColor: NSColor? {
+        colorTheme.map { NSColor(hex: $0.palette.background) } ?? panelTint.color
+    }
+
     /// Whether the app launches at login.
     var launchAtLogin: Bool = false {
         didSet {
@@ -160,6 +174,10 @@ final class AppSettings {
     }
 
     func applyAppearance() {
+        if let colorTheme {
+            NSApp.appearance = NSAppearance(named: colorTheme.isDark ? .darkAqua : .aqua)
+            return
+        }
         switch appearanceMode {
         case .system:
             NSApp.appearance = nil
@@ -351,6 +369,7 @@ final class AppSettings {
         {
             appearanceMode = mode
         }
+        colorTheme = UserDefaults.standard.string(forKey: "colorTheme").flatMap(ColorTheme.init)
         launchAtLogin = UserDefaults.standard.object(forKey: "launchAtLogin") as? Bool ?? false
         if let raw = UserDefaults.standard.object(forKey: "spellCheckingEnabled") as? Bool {
             spellCheckingEnabled = raw
@@ -442,5 +461,12 @@ extension AppSettings.PanelStyle {
         case .translucent: l10n["settings.panelStyle.translucent"]
         case .opaque: l10n["settings.panelStyle.opaque"]
         }
+    }
+}
+
+extension NSColor {
+    convenience init(hex: UInt32) {
+        let c = ColorTheme.components(hex)
+        self.init(srgbRed: c.red, green: c.green, blue: c.blue, alpha: 1)
     }
 }

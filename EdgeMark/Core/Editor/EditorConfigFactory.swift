@@ -25,12 +25,32 @@ extension MarkdownEditorConfiguration {
         pinsLightAppearance: Bool = false,
     ) -> MarkdownEditorConfiguration {
         let preset = AppSettings.shared.taskCheckboxPreset
-        let highlighter = if let mono = AppSettings.shared.editorMonoFontName {
-            HighlighterSwiftBridge(autoSwitchAppearance: !pinsLightAppearance, preferredFontNames: [mono])
-        } else {
-            HighlighterSwiftBridge(autoSwitchAppearance: !pinsLightAppearance)
-        }
+        // Paper stays light, so the PDF export wears no theme.
+        let theme = pinsLightAppearance ? nil : AppSettings.shared.colorTheme
+        let surface = theme.map { NSColor(hex: $0.palette.surface) }
+        // ponytail: HighlighterSwift bundles dracula.css but no Catppuccin; those keep atom-one
+        // code colors on their own surface. Bundling a style needs the engine to accept one.
+        let style = theme == .dracula ? "dracula" : nil
+        let highlighter = HighlighterSwiftBridge(
+            lightTheme: style ?? "atom-one-light",
+            darkTheme: style ?? "atom-one-dark",
+            autoSwitchAppearance: !pinsLightAppearance,
+            lightBackground: surface ?? NSColor(calibratedWhite: 0.95, alpha: 1.0),
+            darkBackground: surface ?? NSColor(calibratedWhite: 0.13, alpha: 1.0),
+            preferredFontNames: AppSettings.shared.editorMonoFontName.map { [$0] } ?? ["SF Mono", "Menlo"],
+        )
         var config = MarkdownEditorConfiguration.default
+        if let p = theme?.palette {
+            config.theme = MarkdownEditorTheme(
+                bodyText: NSColor(hex: p.text),
+                mutedText: NSColor(hex: p.muted),
+                headingMarker: NSColor(hex: p.accent),
+                link: NSColor(hex: p.link),
+                strikethroughColor: NSColor(hex: p.muted),
+                highlightColor: NSColor(hex: p.type).withAlphaComponent(0.35),
+                inlineCodeBackground: NSColor(hex: p.surface),
+            )
+        }
         config.textInsets = TextInsets(horizontal: 16, vertical: 12)
         // Register highlight (==text==) and strikethrough (~~text~~). Opt-in since
         // swift-markdown-engine 0.10; without this, the markers render as literal text.
@@ -77,6 +97,7 @@ struct EditorRebuildKey: Hashable {
     let checkboxPreset: AppSettings.TaskCheckboxPreset
     let fontSize: Double
     let monoFontName: String?
+    let colorTheme: ColorTheme?
 
     static var current: EditorRebuildKey {
         let settings = AppSettings.shared
@@ -84,6 +105,7 @@ struct EditorRebuildKey: Hashable {
             checkboxPreset: settings.taskCheckboxPreset,
             fontSize: settings.editorFontSize,
             monoFontName: settings.editorMonoFontName,
+            colorTheme: settings.colorTheme,
         )
     }
 }

@@ -241,6 +241,8 @@
   "settings.appearance.system": "सिस्टम",
   "settings.appearance.light": "लाइट",
   "settings.appearance.dark": "डार्क",
+  "settings.appearance.theme": "थीम",
+  "settings.appearance.noTheme": "कोई नहीं",
 
   "settings.general.panelTint": "पैनल टिंट",
   "settings.editor.section": "एडिटर",
