@@ -2,6 +2,7 @@ import EventKit
 import SwiftUI
 
 struct SettingsView: View {
+    @State private var signingIn = false
     @AppStorage("brainstorm.model") private var modelName = "gpt-6.1-sol"
     @AppStorage("voice.language") private var language = VoiceLanguage.es
     @AppStorage("sleep.bedReminder") private var bedReminder = false
@@ -37,13 +38,17 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("Sync") {
-                    LabeledContent("Repository", value: PhoneModel.repository)
+                    LabeledContent("Repository", value: PhoneModel.repository.isEmpty ? "None" : PhoneModel.repository)
                     if let last = model.lastSync {
                         LabeledContent("Last sync", value: last.formatted(date: .omitted, time: .shortened))
                     }
                     if !model.status.isEmpty { Text(model.status).font(.caption) }
                     Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { Task { await model.sync() } }
                         .disabled(model.syncing)
+                    Button(model.isSignedIn ? "Change Repository" : "Sign in with GitHub", systemImage: "person.badge.key") { signingIn = true }
+                    if model.isSignedIn {
+                        Button("Sign Out of GitHub", role: .destructive) { model.signOut() }
+                    }
                 }
                 Section("About") {
                     LabeledContent("Version", value: PhoneModel.version)
@@ -101,6 +106,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .sheet(isPresented: $signingIn) { SignInView() }
         }
     }
 }

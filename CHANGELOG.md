@@ -10,6 +10,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 - Swipe sideways on the iPhone's Today to read earlier days, and tap Today to come back.
 - Log what you did on the iPhone with Done, tagged #work, #personal or a project, with your
   most used tags one tap away; Journal lists them under Done.
+- Sign in with GitHub on the iPhone and pick the private repository for your notes, with no
+  token to copy from a Mac.
 
 ## 2.19.0 (2026-11-01)
 

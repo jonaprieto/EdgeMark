@@ -21,6 +21,17 @@ final class NotesMirrorTests: XCTestCase {
         XCTAssertEqual(GitBlob.sha(Data("hello\n".utf8)), "ce013625030ba8dba906f756967f9e9ca394464a")
     }
 
+    func testClearEmptiesTheCopyAndForgetsTheSync() throws {
+        let mirror = try makeMirror()
+        try mirror.write(Data("a".utf8), to: "Folder/Note.md")
+        var base = SyncBase()
+        base.commit = "abc"
+        try mirror.saveBase(base)
+        try mirror.clear()
+        XCTAssertEqual(try mirror.paths(), [])
+        XCTAssertEqual(mirror.loadBase(), SyncBase())
+    }
+
     func testListsNestedAndHiddenFiles() throws {
         let mirror = try makeMirror()
         try mirror.write(Data("a".utf8), to: "Note.md")

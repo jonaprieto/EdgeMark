@@ -90,6 +90,15 @@ public struct NotesMirror: Sendable {
         try remove(path)
     }
 
+    /// Empties the copy and forgets the last sync: for another repository, which must not get
+    /// these files as new ones. GitHub keeps them.
+    public func clear() throws {
+        for path in try paths() {
+            try remove(path)
+        }
+        try saveBase(SyncBase())
+    }
+
     public func modified(_ path: String) -> Date? {
         (try? url(for: path)).flatMap { try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate }
     }

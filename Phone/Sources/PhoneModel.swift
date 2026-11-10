@@ -22,15 +22,23 @@ struct PhoneNote: Identifiable, Hashable {
 @MainActor @Observable
 final class PhoneModel {
     static let shared = PhoneModel()
-    // ponytail: one user, one repo. Move to Settings if that ever changes.
-    /// `owner/name`, set by `scripts/phone.sh`, so no repository is written in the code.
-    static let repository = Bundle.main.object(forInfoDictionaryKey: "EdgeMarkNotesRepository") as? String ?? ""
+    /// `owner/name`: the one picked after signing in, else the one `scripts/phone.sh` built in.
+    static var repository: String {
+        UserDefaults.standard.string(forKey: "sync.repository") ?? Bundle.main.object(forInfoDictionaryKey: "EdgeMarkNotesRepository") as? String ?? ""
+    }
+
+    /// The EdgeMark GitHub App, which signs in with device flow. Both are public.
+    static let gitHubClientID = "Iv23ligZdKywSARDDV4j"
+    static let gitHubAppSlug = "edgemarknotes"
 
     private(set) var notes: [PhoneNote] = []
     private(set) var status = ""
     private(set) var lastSync: Date?
     private(set) var held: [String: [String]] = [:]
     private(set) var syncing = false
+    /// Signed in on this phone, rather than handed a token by `scripts/phone.sh`.
+    private(set) var isSignedIn = Keychain.get("github-login") != nil
+    private var renewal: Task<String?, Never>?
     /// The last sync could not run or failed; `status` says why.
     private(set) var syncFailed = false
     /// The last write to a note failed. Kept apart from `status`, which a sync overwrites.
@@ -271,11 +279,12 @@ final class PhoneModel {
     /// does not cut it off, and the cached copy stays readable offline.
     func refreshGists() async {
         guard !refreshingGists, let gistCache else { return }
-        guard let token = Keychain.get("github-token") else {
-            gistError = "No GitHub token on this phone"
+        refreshingGists = true
+        guard let token = await gitHubToken() else {
+            gistError = "No GitHub sign-in on this phone"
+            refreshingGists = false
             return
         }
-        refreshingGists = true
         await Task {
             defer { refreshingGists = false }
             do {
@@ -548,13 +557,17 @@ final class PhoneModel {
         guard !syncing, let mirror, inBackground || editing == nil else { return }
         // Locked: the files are unreadable, and the next foreground syncs anyway.
         guard UIApplication.shared.isProtectedDataAvailable else { return }
-        guard let token = Keychain.get("github-token") else {
-            status = "Sync is off: no GitHub token on this phone"
+        syncing = true
+        defer { syncing = false }
+        guard !Self.repository.isEmpty else {
+            status = "Sync is off: pick a notes repository in Settings > Sync"
             syncFailed = true
             return
         }
-        syncing = true
-        defer { syncing = false }
+        guard let token = await gitHubToken() else {
+            syncFailed = true
+            return
+        }
         let jevKey = Keychain.get("typesafe-api-key")
         let allowed = allowed
         let sync = TreeSync(repo: GitHubRepo(repository: Self.repository, token: token), mirror: mirror) { items in
@@ -573,6 +586,66 @@ final class PhoneModel {
             syncFailed = true
         }
         refresh()
+    }
+
+    /// The token to call GitHub with. Signed in, it is renewed first once its 8 hours run out,
+    /// once for every caller, since GitHub retires a refresh token on use. Otherwise it is the
+    /// one `scripts/phone.sh` handed over, which never expires. Nil leaves the reason in `status`.
+    func gitHubToken() async -> String? {
+        guard let login = Keychain.get("github-login").flatMap({ try? JSONDecoder().decode(GitHubLogin.Tokens.self, from: Data($0.utf8)) }) else {
+            let token = Keychain.get("github-token")
+            if token == nil { status = "Sync is off: sign in to GitHub in Settings > Sync" }
+            return token
+        }
+        guard login.stale(at: Date()) else { return login.access }
+        if let renewal { return await renewal.value }
+        let task = Task<String?, Never> {
+            do {
+                let fresh = try await GitHubLogin(clientID: Self.gitHubClientID).refresh(login)
+                keep(fresh)
+                return fresh.access
+            } catch GitHubLogin.Failure.expired {
+                status = "The GitHub sign-in ran out: sign in again in Settings > Sync"
+            } catch {
+                status = "\(error)"
+            }
+            return nil
+        }
+        renewal = task
+        defer { renewal = nil }
+        return await task.value
+    }
+
+    func keep(_ tokens: GitHubLogin.Tokens) {
+        guard let data = try? JSONEncoder().encode(tokens) else { return }
+        Keychain.set("github-login", String(decoding: data, as: UTF8.self))
+        Keychain.set("github-token", tokens.access)
+        isSignedIn = true
+    }
+
+    /// Forgets the tokens. The notes and the repository choice stay, so signing in again
+    /// carries on where this left off.
+    func signOut() {
+        Keychain.remove("github-login")
+        Keychain.remove("github-token")
+        isSignedIn = false
+    }
+
+    /// Moves sync to `repository`. Leaving another one syncs it first, then empties the phone's
+    /// copy, so no note crosses over into the new one. Nil when it worked, else why not.
+    func use(_ repository: String) async -> String? {
+        let current = Self.repository
+        if !current.isEmpty, repository != current, let mirror, !((try? mirror.paths()) ?? []).isEmpty {
+            guard !syncing else { return "A sync is running; try again in a moment" }
+            await sync()
+            guard !syncFailed, held.isEmpty else {
+                return "Not every note on this phone has reached \(current), so it stays. \(status)"
+            }
+            do { try mirror.clear() } catch { return "\(error)" }
+        }
+        UserDefaults.standard.set(repository, forKey: "sync.repository")
+        refresh()
+        return nil
     }
 
     /// What a finished sync must tell you. A held note has not left the phone, whatever else went well.
