@@ -48,15 +48,14 @@ struct TodayView: View {
             .accessibilityAction(named: "Previous day") { step(-1) }
             .accessibilityAction(named: "Next day") { step(1) }
             .navigationTitle(isToday ? "Today" : day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+            // The title shares its row with the buttons, so the day starts higher up.
+            .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable { await model.sync() }
             .toolbar {
-                ToolbarItemGroup(placement: .topBarLeading) {
-                    Button("Settings", systemImage: "gearshape") { showSettings = true }
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     if !isToday {
                         Button("Today") { withAnimation { offset = 0 } }
                     }
-                }
-                ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink(value: "places") { Label("Places", systemImage: "map") }
                     Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
                     if isToday || !model.text(of: path).isEmpty {
@@ -65,6 +64,8 @@ struct TodayView: View {
                             editing = true
                         }
                     }
+                    Button("Settings", systemImage: "gearshape") { showSettings = true }
+                        .imageScale(.small)
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
