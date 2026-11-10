@@ -5,6 +5,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+## 2.20.0 (2026-11-10)
+
 ### Changed
 
 - The iPhone's Today title sits on the same row as its buttons, with Settings at the top right.
