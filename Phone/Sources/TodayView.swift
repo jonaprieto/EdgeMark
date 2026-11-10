@@ -10,61 +10,27 @@ struct TodayView: View {
     @AppStorage(SleepTracker.bedKey) private var bedAt = 0.0
     @State private var showSettings = false
     @State private var leaving = false
+    /// Days back from today: 0 is today, so midnight needs no handling.
+    @State private var offset = 0
 
     private var model: PhoneModel { .shared }
-    private var path: String { Journal.path(for: Date()) }
+    private var day: Date { Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date() }
+    private var isToday: Bool { offset == 0 }
+    private var path: String { Journal.path(for: day) }
 
     var body: some View {
         let _ = model.revision
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 8) {
-                        let inBed = SleepTracker.inBed(since: bedAt) != nil
-                        tile(inBed ? "Awake" : "Sleep", inBed ? "sunrise" : "moon.zzz") { capture = SleepTracker.capture }
-                        addButton("Meal", "fork.knife", .meal)
-                        addButton("Idea", "lightbulb", .idea)
-                        addButton("Todo", "checkmark.square", .todo)
-                        tile("Remind", "bell") { capture = CaptureRequest(kind: .todo, remind: true) }
-                        PhotoMenu(onPhotos: addPhotos) { tileLabel("Photo", "camera") }
-                    }
-                    // Not a seventh tile: the row would no longer fit its labels on the smallest iPhone.
-                    Button { leaving = true } label: {
-                        Label("For tomorrow", systemImage: "sunrise")
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .foregroundStyle(.tint)
-                            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    ForEach(model.leftForTomorrow) { entry in
-                        NavigationLink(value: Route.note(entry.path)) {
-                            Label(entry.words, systemImage: "sunrise").font(.subheadline).lineLimit(2)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if model.notificationsOff {
-                        Label("Notifications are off, so reminders will not ring.", systemImage: "bell.slash").font(.subheadline).foregroundStyle(.red)
-                    }
+                    // Captures go to today only, so none lands in a past day by mistake.
+                    if isToday { capturePanel }
                     if let error = model.saveError {
                         Text(error).foregroundStyle(.red)
                     }
-                    if let bed = SleepTracker.inBed(since: bedAt) {
-                        Label("In bed since \(Journal.time(bed))", systemImage: "bed.double").font(.subheadline).foregroundStyle(.secondary)
-                    } else if let summary = model.sleepSummary {
-                        Label(summary, systemImage: "moon.zzz").font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    ForEach(soon) { reminder in
-                        NavigationLink(value: Route.note(reminder.path)) {
-                            Label("\(WidgetSnapshot.when(reminder.date))  \(reminder.title)", systemImage: "bell")
-                                .font(.subheadline).lineLimit(1)
-                        }
-                        .buttonStyle(.plain)
-                    }
                     let text = model.text(of: path)
                     if text.isEmpty {
-                        Text("Nothing yet today.").foregroundStyle(.secondary)
+                        Text(isToday ? "Nothing yet today." : "Nothing on this day.").foregroundStyle(.secondary)
                     } else {
                         NoteBody(text: text, path: path, imageBase: model.folderURL(of: path))
                     }
@@ -72,18 +38,31 @@ struct TodayView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
             }
-            .navigationTitle("Today")
+            .contentShape(Rectangle())
+            .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { drag in
+                let x = drag.translation.width
+                guard abs(x) > 60, abs(x) > 2 * abs(drag.translation.height) else { return }
+                step(x > 0 ? -1 : 1)
+            })
+            .accessibilityAction(named: "Previous day") { step(-1) }
+            .accessibilityAction(named: "Next day") { step(1) }
+            .navigationTitle(isToday ? "Today" : day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
             .refreshable { await model.sync() }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItemGroup(placement: .topBarLeading) {
                     Button("Settings", systemImage: "gearshape") { showSettings = true }
+                    if !isToday {
+                        Button("Today") { withAnimation { offset = 0 } }
+                    }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink(value: "places") { Label("Places", systemImage: "map") }
                     Button("Brainstorm", systemImage: "sparkles") { brainstorming = true }
-                    Button("Edit", systemImage: "square.and.pencil") {
-                        model.startToday()
-                        editing = true
+                    if isToday || !model.text(of: path).isEmpty {
+                        Button("Edit", systemImage: "square.and.pencil") {
+                            if isToday { model.startToday() }
+                            editing = true
+                        }
                     }
                 }
             }
@@ -95,6 +74,47 @@ struct TodayView: View {
             .navigationDestination(for: Route.self) { route in
                 if case let .note(note) = route { NoteView(path: note) }
             }
+        }
+    }
+
+    /// A swipe moves a day, never past today.
+    private func step(_ days: Int) {
+        withAnimation { offset = min(0, offset + days) }
+    }
+
+    /// Tiles, reminders and sleep: what only today shows.
+    @ViewBuilder private var capturePanel: some View {
+        HStack(spacing: 8) {
+            let inBed = SleepTracker.inBed(since: bedAt) != nil
+            tile(inBed ? "Awake" : "Sleep", inBed ? "sunrise" : "moon.zzz") { capture = SleepTracker.capture }
+            addButton("Meal", "fork.knife", .meal)
+            addButton("Idea", "lightbulb", .idea)
+            addButton("Todo", "checkmark.square", .todo)
+            tile("Remind", "bell") { capture = CaptureRequest(kind: .todo, remind: true) }
+            PhotoMenu(onPhotos: addPhotos) { tileLabel("Photo", "camera") }
+        }
+        // Not a seventh tile: the row would no longer fit its labels on the smallest iPhone.
+        bar("For tomorrow", "sunrise") { leaving = true }
+        ForEach(model.leftForTomorrow) { entry in
+            NavigationLink(value: Route.note(entry.path)) {
+                Label(entry.words, systemImage: "sunrise").font(.subheadline).lineLimit(2)
+            }
+            .buttonStyle(.plain)
+        }
+        if model.notificationsOff {
+            Label("Notifications are off, so reminders will not ring.", systemImage: "bell.slash").font(.subheadline).foregroundStyle(.red)
+        }
+        if let bed = SleepTracker.inBed(since: bedAt) {
+            Label("In bed since \(Journal.time(bed))", systemImage: "bed.double").font(.subheadline).foregroundStyle(.secondary)
+        } else if let summary = model.sleepSummary {
+            Label(summary, systemImage: "moon.zzz").font(.subheadline).foregroundStyle(.secondary)
+        }
+        ForEach(soon) { reminder in
+            NavigationLink(value: Route.note(reminder.path)) {
+                Label("\(WidgetSnapshot.when(reminder.date))  \(reminder.title)", systemImage: "bell")
+                    .font(.subheadline).lineLimit(1)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -112,6 +132,19 @@ struct TodayView: View {
     private func addPhotos(_ photos: [UIImage]) {
         let images = photos.compactMap { model.attach($0, to: path) }
         if !images.isEmpty { model.capture(images.joined(separator: " "), kind: .idea, due: nil) }
+    }
+
+    /// A full-width button under the tiles.
+    private func bar(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.medium))
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .foregroundStyle(.tint)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func tile(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {

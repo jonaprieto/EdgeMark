@@ -5,6 +5,10 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
 
 ## Unreleased
 
+### Added
+
+- Swipe sideways on the iPhone's Today to read earlier days, and tap Today to come back.
+
 ## 2.19.0 (2026-11-01)
 
 ### Added
