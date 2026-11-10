@@ -40,6 +40,7 @@ struct AddMeetingSheet: View {
                     if !photos.isEmpty { PhotoStrip(photos: photos) }
                 }
             }
+            .themedBackground()
             .navigationTitle("New Meeting")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

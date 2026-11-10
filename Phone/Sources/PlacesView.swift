@@ -98,6 +98,7 @@ struct PlacesView: View {
                     row(pin)
                 }
             }
+            .themedBackground()
         }
         .navigationTitle("Places")
         .navigationBarTitleDisplayMode(.inline)

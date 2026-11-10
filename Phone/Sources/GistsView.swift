@@ -25,6 +25,7 @@ struct GistsView: View {
                 }
             }
         }
+        .themedBackground()
         .overlay {
             if model.gists.isEmpty {
                 if model.refreshingGists {
@@ -55,6 +56,7 @@ struct GistFilesView: View {
         List(gist?.files ?? [], id: \.self) { name in
             NavigationLink(name, value: Route.gistFile("\(id)/\(name)"))
         }
+        .themedBackground()
         .navigationTitle(gist?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -86,6 +88,7 @@ struct GistFileView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                 }
+                .themedBackground()
             }
         }
         .navigationTitle(name)

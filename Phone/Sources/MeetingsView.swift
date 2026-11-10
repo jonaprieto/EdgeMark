@@ -92,6 +92,7 @@ struct MeetingsView: View {
                     Section {} footer: { Text(sources) }
                 }
             }
+            .themedBackground()
             .overlay {
                 if model.meetings.isEmpty, model.calendars.isDenied {
                     ContentUnavailableView("No meetings", systemImage: "calendar", description: Text("Calendar access is off in Settings."))

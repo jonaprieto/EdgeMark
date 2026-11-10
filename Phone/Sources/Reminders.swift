@@ -196,6 +196,7 @@ struct ReminderSheet: View {
                     }
                 }
             }
+            .themedBackground()
             .navigationTitle("Remind Me")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

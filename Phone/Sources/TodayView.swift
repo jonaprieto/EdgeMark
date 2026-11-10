@@ -38,6 +38,7 @@ struct TodayView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding()
             }
+            .themedBackground()
             .contentShape(Rectangle())
             .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { drag in
                 let x = drag.translation.width
@@ -144,7 +145,7 @@ struct TodayView: View {
                 .font(.subheadline.weight(.medium))
                 .frame(maxWidth: .infinity, minHeight: 40)
                 .foregroundStyle(.tint)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                .background(Surface(), in: RoundedRectangle(cornerRadius: 14))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -162,7 +163,7 @@ struct TodayView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 64)
         .foregroundStyle(.tint)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+        .background(Surface(), in: RoundedRectangle(cornerRadius: 14))
         .contentShape(Rectangle())
     }
 }
@@ -182,6 +183,7 @@ private struct TomorrowSheet: View {
                     .focused($focused)
                 MicButton(dictation: dictation, text: $text)
             }
+            .themedBackground()
             .navigationTitle("For Tomorrow")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

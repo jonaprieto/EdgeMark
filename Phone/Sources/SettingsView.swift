@@ -1,8 +1,10 @@
+import EdgeStorageLogic
 import EventKit
 import SwiftUI
 
 struct SettingsView: View {
     @State private var signingIn = false
+    @AppStorage(ThemeSetting.key) private var themeName = ""
     @AppStorage("brainstorm.model") private var modelName = "gpt-6.1-sol"
     @AppStorage("voice.language") private var language = VoiceLanguage.es
     @AppStorage("sleep.bedReminder") private var bedReminder = false
@@ -48,6 +50,12 @@ struct SettingsView: View {
                     Button(model.isSignedIn ? "Change Repository" : "Sign in with GitHub", systemImage: "person.badge.key") { signingIn = true }
                     if model.isSignedIn {
                         Button("Sign Out of GitHub", role: .destructive) { model.signOut() }
+                    }
+                }
+                Section("Appearance") {
+                    Picker("Theme", selection: $themeName) {
+                        Text("System").tag("")
+                        ForEach(ColorTheme.allCases, id: \.self) { Text($0.name).tag($0.rawValue) }
                     }
                 }
                 Section("About") {
@@ -105,6 +113,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .themedBackground()
             .navigationTitle("Settings")
             .sheet(isPresented: $signingIn) { SignInView() }
         }

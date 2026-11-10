@@ -40,6 +40,7 @@ struct NoteView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
                 }
+                .themedBackground()
             }
         }
         .navigationTitle(model.note(path)?.title ?? "")

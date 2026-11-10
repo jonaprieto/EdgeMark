@@ -105,6 +105,7 @@ struct CaptureSheet: View {
                     }
                 }
             }
+            .themedBackground()
             .navigationTitle(rings ? "New Reminder" : "Capture")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

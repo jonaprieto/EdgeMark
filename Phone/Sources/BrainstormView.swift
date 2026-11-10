@@ -40,6 +40,7 @@ struct BrainstormView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                 }
+                .themedBackground()
                 Divider()
                 VStack {
                     TextField("Ask", text: $draft, axis: .vertical).lineLimit(1 ... 5)

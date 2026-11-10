@@ -20,6 +20,7 @@ struct NewNoteSheet: View {
                     Toggle("Private", isOn: $isPrivate)
                 }
             }
+            .themedBackground()
             .navigationTitle("New Note")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

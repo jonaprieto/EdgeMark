@@ -68,6 +68,7 @@ struct SignInView: View {
                     }
                 }
             }
+            .themedBackground()
             .navigationTitle("GitHub")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

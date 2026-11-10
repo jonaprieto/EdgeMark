@@ -8,15 +8,27 @@ struct NoteMarkdown: View {
     var imageBase: URL?
 
     @ScaledMetric(relativeTo: .body) private var mathSize: CGFloat = 17
+    @Environment(\.colorTheme) private var theme
 
     init(_ text: String, imageBase: URL? = nil) {
         self.text = text
         self.imageBase = imageBase
     }
 
+    /// GitHub's, in the picked theme's ink and links when there is one.
+    private var markdownTheme: Theme {
+        guard let p = theme?.palette else { return Theme.gitHub.text { BackgroundColor(nil) } }
+        return Theme.gitHub.text {
+            ForegroundColor(Color(hex: p.text))
+            BackgroundColor(nil)
+        }.link {
+            ForegroundColor(Color(hex: p.link))
+        }
+    }
+
     var body: some View {
         Markdown(MathMarkdown.rewrite(text), imageBaseURL: imageBase)
-            .markdownTheme(Theme.gitHub.text { BackgroundColor(nil) }.code {
+            .markdownTheme(markdownTheme.code {
                 FontFamilyVariant(.monospaced)
                 FontSize(.em(0.9))
                 BackgroundColor(Color.primary.opacity(0.08))
@@ -83,8 +95,21 @@ struct CodeBlock: View {
     let code: String
     let language: String
 
+    @Environment(\.colorTheme) private var theme
+
     private func color(_ role: TokenRole) -> Color {
-        switch role {
+        if let p = theme?.palette {
+            let hex = switch role {
+            case .comment: p.comment
+            case .string: p.string
+            case .number: p.number
+            case .keyword: p.keyword
+            case .type: p.type
+            case .function: p.function
+            }
+            return Color(hex: hex)
+        }
+        return switch role {
         case .comment: .secondary
         case .string: .red
         case .number: .orange
@@ -113,7 +138,7 @@ struct CodeBlock: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 8))
+                .background(Surface(), in: RoundedRectangle(cornerRadius: 8))
         }
     }
 }

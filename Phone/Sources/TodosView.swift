@@ -131,6 +131,7 @@ struct TodosView: View {
                     }
                 }
             }
+            .themedBackground()
             .overlay {
                 if order == .reminders, model.reminders.isEmpty, model.sleepPrompts.isEmpty {
                     ContentUnavailableView("No reminders", systemImage: "bell", description: Text("Tap + to add one, or use the bell on a note."))
@@ -224,6 +225,7 @@ struct TodosView: View {
                     }
                 }
             }
+            .themedBackground()
             .navigationTitle(todo.text)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

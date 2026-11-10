@@ -40,6 +40,7 @@ struct JournalView: View {
                     }
                 }
             }
+            .themedBackground()
             .overlay {
                 if listed.isEmpty, sealed.isEmpty {
                     if showsMeals {

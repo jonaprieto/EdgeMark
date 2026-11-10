@@ -19,7 +19,7 @@ let package = Package(
     targets: [
         .target(name: "EdgeSync", path: "EdgeMark/Core/Sync", exclude: phone ? gitOnly : []),
         .testTarget(name: "EdgeSyncTests", dependencies: ["EdgeSync"], path: "Tests/EdgeSyncTests"),
-        .target(name: "EdgeStorageLogic", path: "EdgeMark/Core/Storage", sources: ["ImageCleanup.swift", "NoteText.swift", "NoteComplexity.swift", "GistTextFile.swift", "FileTypeStyle.swift", "NoteListBackgroundMenu.swift", "MermaidText.swift", "SyntaxLanguage.swift", "ListSelection.swift", "ListOrder.swift", "GistTrash.swift", "EncryptedFileName.swift", "EncryptedTags.swift"]),
+        .target(name: "EdgeStorageLogic", path: "EdgeMark/Core/Storage", sources: ["ImageCleanup.swift", "NoteText.swift", "NoteComplexity.swift", "GistTextFile.swift", "FileTypeStyle.swift", "NoteListBackgroundMenu.swift", "MermaidText.swift", "SyntaxLanguage.swift", "ListSelection.swift", "ListOrder.swift", "GistTrash.swift", "EncryptedFileName.swift", "EncryptedTags.swift", "ColorTheme.swift"]),
         .testTarget(
             name: "EdgeStorageLogicTests",
             dependencies: ["EdgeStorageLogic"],

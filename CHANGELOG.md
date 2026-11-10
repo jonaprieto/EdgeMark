@@ -12,6 +12,8 @@ same commit. Releases before 2.13.2 are on the GitHub Releases page.
   most used tags one tap away; Journal lists them under Done.
 - Sign in with GitHub on the iPhone and pick the private repository for your notes, with no
   token to copy from a Mac.
+- Pick Dracula or a Catppuccin flavor (Latte, Frappé, Macchiato, Mocha) in the iPhone's
+  Settings > Appearance.
 
 ## 2.19.0 (2026-11-01)
 

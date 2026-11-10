@@ -102,7 +102,7 @@ struct Thumbnail: View {
             if let image {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
-                Color(.secondarySystemBackground)
+                Rectangle().fill(Surface())
             }
         }
         .frame(width: 64, height: 64)

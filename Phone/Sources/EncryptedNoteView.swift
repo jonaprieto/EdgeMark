@@ -31,6 +31,7 @@ struct EncryptedNoteView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
                 }
+                .themedBackground()
             } else {
                 ContentUnavailableView {
                     Label("Encrypted note", systemImage: "lock")

@@ -107,6 +107,7 @@ struct NotesList: View {
                 Section {} footer: { syncFooter }
             }
         }
+        .themedBackground()
         .overlay {
             if model.notes.isEmpty {
                 ContentUnavailableView {
